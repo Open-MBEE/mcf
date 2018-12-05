@@ -1,0 +1,47 @@
+{
+  "name": "mbee",
+  "version": "0.6.0",
+  "build": "NO_BUILD_NUMBER",
+  "description": "Model-Based Engineering Environment",
+  "main": "mbee.js",
+  "repository": "https://github.com/lmco/mbee.git",
+  "author": "Lockheed Martin",
+  "license": "MIT",
+  "private": true,
+  "dependencies": {
+    "body-parser": "^1.18.3",
+    "connect-mongo": "^2.0.1",
+    "ejs": "^2.5.7",
+    "express": "^4.16.4",
+    "express-ejs-layouts": "^2.4.0",
+    "express-flash": "^0.0.2",
+    "express-session": "^1.15.6",
+    "ldapjs": "^1.0.2",
+    "mongoose": "^5.2.17",
+    "request": "^2.86.0",
+    "swagger-jsdoc": "^1.9.7",
+    "uuid": "^3.3.2",
+    "winston": "^3.0.0",
+    "yarn": "^1.9.4"
+  },
+  "devDependencies": {
+    "bootstrap": "^4.0.0",
+    "chai": "^4.1.2",
+    "eslint": "^5.9.0",
+    "gulp": "^4.0.0",
+    "gulp-sass": "^4.0.1",
+    "jquery": "^3.3.1",
+    "jsdoc": "^3.5.5",
+    "mocha": "^5.2.0",
+    "mocha-junit-reporter": "^1.17.0",
+    "popper.js": "^1.12.9",
+    "swagger-ui-express": "^2.0.15"
+  },
+  "scripts": {
+    "build": "node mbee build",
+    "clean": "node mbee clean",
+    "lint": "node mbee lint",
+    "start": "node mbee start",
+    "test": "node mbee test"
+  }
+}

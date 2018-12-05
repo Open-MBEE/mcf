@@ -1,0 +1,26 @@
+<%
+/**
+ * Classification: UNCLASSIFIED
+ *
+ * @module views._includes.banner-footer
+ *
+ * @copyright Copyright (C) 2018, Lockheed Martin Corporation
+ *
+ * @license MIT
+ *
+ * @description The UI footer.
+ */
+ %>
+<footer style="position: fixed;
+                  bottom: 0px;
+                  z-index: 1000;
+                  width: 100%;
+                  height: 24px;
+                  text-align: center;
+                  font-size: 14px;
+                  color: <%= ui.banner.color || "#333" %>;
+                  background: <%= ui.banner.background || "#fff" %>;
+                  font-weight: <%= (ui.banner.bold) ? "bold":"normal"%>;
+                  border-top: <%= (ui.banner.border) || "none" %>;
+                  "><%= ui.banner.message %></footer>
+<footer style="width: 100%; height: 24px;"></footer>
