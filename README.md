@@ -96,3 +96,6 @@ It can be viewed at the `/doc/developer` route on a running MBEE server.
 ### User Documentation
 This is currently under development and will be made available in an upcoming
 release.
+
+## Public Release Info
+Approved for public release per PIRA #SSS201809050.
