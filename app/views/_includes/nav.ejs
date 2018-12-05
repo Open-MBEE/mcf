@@ -1,0 +1,89 @@
+<%
+/**
+ * Classification: UNCLASSIFIED
+ *
+ * @module views._includes.nav
+ *
+ * @copyright Copyright (C) 2018, Lockheed Martin Corporation
+ *
+ * @license MIT
+ *
+ * @description The navbar used across views.
+ */
+ %>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+
+    <a class="navbar-brand" href="/">
+      <img src="/img/logo.png" height="40" alt="">
+      <span>
+        Model-Based Engineering Environment
+      </span>
+    </a>
+
+   <button class="navbar-toggler"
+           type="button"
+           data-toggle="collapse"
+           data-target="#navbarLinks"
+           aria-controls="navbarLinks"
+           aria-expanded="false"
+           aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+   </button>
+
+    <div class="collapse navbar-collapse" id="navbarLinks" style="text-align: right;">
+        <ul class="navbar-nav ml-auto nav justify-content-end" style="float: right">
+            <li class="nav-item dropdown">
+                <a id="navbarDropdown"
+                   class="nav-link dropdown-toggle"
+                   href="#"
+                   role="button"
+                   data-toggle="dropdown"
+                   aria-haspopup="true"
+                   aria-expanded="false">
+                    Documentation
+                </a>
+                <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                    <a class="dropdown-item" href="/doc/flight-manual">Flight Manual</a>
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item" href="/doc/developers">JSDoc Documentation</a>
+                    <a class="dropdown-item" href="/doc/api">API Documentation</a>
+                </div>
+            </li>
+
+			<% if (Array.isArray(pluginNames) && pluginNames.length >= 1) { %>
+			<li class="nav-item dropdown">
+                <a id="navbarDropdown"
+                   class="nav-link dropdown-toggle"
+                   href="#"
+                   role="button"
+                   data-toggle="dropdown"
+                   aria-haspopup="true"
+                   aria-expanded="false">
+                    Plugins
+                </a>
+                <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+
+					<% pluginNames.forEach( (plugin) => { %>
+						<a class="dropdown-item" href=<%='/plugins/' + plugin.name%>><%=plugin.title%></a>
+					<% }); %>
+
+				</div>
+            </li>
+			<% } %>
+
+            <li class="nav-item">
+                <a class="nav-link" href="/about">About</a>
+            </li>
+
+            <% if (user) { %>
+            <li class="nav-item">
+                <a class="nav-link" href="/logout">Logout</a>
+            </li>
+            <% } else { %>
+            <li class="nav-item">
+                <a class="nav-link" href="/login">Login</a>
+            </li>
+            <% } %>
+        </ul>
+    </div>
+</nav>
