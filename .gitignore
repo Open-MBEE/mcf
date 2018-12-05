@@ -1,0 +1,16 @@
+config/dev*.json*
+config/dev*.cfg*
+config/default*.cfg*
+db/
+docs/
+logs/*.log
+node_modules/
+plugins/*
+!plugins/routes.js
+public/
+yarn.lock
+package-lock.json
+*.log
+*.DS_Store
+.idea/
+build

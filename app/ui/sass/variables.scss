@@ -1,0 +1,36 @@
+/**
+ * Classification: UNCLASSIFIED
+ *
+ * @module app.ui.sass.variables.scss
+ *
+ * @copyright Copyright (C) 2018, Lockheed Martin Corporation
+ *
+ * @license MIT
+ *
+ * @description This defines the Sass variables.
+ */
+
+
+/* Theme colors */
+$mbee-background: #333;
+$mbee-color: #FFF;
+
+/* Bootstrap dark theme colors*/
+$bs-dark-background: rgb(52,58,64);
+
+/* sizing */
+$banner-height: 24px;
+$navbar-height: 62px;
+
+/* Swagger Colors */
+$swagger-border-color-get:      #9a9a9a;
+$swagger-border-color-post:     #9a9a9a;
+$swagger-border-color-patch:   #9a9a9a;
+$swagger-border-color-put:      #9a9a9a;
+$swagger-border-color-delete:   #9a9a9a;
+
+$swagger-background-color-get:      #f8f8f8;
+$swagger-background-color-post:     #f8f8f8;
+$swagger-background-color-patch:    #f8f8f8;
+$swagger-background-color-put:      #f8f8f8;
+$swagger-background-color-delete:   #f8f8f8;
