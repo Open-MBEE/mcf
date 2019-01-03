@@ -1,7 +1,8 @@
 # Model-Based Engineering Environment Core Framework (MCF)
 
-The Model-Based Engineering Environment Core Framework or MCF is modeling collaboration tool based on the OpenMBEE 4.0 Reference Architecture which that integrates system models with multidisciplinary engineering data to enable
-the system model to be a single-source of truth project data. It makes model
+The Model-Based Engineering Environment Core Framework or MCF is a modeling collaboration tool based on the OpenMBEE 4.0 
+Reference Architecture (Execubots) and which enables the integration system models with multidisciplinary engineering data to 
+form a single-source of truth for project data. It makes model
 data more accessible via a web-based user interface (UI) for ease of use across
 disciplines and skill sets within an organization. MCF provides a web-based UI
 for team members to interact with system model data without needing to be a
