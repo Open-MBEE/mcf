@@ -27,7 +27,7 @@ and the [MongoDB Getting Started Guide](https://docs.mongodb.com/manual/tutorial
 for up-to-date documentation on MongoDB.
 
 Finally, you need to clone the MCF code by running:
-`git clone https://github.com/lmco/mbee.git `. And enter the directory
+`git clone https://github.com/Open-MBEE/mcf.git `. And enter the directory
 with `cd mbee`.
 
 ### Configuring MCF
