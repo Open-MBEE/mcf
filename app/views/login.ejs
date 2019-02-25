@@ -12,33 +12,37 @@
  */
  %>
 
-<div class="container" style="max-width: 450px;">
-  <% if (err.length) { %>
-    <div class="alert alert-danger alert-dismissible fade show" role="alert"
-         style="position: fixed; top: 100px; left: 50%; transform: translateX(-50%);">
-      <%= err %>
-      <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-        <span aria-hidden="true">&times;</span>
-      </button>
+<div id="main">
+  <div id="view" class="view">
+    <div class="container" style="max-width: 450px;" onkeypress="triggerModal(event);">
+      <% if (err.length) { %>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert"
+             style="position: fixed; top: 100px; left: 50%; transform: translateX(-50%);">
+          <%= err %>
+          <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+      <% } %>
+      <form id="login-form" action="/login" method="POST" >
+        <div class="form-group" >
+          <label for="username">Username</label>
+          <input id="username" name="username" type="text" class="form-control"
+                 aria-describedby="usernameHelp" placeholder="Enter your username ...">
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" class="form-control"  placeholder="Enter your password ...">
+        </div>
+        <div class="form-group">
+          <input id="next" name="next" type="hidden" class="form-control"  value="<%= next %>">
+        </div>
+        <button type="button" class="btn btn-primary" onclick="doLogin();">
+          Login
+        </button>
+      </form>
     </div>
-  <% } %>
-  <form id="login-form" action="/login" method="POST" >
-    <div class="form-group" >
-      <label for="username">Username</label>
-      <input id="username" name="username" type="text" class="form-control"
-             aria-describedby="usernameHelp" placeholder="Enter your username ...">
-    </div>
-    <div class="form-group">
-      <label for="password">Password</label>
-      <input id="password" name="password" type="password" class="form-control"  placeholder="Enter your password ...">
-    </div>
-    <div class="form-group">
-      <input id="next" name="next" type="hidden" class="form-control"  value="<%= next %>">
-    </div>
-    <button type="button" class="btn btn-primary" onclick="doLogin();">
-      Login
-    </button>
-  </form>
+  </div>
 </div>
 
 <%
@@ -47,7 +51,11 @@
 // redirect to the home page.
  %>
 <script>
-
+function triggerModal(e) {
+  if (e.keyCode == 13) {
+    doLogin();
+  }
+}
 function doLogin() {
   $('#login-form').submit();
 }

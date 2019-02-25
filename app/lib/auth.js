@@ -8,8 +8,7 @@
  * @license MIT
  *
  * @description This file loads and instantiates the authentication strategy
- * defined in the configuration file. This file verifies strategy interface functions:
- * handleBasicAuth(), handleTokenAuth(), and doLogin() are implemented.
+ * defined in the configuration file.
  */
 
 // MBEE modules
@@ -39,7 +38,7 @@ if (!AuthModule.hasOwnProperty('doLogin')) {
  *
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
- * @param {callback} next - Callback to express authentication
+ * @param {function} next - Callback to express authentication
  */
 function authenticate(req, res, next) {
   // Extract authorization metadata
@@ -128,7 +127,7 @@ function authenticate(req, res, next) {
 
         // return proper error for API route or redirect for UI
         return (req.originalUrl.startsWith('/api'))
-          ? res.status(401).send('Unauthorized')
+          ? res.status(401).send(err)
           : res.redirect(`/login?next=${req.originalUrl}`);
       });
     }
@@ -269,8 +268,31 @@ function authenticate(req, res, next) {
   }
 }
 
+/**
+ * @description Validates a users password with set rules.
+ * Note: If validatePassword() function is NOT defined in custom strategy then
+ * validation will fail.
+ *
+ * @param {string} password - Password to validate
+ * @param {string} provider - the type of authentication strategy (ldap, local,
+ * etc.)
+ *
+ * @returns {boolean} - If password is correctly validated
+ */
+function validatePassword(password, provider) {
+  // Check if custom validate password rules exist in auth strategy
+  if (AuthModule.hasOwnProperty('validatePassword')) {
+    return AuthModule.validatePassword(password, provider);
+  }
+
+  // Unknown provider, failed validation
+  // Explicitly NOT logging error to avoid password logging
+  return false;
+}
+
 // Export above functions
 module.exports.authenticate = authenticate;
 module.exports.doLogin = AuthModule.doLogin;
 module.exports.handleBasicAuth = AuthModule.handleBasicAuth;
 module.exports.handleTokenAuth = AuthModule.handleTokenAuth;
+module.exports.validatePassword = validatePassword;

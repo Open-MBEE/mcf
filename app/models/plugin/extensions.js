@@ -1,50 +1,52 @@
 /**
  * Classification: UNCLASSIFIED
  *
- * @module models.plugin.timestamp
+ * @module models.plugin.extensions
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
  *
  * @description Middleware plugin that extends models.
- * Allows field extensions: createBy, createdOn, UpdatedOn, DeletedOn and deleted.
+ * Allows field extensions: archivedBy, createBy, lastModifiedBy, createdOn,
+ * archivedOn, updatedOn, and archived.
  */
 
-// NPM modules
-const mongoose = require('mongoose');
-
-module.exports = function extensionPlugin(schema, options) {
+module.exports = function extensionPlugin(schema) {
   schema.add({
-    deletedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
+    archivedBy: {
+      type: String,
+      ref: 'User',
+      default: null
     },
     createdBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
+      type: String,
+      ref: 'User',
+      default: null
     },
     lastModifiedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
+      type: String,
+      ref: 'User',
+      default: null
     },
     createdOn: {
       type: Date,
       default: Date.now()
     },
-    deletedOn: {
+    archivedOn: {
       type: Date,
       default: null
     },
     updatedOn: {
-      type: Date
+      type: Date,
+      default: null
     },
-    deleted: {
+    archived: {
       type: Boolean,
       default: false,
       set: function(v) {
         if (v) {
-          this.deletedOn = Date.now();
+          this.archivedOn = Date.now();
         }
         return v;
       }
@@ -52,13 +54,9 @@ module.exports = function extensionPlugin(schema, options) {
   });
 
   schema.pre('save', function(next) {
-    // updateOn is protected
-    if (this.isModified('updateOn')) {
-      next(new M.CustomError('updateOn is protected and cannot be changed.', 400, 'warn'));
-    }
     // createdOn cannot be changed
     if (this.isModified('createdOn')) {
-      next(new M.CustomError('createOn cannot be changed.', 400, 'warn'));
+      next(new M.CustomError('createdOn is protected and cannot be changed.', 400, 'warn'));
     }
     // Update time
     this.updatedOn = Date.now();

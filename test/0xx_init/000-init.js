@@ -9,8 +9,8 @@
  *
  * @description This "test" is used to clean out the database before other
  * tests. It SHOULD NOT be run if testing against production databases. It
- * is intended for use in CI/CD testing to ensure the database is empty testing
- * remains consistent.
+ * is intended for use in CI/CD testing to ensure the database is empty and
+ * improve CI testing.
  */
 
 // Node modules
@@ -69,6 +69,9 @@ describe(M.getModuleName(module.filename), function() {
  */
 function cleanDB(done) {
   mongoose.connection.db.dropDatabase()
+  .then(() => mongoose.connection.db.createCollection('server_data'))
+  .then(() => mongoose.connection.db.collection('server_data')
+  .insertOne({ version: M.schemaVersion }))
   .then(() => done())
   .catch(error => {
     M.log.error(error);
@@ -83,14 +86,14 @@ function cleanDB(done) {
  * @description Creates the default org if it doesn't already exist
  */
 function createDefaultOrg(done) {
-  Organization.findOne({ id: M.config.server.defaultOrganizationId })
+  Organization.findOne({ _id: M.config.server.defaultOrganizationId })
   .then((org) => {
     // Verify return statement
     chai.expect(org).to.equal(null);
 
     // Create default org object
     const defOrg = new Organization({
-      id: M.config.server.defaultOrganizationId,
+      _id: M.config.server.defaultOrganizationId,
       name: M.config.server.defaultOrganizationName,
       createdBy: null,
       lastModifiedBy: null

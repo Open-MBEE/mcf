@@ -27,7 +27,7 @@ const flash = require('express-flash');
 const db = M.require('lib.db');
 const utils = M.require('lib.utils');
 const middleware = M.require('lib.middleware');
-const UserController = M.require('controllers.user-controller');
+const migrate = M.require('lib.migrate');
 const Organization = M.require('models.organization');
 const User = M.require('models.user');
 
@@ -36,12 +36,13 @@ const app = express();
 module.exports = app;
 
 /**
- * Connect to database, initialize application, and create
- * default admin and default organization if needed.
+ * Connect to database, initialize application, and create default admin and
+ * default organization if needed.
  */
 db.connect()
-.then(() => createDefaultAdmin())
+.then(() => getSchemaVersion())
 .then(() => createDefaultOrganization())
+.then(() => createDefaultAdmin())
 .then(() => initApp())
 .catch(err => {
   M.log.critical(err.stack);
@@ -58,9 +59,12 @@ function initApp() {
     app.use(express.static(staticDir));
     app.use('/favicon.ico', express.static('build/public/img/favicon.ico'));
 
-    // Allows receiving JSON in the request body
-    app.use(bodyParser.json());
-    app.use(bodyParser.urlencoded({ extended: true }));
+    // for parsing application/json
+    app.use(bodyParser.json({ limit: '50mb' }));
+    app.use(bodyParser.text());
+
+    // for parsing application/xwww-form-urlencoded
+    app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
     // Trust proxy for IP logging
     app.enable('trust proxy');
@@ -118,20 +122,28 @@ function createDefaultOrganization() {
     let userIDs = null;
 
     // Find all users
-    UserController.findUsers({ admin: true })
+    User.find({})
     .then(users => {
       // Set userIDs to the _id of the users array
       userIDs = users.map(u => u._id);
       // Find the default organization
-      return Organization.findOne({ id: M.config.server.defaultOrganizationId });
+      return Organization.findOne({ _id: M.config.server.defaultOrganizationId });
     })
     .then(org => {
       // Check if org is NOT null
       if (org !== null) {
         // Default organization exists, prune user permissions to only include
-        // active users.
-        org.permissions.read = userIDs;
-        org.permissions.write = userIDs;
+        // users currently in the database.
+        Object.keys(org.permissions).forEach((user) => {
+          if (!userIDs.includes(user)) {
+            delete org.permissions.user;
+          }
+        });
+
+        // Mark the permissions field modified, require for 'mixed' fields
+        org.markModified('permissions');
+
+        // Save the update organization
         return org.save();
       }
       // Set createdOrg to true
@@ -139,13 +151,15 @@ function createDefaultOrganization() {
       // Default organization does NOT exist, create it and add all active users
       // to permissions list
       const defaultOrg = new Organization({
-        id: M.config.server.defaultOrganizationId,
-        name: M.config.server.defaultOrganizationName,
-        permissions: {
-          read: userIDs,
-          write: userIDs
-        }
+        _id: M.config.server.defaultOrganizationId,
+        name: M.config.server.defaultOrganizationName
       });
+
+      // Add each existing user to default org
+      userIDs.forEach((user) => {
+        defaultOrg.permissions[user] = ['read', 'write'];
+      });
+
       // Save new default organization
       return defaultOrg.save();
     })
@@ -179,13 +193,23 @@ function createDefaultAdmin() {
       // No global admin exists, create local user as global admin
       const adminUserData = new User({
         // Set username and password of global admin user from configuration.
-        username: M.config.server.defaultAdminUsername,
+        _id: M.config.server.defaultAdminUsername,
         password: M.config.server.defaultAdminPassword,
         provider: 'local',
         admin: true
       });
       // Save new global admin user
       return adminUserData.save();
+    })
+    .then(() => Organization.findOne({ _id: M.config.server.defaultOrganizationId }))
+    .then((defaultOrg) => {
+      // Add default admin to default org
+      defaultOrg.permissions[M.config.server.defaultAdminUsername] = ['read', 'write'];
+
+      defaultOrg.markModified('permissions');
+
+      // Save the updated default org
+      return defaultOrg.save();
     })
     // Resolve on success of saved admin
     .then(() => {
@@ -196,5 +220,44 @@ function createDefaultAdmin() {
     })
     // Catch and reject error
     .catch(error => reject(error));
+  });
+}
+
+/**
+ * @description Gets the schema version from the database. Runs the migrate
+ * function if no schema version exists.
+ */
+function getSchemaVersion() {
+  return new Promise((resolve, reject) => {
+    // Get all collections in the DB
+    mongoose.connection.db.collections()
+    .then((collections) => {
+      // Get all collection names
+      const existingCollections = collections.map(c => c.s.name);
+      // Create the server_data collection if it doesn't exist
+      if (!existingCollections.includes('server_data')) {
+        return mongoose.connection.db.createCollection('server_data');
+      }
+    })
+    // Get all documents from the server data
+    .then(() => mongoose.connection.db.collection('server_data').find({}).toArray())
+    .then((serverData) => {
+      // Restrict collection to one document
+      if (serverData.length > 1) {
+        throw new Error('Cannot have more than one document in the server_data collection.');
+      }
+      // No server data found, automatically upgrade versions
+      if (serverData.length === 0) {
+        M.log.info('No server data found, automatically migrating.');
+        return migrate.migrate([]);
+      }
+      // One document exists, read and compare versions
+      if (serverData.length === 0 || serverData[0].version !== M.schemaVersion) {
+        throw new Error('Please run \'node mbee migrate\' to migrate the '
+          + 'database.');
+      }
+    })
+    .then(() => resolve())
+    .catch((error) => reject(error));
   });
 }

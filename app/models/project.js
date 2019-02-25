@@ -26,53 +26,27 @@ const extensions = M.require('models.plugin.extensions');
  *
  * @description Defines the Project Schema
  *
- * @property {String} id - The project's non-unique id.
- * @property {Organization} org - A reference to the project's organization.
- * @property {String} uid - The projects unique id name-spaced using a
- * project's organization.
- * @property {String} name - The project's non-unique project name.
- * @property {User} permissions - An object whose keys identify a projects's
- * roles. The key values are an array of references to users who hold those
- * roles.
- * @property {User} permissions.read - An array of references to Users who have
- * read access
- * @property {User} permissions.write - An array of references to Users who have
- * write access
- * @property {User} permissions.admin - An array of references to Users who have
- * admin access
- * @property {Date} deletedOn - The date a project was soft deleted or null if
- * not soft deleted
- * @property {Boolean} deleted - Indicates if a project has been soft deleted.
- * @property {Schema.Types.Mixed} custom - JSON used to store additional data.
- * @property {String} visibility - The visibility level of a project defining
+ * @property {string} _id - The project's non-unique id.
+ * @property {string} org - A reference to the project's organization.
+ * @property {string} name - The project's non-unique project name.
+ * @property {Object} permissions - An object whose keys identify a
+ * projects's roles. The keys are the users username, and values are arrays of
+ * given permissions.
+ * @property {Object} custom - JSON used to store additional data.
+ * @property {string} visibility - The visibility level of a project defining
  * its permissions behaviour.
  *
  */
 const ProjectSchema = new mongoose.Schema({
-  id: {
+  _id: {
     type: String,
     required: true,
-    index: true,
-    unique: true,
     match: RegExp(validators.project.id),
-    maxlength: [255, 'Too many characters in username'],
-    set: function(_id) {
-      // Check value undefined
-      if (typeof this.id === 'undefined') {
-        // Return value to set it
-        return _id;
-      }
-      // Check value NOT equal to db value
-      if (_id !== this.id) {
-        // Immutable field, return error
-        M.log.warn('ID cannot be changed.');
-      }
-      // No change, return the value
-      return this.id;
-    }
+    maxlength: [73, 'Too many characters in ID'],
+    minlength: [5, 'Too few characters in ID']
   },
   org: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: 'Organization',
     required: true,
     set: function(_org) {
@@ -84,7 +58,7 @@ const ProjectSchema = new mongoose.Schema({
       // Check value NOT equal to db value
       if (_org !== this.org) {
         // Immutable field, return error
-        M.log.warn('Assigned org cannot be changed.');
+        throw new M.CustomError('Assigned org cannot be changed.', 403, 'warn');
       }
       // No change, return the value
       return this.org;
@@ -92,22 +66,11 @@ const ProjectSchema = new mongoose.Schema({
   },
   name: {
     type: String,
-    required: true,
-    match: RegExp(validators.project.name)
+    required: true
   },
   permissions: {
-    read: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    }],
-    write: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    }],
-    admin: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    }]
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
   },
   custom: {
     type: mongoose.Schema.Types.Mixed,
@@ -127,93 +90,119 @@ ProjectSchema.plugin(extensions);
 
 /**
  * @description Returns a project's public data.
- * @memberof ProjectSchema
+ * @memberOf ProjectSchema
  */
 ProjectSchema.methods.getPublicData = function() {
-  // Map read, write, and admin references to only contain user public data
-  const permissions = {
-    read: this.permissions.read.map(u => u.username),
-    write: this.permissions.write.map(u => u.username),
-    admin: this.permissions.admin.map(u => u.username)
-  };
+  const permissions = {};
+  let createdBy;
+  let lastModifiedBy;
+  let archivedBy;
+
+  // Loop through each permission key/value pair
+  Object.keys(this.permissions).forEach((u) => {
+    // Return highest permission
+    permissions[u] = this.permissions[u].pop();
+  });
+
+  // If this.createdBy is defined
+  if (this.createdBy) {
+    // If this.createdBy is populated
+    if (typeof this.createdBy === 'object') {
+      // Get the public data of createdBy
+      createdBy = this.createdBy.getPublicData();
+    }
+    else {
+      createdBy = this.createdBy;
+    }
+  }
+
+  // If this.lastModifiedBy is defined
+  if (this.lastModifiedBy) {
+    // If this.lastModifiedBy is populated
+    if (typeof this.lastModifiedBy === 'object') {
+      // Get the public data of lastModifiedBy
+      lastModifiedBy = this.lastModifiedBy.getPublicData();
+    }
+    else {
+      lastModifiedBy = this.lastModifiedBy;
+    }
+  }
+
+  // If this.archivedBy is defined
+  if (this.archivedBy) {
+    // If this.archivedBy is populated
+    if (typeof this.archivedBy === 'object') {
+      // Get the public data of archivedBy
+      archivedBy = this.archivedBy.getPublicData();
+    }
+    else {
+      archivedBy = this.archivedBy;
+    }
+  }
 
   // Return the projects public fields
   return {
-    id: utils.parseID(this.id).pop(),
-    // NOTE (jk): Not sure why the toString is needed, but a buffer gets
-    // returned when posting a project via the API
-    org: this.org.id,
+    id: utils.parseID(this._id).pop(),
+    org: (this.org.hasOwnProperty('_id')) ? this.org.getPublicData() : this.org,
     name: this.name,
     permissions: permissions,
     custom: this.custom,
-    visibility: this.visibility
+    visibility: this.visibility,
+    createdOn: this.createdOn,
+    createdBy: createdBy,
+    updatedOn: this.updatedOn,
+    lastModifiedBy: lastModifiedBy,
+    archived: (this.archived) ? true : undefined,
+    archivedOn: (this.archivedOn) ? this.archivedOn : undefined,
+    archivedBy: archivedBy
   };
 };
 
 /**
  * @description Returns supported permission levels
- * @memberof ProjectSchema
+ * @memberOf ProjectSchema
  */
 ProjectSchema.methods.getPermissionLevels = function() {
-  return ['REMOVE_ALL', 'read', 'write', 'admin'];
+  return ['remove_all', 'read', 'write', 'admin'];
+};
+ProjectSchema.statics.getPermissionLevels = function() {
+  return ProjectSchema.methods.getPermissionLevels();
 };
 
 /**
  * @description Returns project fields that can be changed
- * @memberof ProjectSchema
+ * @memberOf ProjectSchema
  */
 ProjectSchema.methods.getValidUpdateFields = function() {
-  return ['name', 'custom'];
+  return ['name', 'custom', 'archived', 'permissions'];
+};
+ProjectSchema.statics.getValidUpdateFields = function() {
+  return ProjectSchema.methods.getValidUpdateFields();
 };
 
 /**
  * @description Returns supported visibility levels
- * @memberof ProjectSchema
+ * @memberOf ProjectSchema
  */
 ProjectSchema.methods.getVisibilityLevels = function() {
   return ['internal', 'private'];
 };
-
-/**
- * @description Returns the permissions of the user has on the project
- *
- * @param {User} user  The user whose permissions are being returned
- * @memberof ProjectSchema
- *
- * @returns {Object} A json object with keys being the permission levels
- *  and values being booleans
- */
-ProjectSchema.methods.getPermissions = function(user) {
-  // Map project.permissions user._ids to strings
-  const read = this.permissions.read.map(u => u._id.toString());
-  const write = this.permissions.write.map(u => u._id.toString());
-  const admin = this.permissions.admin.map(u => u._id.toString());
-
-  // If user exists in any of the list, set the permission to true
-  const permissions = {
-    read: read.includes(user._id.toString()),
-    write: write.includes(user._id.toString()),
-    admin: admin.includes(user._id.toString())
-  };
-
-  // If projects visibility is internal
-  if (this.visibility === 'internal') {
-    // Get all orgs which user has read permissions on
-    const orgs = user.orgs.read.map(o => o._id.toString());
-    // See if the user has read permissions on the project's org,
-    // they have read permissions on the project
-    permissions.read = orgs.includes(this.org.toString());
-  }
-  return permissions;
-};
-
 ProjectSchema.statics.getVisibilityLevels = function() {
   return ProjectSchema.methods.getVisibilityLevels();
 };
 
-ProjectSchema.statics.getValidUpdateFields = function() {
-  return ProjectSchema.methods.getValidUpdateFields();
+/**
+ * @description Returns a list of fields a requesting user can populate
+ * @memberOf ProjectSchema
+ */
+ProjectSchema.methods.getValidPopulateFields = function() {
+  return ['archivedBy', 'lastModifiedBy', 'createdBy', 'org'];
 };
+
+ProjectSchema.statics.getValidPopulateFields = function() {
+  return ProjectSchema.methods.getValidPopulateFields();
+};
+
 
 /**
  * @description Validates an object to ensure that it only contains keys
@@ -226,12 +215,16 @@ ProjectSchema.statics.getValidUpdateFields = function() {
 ProjectSchema.statics.validateObjectKeys = function(object) {
   // Initialize returnBool to true
   let returnBool = true;
+  // Set list array of valid keys
+  const validKeys = Object.keys(ProjectSchema.paths);
+  // Add 'id' to list of valid keys, for 0.6.0 support
+  validKeys.push('id');
   // Check if the object is NOT an instance of the project model
   if (!(object instanceof mongoose.model('Project', ProjectSchema))) {
     // Loop through each key of the object
     Object.keys(object).forEach(key => {
       // Check if the object key is a key in the project model
-      if (!Object.keys(ProjectSchema.obj).includes(key)) {
+      if (!validKeys.includes(key)) {
         // Key is not in project model, return false
         returnBool = false;
       }

@@ -1,101 +1,52 @@
 # Model-Based Engineering Environment
 
-The Model-Based Engineering Environment or MBEE is modeling collaboration tool
-that integrates system models with multidisciplinary engineering data to enable
-the system model to be a single-source of truth project data. It makes model
-data more accessible via a web-based user interface (UI) for ease of use across
-disciplines and skill sets within an organization. MBEE provides a web-based UI
-for team members to interact with system model data without needing to be a
-systems modeler themselves.
+The Model-Based Engineering Environment (MBEE) is a modeling collaboration software
+that integrates system models with multidisciplinary engineering data and tools.
+This enables system models to be a single-source of truth. MBEE allows for model
+data to be more accessible across disciplines and skill sets via web-based UI.
+The UI enables users to interact with system model data without needing to be a
+systems modeler.
 
-The goal of MBEE is to better communicate data across engineering organizations
+MBEE's mission is to better communicate data across engineering organizations
 by implementing the core goals of model-based systems engineering through
 software tools. MBEE decreases ambiguity by making a single-source of truth for
 data more achievable through its RESTful API, extensible plugins, and
 distributed services.
 
-## Quick Start
+## Prerequisites
 
-### Prerequisites
-MBEE is designed so that the only dependency to get started is Node.js and NPM.
-NPM comes with Node.js, all you need to do is make sure you can install packages
-with NPM and you can get started.
+**Node.js**
+MBEE's only dependency to get started is Node.js and NPM. NPM comes with
+Node.js, just install packages with NPM to get started.
+See [nodejs.org](https://nodejs.org/en/) for information on Node.js.
 
-You'll also need an instance MongoDB. If you don't have a database already set
-up, please see the [MongoDB Installation Tutorial](https://docs.mongodb.com/manual/installation/#tutorial-installation)
+**MongoDB**
+You'll also need an instance of MongoDB. If you don't have a database already
+set up, please see the [MongoDB Installation Tutorial](https://docs.mongodb.com/manual/installation/#tutorial-installation)
 and the [MongoDB Getting Started Guide](https://docs.mongodb.com/manual/tutorial/getting-started/)
 for up-to-date documentation on MongoDB.
 
-Finally, you need to clone the MBEE code by running:
-`git clone https://github.com/lmco/mbee.git `. And enter the directory
-with `cd mbee`.
+**Source Code**
+1. Clone the MBEE code by running: `git clone https://github.com/lmco/mbee.git`. 
+2. Enter the directory with `cd mbee`.
 
-### Configuring MBEE
-MBEE stores all it's configuration information in the `config` directory. By
-default, it uses the `default.cfg` file, but that can be changed by setting the
-`MBEE_ENV` environment variable. On startup, MBEE will load the configuration
-file with a name matching the `MBEE_ENV` environment variable. For example,
-if `MBEE_ENV=production`, MBEE will look for the file `config/production.cfg`.
+## Getting Started
 
-The MBEE config is simply a JSON file that allows comments. MBEE is designed to
-be largely parameterized by this config file. In this config file you will have
-options to alter the server ports, Docker configurations, enabling and
-disabling components, and swapping out authentication schemes. For a
-more detailed explanation of the fields supported by the config file, see the
-detailed comments provided [example.cfg](config/example.cfg).
-
-To get started, you should edit the [default.cfg](config/default.cfg) to support
-your configuration.
-
-### Modular Authentication
-MBEE supports modular authentication strategies. These authentication modules
-have well defined interfaces that can be dynamically replaced. This allows you
-to write a custom authentication module to accommodate the needs of your
-company or organization without having to make major changes to MBEE. You can
-then specify which authentication module to use in the MBEE config file.
-
-Alter the `auth.strategy` field in the [default.cfg](config/default.cfg)
-to use your authentication strategy.
-
-### Build and run
-1. Install dependencies by running `yarn install`. If you don't have `yarn`, 
-install it by running `npm install -g yarn`. 
-2. Build: `node mbee build`. 
-3. Run: `node mbee start`
-
-## Test
-
-A test framework for the MBEE Core Framework is under development and 
-will be made public in an upcoming release.
-
-## ESLint and EditorConfig
-
-MBEE is configured to use ESLint. Run `node mbee lint`. The rule set for ESLint
-is defined in the [.eslintrc](.eslintrc) file and aligns with our style guide.
-
-We also recommend using EditorConfig. The [.editorconfig](.editorconfig) file
-in the project's root directory will help enforce some of those style 
-conventions.
+1. Install dependencies and build by running `yarn install` or `npm install`.
+2. Run MBEE by running `node mbee start`. 
 
 ## Documentation
+See the Flight Manual (source located at [`./doc`](./doc))
+for all encompassing user manual of MBEE.
 
-### API Documentation
-The API documentation is generated with Swagger and Swagger-JSDoc.
-The API routes, which are defined in [app/api-routes.js](app/api-routes.js),
-are documented via Swagger-JSDoc block comments. All API documentation and
-API definition occurs in that file.
-
-The rendered Swagger documentation can be viewed via the at the `/doc/api` route
-on a running MBEE server.
-
-### Developer Documentation
-Developer documentation created using [JSDoc](http://usejsdoc.org/).
-The developer documentation is generated and rendered during the build process.
-It can be viewed at the `/doc/developer` route on a running MBEE server.
-
-### User Documentation
-This is currently under development and will be made available in an upcoming
-release.
+You can view the MBEE Flight Manual at the `/doc/flight-manual` route on a
+running MBEE server.
+Included documentation:
+- Flight Manual
+  - API Documentation
+  - Developer Documentation
+  - Test Framework Documentation
+  - Docker Set Up Documentation
 
 ## Public Release Info
 Approved for public release per PIRA #SSS201809050.

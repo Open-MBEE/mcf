@@ -11,12 +11,16 @@
  * using `console.log`. The logger adds the ability to write to log
  * files, timestamp errors, include stack trace, and allow for colored text.
  *
+ * To use the logger simply require this file (e.g.
+ * `const log = require('logger.js')`.
+ *
  * You can the use the logger:
  *   - `log.info('Hello World')`
  *   - `log.error('An error has occurred')`
  */
 
 // Node modules
+const path = require('path');
 const winston = require('winston');
 const { combine, timestamp, label, printf } = winston.format;
 const { execSync } = require('child_process');
@@ -155,18 +159,18 @@ const logger = winston.createLogger({
     new winston.transports.Console(),
     // error log transport - logs error-level and below to error log file
     new winston.transports.File({
-      filename: M.config.log.error_file,
+      filename: path.join(logDir, M.config.log.error_file),
       level: 'error'
     }),
     // combined log transport - logs default-level and below to combined log file
     // NOTE: Default level specified in config file
     new winston.transports.File({
-      filename: M.config.log.file,
+      filename: path.join(logDir, M.config.log.file),
       level: M.config.log.level
     }),
     // debug log transport - logs debug-level and below to debug log file
     new winston.transports.File({
-      filename: M.config.log.debug_file,
+      filename: path.join(logDir, M.config.log.debug_file),
       level: 'debug'
     })
   ],
