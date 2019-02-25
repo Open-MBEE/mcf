@@ -22,11 +22,17 @@ if (module.parent == null || typeof M === 'undefined') {
 
 // Node modules
 const { execSync } = require('child_process');
+const path = require('path');
+const fs = require('fs');
 
 // NPM modules
 const gulp = require('gulp');
+const concat = require('gulp-concat');
+const minify = require('gulp-minify');
 const sass = require('gulp-sass');
-
+const markdown = require('gulp-markdown');
+const webpack = require('webpack');
+const validators = M.require('lib.validators');
 
 /**
  * @description Builds the MBEE static assets by:
@@ -38,7 +44,9 @@ const sass = require('gulp-sass');
  * Accepts the following command-line parameters:
  * --copy-deps
  * --sass
+ * --react
  * --jsdoc
+ * --fm
  * --all
  *
  * If NO arguments given, defaults to `--all`
@@ -75,12 +83,90 @@ function build(_args) {
     gulp.src('./node_modules/jquery/dist/jquery.min.js')
     .pipe(gulp.dest('build/public/js'));
 
+    // Copy Jquery UI JS
+    gulp.src(['./node_modules/jquery-ui/ui/effect.js', './node_modules/jquery-ui/ui/effects/*.js'])
+    .pipe(concat('jquery-ui.js'))
+    .pipe(minify({ noSource: true }))
+    .pipe(gulp.dest('build/public/js'));
+
     // Copy Popper JS
     gulp.src('./node_modules/popper.js/dist//umd/popper.min.js')
     .pipe(gulp.dest('build/public/js'));
     gulp.src('./node_modules/popper.js/dist//umd/popper.min.js.map')
     .pipe(gulp.dest('build/public/js'));
+
+    // Copy Font-Awesome dependencies
+    gulp.src('./node_modules/@fortawesome/fontawesome-free/webfonts/**/*')
+    .pipe(gulp.dest('build/public/webfonts'));
   }
+
+  // Initialize validators for UI validation
+  const validator = {
+    org: {
+      id: validators.org.id,
+      name: validators.org.name
+    },
+    project: {
+      id: validators.project.id,
+      name: validators.project.name
+    },
+    user: {
+      fname: validators.user.fname,
+      lname: validators.user.lname,
+      username: validators.user.username
+    }
+  };
+
+  // Initialize the build directory
+  if (!fs.existsSync('build')) {
+    fs.mkdirSync('build');
+  }
+
+  // Initialize validator directory
+  const validatorsDir = path.join(M.root, 'build', 'json');
+  if (!fs.existsSync(validatorsDir)) {
+    // Make validators directory
+    fs.mkdirSync(validatorsDir);
+  }
+
+  // Import validator object into validators file
+  fs.writeFileSync(path.join(validatorsDir, 'validators.json'), JSON.stringify(validator), 'utf8');
+
+  // Transpile React components
+  if (args.includes('--all') || args.includes('--react')) {
+    webpack({
+      mode: 'production',
+      entry: {
+        navbar: path.join(M.root, 'app', 'ui', 'react-components', 'general-components', 'nav.jsx'),
+        'home-page': path.join(M.root, 'app', 'ui', 'react-components', 'home-page', 'home-page.jsx'),
+        organizations: path.join(M.root, 'app', 'ui', 'react-components', 'organizations', 'organizations.jsx'),
+        projects: path.join(M.root, 'app', 'ui', 'react-components', 'projects', 'projects.jsx'),
+        user: path.join(M.root, 'app', 'ui', 'react-components', 'user', 'user.jsx')
+      },
+      output: {
+        path: path.join(M.root, 'build', 'public', 'react-js'),
+        filename: '[name].js'
+      },
+      module: {
+        rules: [
+          {
+            test: /\.jsx?$/,
+            loader: 'babel-loader',
+            exclude: /node_modules/,
+            options: {
+              presets: ['babel-preset-env', 'babel-preset-react']
+            }
+          }
+        ]
+      }
+    }, (err, stats) => {
+      if (err || stats.hasErrors()) {
+        // eslint-disable-next-line no-console
+        console.log(stats.compilation.errors);
+      }
+    });
+  }
+
 
   // Compile Sass into CSS
   if (args.includes('--all') || args.includes('--sass')) {
@@ -100,6 +186,14 @@ function build(_args) {
 
     // Execute JSDoc build command
     execSync(cmd);
+  }
+
+  // Build Flight Manual
+  if (args.includes('--all') || args.includes('--fm')) {
+    M.log.info('  + Building flight manual ...');
+    gulp.src('./doc/**/*.md')
+    .pipe(markdown())
+    .pipe(gulp.dest('build/fm'));
   }
 
   M.log.info('Build Complete.');

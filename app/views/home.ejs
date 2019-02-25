@@ -11,51 +11,6 @@
  * @description The MBEE home page
  */
  %>
+<div id="view" class="view"></div>
 
-<div id="splash-row" class="row align-items-center">
-  <div class="col-md-2">
-  </div>
-  <div class="col-md-8" style="text-align: center;">
-    <div class="row align-items-center">
-      <div class="col-5" style="text-align: right;">
-        <img src="/img/logo.png" height="180" alt="" style="margin-bottom: 20px;">
-      </div>
-      <div class="col-7" style="text-align: left;">
-        <h1>MBEE</h1>
-        <h2>Model-Based Engineering Environment</h2>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-2">
-  </div>
-</div>
-
-
-
-<%- contentFor('styles') %>
-<style>
-  body {
-    background-image: radial-gradient(#16161d, #2d2d33, #44444a);
-  }
-
-  #splash-row {
-    position: absolute;
-    height: 75%;
-    width: 100%;
-    font-family: 'Helvetica Neue', Helvetica;
-  }
-
-  #splash-row h1 {
-    font-weight: 100;
-    font-size: 114px;
-    line-height: 0.8;
-    color: #e7e7e8;
-  }
-
-  #splash-row h2 {
-    font-weight: 100;
-    font-size: 18px;
-    color: #FFC610;
-    padding-left: 4px;
-  }
-</style>
+<script type="text/javascript" src="/react-js/home-page.js"></script>

@@ -13,59 +13,48 @@
  */
 %>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <title>
-    <% if (typeof title !== 'undefined') { %>
-    <%= title %>
-    <% } else { %>
-    <%= 'MBEE | Model-Based Engineering Environment' %>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <title>
+      <%= title || 'MBEE | Model-Based Engineering Environment' %>
+    </title>
+
+    <link rel="icon" type="img/ico" href="/img/favicon.ico">
+
+    <!-- CSS -->
+    <!--<link rel="stylesheet" type="text/css" href="/css/meyer.css"/>-->
+    <!--<link rel="stylesheet" type="text/css" href="/css/bootstrap.min.css"/>-->
+    <link rel="stylesheet" type="text/css" href="/css/styles.css"/>
+    <%- defineContent('styles') %>
+  </head>
+
+  <body class="mbee-theme">
+
+    <% if (ui.banner.on) { %>
+      <div id="header-footer">
+      <%- include('_includes/banner-header'); %>
     <% } %>
-  </title>
+        <div id="root" class="root">
+          <div id="nav" class="nav"></div>
+          <%- body %>
+        </div>
 
-  <link rel="icon" type="img/ico" href="/img/favicon.ico">
+    <% if (ui.banner.on) { %>
+      <%- include('_includes/banner-footer'); %>
+      </div>
+    <% } %>
 
-  <!-- CSS -->
-  <link rel="stylesheet" type="text/css" href="/css/meyer.css"/>
-  <link rel="stylesheet" type="text/css" href="/css/bootstrap.min.css"/>
-  <link rel="stylesheet" type="text/css" href="/css/styles.css"/>
-  <%
-  // This defines a section within express-ejs-layouts
-  // using the 'defineContent' function allows this section to default to ''
-  %>
-  <%- defineContent('styles') %>
-
-</head>
-<body class="mbee-theme">
-
-
-<% if (ui.banner.on) { %>
-<%- include('_includes/banner-header'); %>
-<% } %>
-
-<%- include('_includes/nav'); %>
-
-<div class="no-padding">
-  <div id="content" class="content">
-    <%- body %>
-  </div>
-</div>
-
-
-<% if (ui.banner.on) { %>
-<%- include('_includes/banner-footer'); %>
-<% } %>
-
-<!-- Scripts -->
-<script type="text/javascript" src="/js/jquery.min.js"></script>
-<script type="text/javascript" src="/js/popper.min.js"></script>
-<script type="text/javascript" src="/js/bootstrap.min.js"></script>
-
-<%
-// This defines a section within express-ejs-layouts
-// using the 'defineContent' function allows this section to default to ''
-%>
-<%- defineContent('scripts') %>
-</body>
+    <!-- Scripts -->
+    <script type="text/javascript" src="/js/jquery.min.js"></script>
+    <script type="text/javascript" src="/js/jquery-ui-min.js"></script>
+    <script type="text/javascript" src="/js/popper.min.js"></script>
+    <script type="text/javascript" src="/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="/js/mbee.js"></script>
+    <!-- React Scripts -->
+    <script type="text/javascript" src="/react-js/navbar.js"></script>
+    <!-- Custom Scripts -->
+    <%- defineContent('scripts') %>
+  </body>
 </html>

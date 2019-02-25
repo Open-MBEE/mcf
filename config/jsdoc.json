@@ -3,11 +3,12 @@
       "template": "",
       "encoding": "utf8",
       "destination": "./build/public/doc",
-      "recurse": true
+      "recurse": true,
+      "tutorials": "./doc"
   },
   "source": {
-      "include": ["app", "README.md"],
-      "exclude": ["app/views", "app/ui"],
+      "include": ["app", "test"],
+      "exclude": ["app/views", "app/ui", "test/test_data"],
       "includePattern": "",
       "excludePattern": ".+\\.(ejs|json|config|cfg)$"
   },

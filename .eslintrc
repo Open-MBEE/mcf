@@ -255,10 +255,12 @@
 
     // enforce line breaks after opening and before closing array brackets
     // https://eslint.org/docs/rules/array-bracket-newline
-    "array-bracket-newline": ["off", "consistent"],
+    // "TODO": enable? semver-major
+    "array-bracket-newline": ["off", "consistent"], // object option "alternative": { "multiline": true, "minItems": 3 }
 
     // enforce line breaks between array elements
     // https://eslint.org/docs/rules/array-element-newline
+    // "TODO": enable? semver-major
     "array-element-newline": ["off", { "multiline": true, "minItems": 3 }],
 
     // enforce spacing inside array brackets
@@ -331,8 +333,8 @@
     // https://eslint.org/docs/rules/func-call-spacing
     "func-call-spacing": ["error", "never"],
 
-    // requires function names to match the name of the variable or property to
-    // which they are assigned
+    // requires function names to match the name of the variable or property to which they are
+    // assigned
     // https://eslint.org/docs/rules/func-name-matching
     "func-name-matching": ["off", "always", {
       "includeCommonJSModuleExports": false
@@ -425,6 +427,7 @@
 
     // enforce position of line comments
     // https://eslint.org/docs/rules/line-comment-position
+    // "TODO": enable?
     "line-comment-position": ["off", {
       "position": "above",
       "ignorePattern": "",
@@ -503,6 +506,7 @@
 
     // require multiline ternary
     // https://eslint.org/docs/rules/multiline-ternary
+    // "TODO": enable?
     "multiline-ternary": ["off", "never"],
 
     // require a capital letter for constructors
@@ -590,6 +594,7 @@
     "no-new-object": "error",
 
     // disallow use of unary operators, ++ and --
+    // https://eslint.org/docs/rules/
     "no-plusplus": "off",
 
     // disallow certain syntax forms
@@ -656,26 +661,10 @@
     // enforce line breaks between braces
     // https://eslint.org/docs/rules/object-curly-newline
     "object-curly-newline": ["off", {
-      "ObjectExpression": {
-        "minProperties": 4,
-        "multiline": true,
-        "consistent": true
-      },
-      "ObjectPattern": {
-        "minProperties": 4,
-        "multiline": true,
-        "consistent": true
-      },
-      "ImportDeclaration": {
-        "minProperties": 4,
-        "multiline": true,
-        "consistent": true
-      },
-      "ExportDeclaration": {
-        "minProperties": 4,
-        "multiline": true,
-        "consistent": true
-      }
+      "ObjectExpression": { "minProperties": 4, "multiline": true, "consistent": true },
+      "ObjectPattern": { "minProperties": 4, "multiline": true, "consistent": true },
+      "ImportDeclaration": { "minProperties": 4, "multiline": true, "consistent": true },
+      "ExportDeclaration": { "minProperties": 4, "multiline": true, "consistent": true },
     }],
 
     // enforce "same line" or "multiple line" on object properties.
@@ -712,11 +701,7 @@
 
     // require quotes around object literal property names
     // https://eslint.org/docs/rules/quote-props.html
-    "quote-props": ["error", "as-needed", {
-      "keywords": false,
-      "unnecessary": true,
-      "numbers": false
-    }],
+    "quote-props": ["error", "as-needed", { "keywords": false, "unnecessary": true, "numbers": false }],
 
     // specify whether double or single quotes should be used
     "quotes": ["error", "single", { "avoidEscape": true }],
@@ -763,7 +748,8 @@
     "space-unary-ops": ["error", {
       "words": true,
       "nonwords": false,
-      "overrides": {}
+      "overrides": {
+      },
     }],
 
     // require or disallow a space immediately following the // or /* in a comment
@@ -803,8 +789,7 @@
     // enforce or disallow variable initializations at definition
     "init-declarations": "off",
 
-    // disallow the catch clause parameter name being the same as a variable
-    // in the outer scope
+    // disallow the catch clause parameter name being the same as a variable in the outer scope
     "no-catch-shadow": "off",
 
     // disallow deletion of variables
@@ -831,6 +816,7 @@
 
     // disallow use of undefined variable
     // https://eslint.org/docs/rules/no-undefined
+    // "TODO": enable?
     "no-undefined": "off",
 
     // disallow declaration of variables that are not used in the code
@@ -1047,7 +1033,7 @@
       "allow": [
         "arrowFunctions",
         "functions",
-        "methods"
+        "methods",
       ]
     }],
 
@@ -1148,7 +1134,7 @@
     "no-octal-escape": "error",
 
     // disallow reassignment of function parameters
-    // https://eslint.org/docs/rules/no-param-reassign.html
+    // "rule": https://eslint.org/docs/rules/no-param-reassign.html
     "no-param-reassign": ["error", {
       "props": false
     }],
@@ -1207,7 +1193,7 @@
     // disallow redundant `return await`
     "no-return-await": "error",
 
-    // disallow use of `javascript:` urls.
+    // disallow use of "`javascript":` urls.
     "no-script-url": "error",
 
     // disallow self assignment

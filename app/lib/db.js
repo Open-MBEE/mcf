@@ -13,15 +13,12 @@
 // Node modules
 const fs = require('fs');
 const path = require('path');
-
-// NPM Modules
 const mongoose = require('mongoose');
 
 /**
  * @description Create connection to database.
  *
- * @return {Promise} resolve - database connected
- *                    reject - an error
+ * @return {Promise}
  */
 module.exports.connect = function() {
   return new Promise((resolve, reject) => {
@@ -47,7 +44,7 @@ module.exports.connect = function() {
     if (M.config.db.ssl) {
       connectURL += '?ssl=true';
       // Retrieve CA file from /certs directory
-      const caPath = path.join(M.root, 'certs', M.config.db.ca);
+      const caPath = path.join(M.root, M.config.db.ca);
       const caFile = fs.readFileSync(caPath, 'utf8');
       options.sslCA = caFile;
     }
@@ -70,6 +67,8 @@ module.exports.connect = function() {
 
 /**
  * @description Closes connection to database.
+ *
+ * @return {Promise}
  */
 module.exports.disconnect = function() {
   return new Promise((resolve, reject) => {

@@ -1,11 +1,11 @@
 /**
  * Classification: UNCLASSIFIED
  *
- * @module plugin.routes
+ * @module plugins.routes
  *
- * @copyright Copyright (c) 2018, Lockheed Martin Corporation
+ * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license  MIT
+ * @license MIT
  *
  * @description This file implements the plugin loading and routing logic.
  */
@@ -102,7 +102,7 @@ function loadPlugins() {
         // Add dependency to node_modules without erasing existing node_modules
         // directory
         const commands = [
-          `yarn add --dev ${dep} --modules-folder "${M.root}/node_modules" && yarn remove ${dep}`
+          `pushd ${pluginPath}; yarn install; popd;`
         ];
         M.log.verbose(`Installing dependency ${dep} ...`);
         const stdout = execSync(commands.join('; '));

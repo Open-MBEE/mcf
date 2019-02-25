@@ -7,650 +7,58 @@
  *
  * @license MIT
  *
- * @description This file defines the functions for interacting with elements.
+ * @description This implements the behavior and logic for elements.
+ * It also provides function for interacting with elements.
  */
 
 // Expose element controller functions
 // Note: The export is being done before the import to solve the issues of
 // circular references between controllers.
 module.exports = {
-  createElement,
-  createElements,
-  findElement,
-  findElements,
-  removeElement,
-  removeElements,
-  updateElement,
-  updateElements
+  find,
+  create,
+  update,
+  remove
 };
+
+// Disable eslint rule for logic in nested promises
+/* eslint-disable no-loop-func */
 
 // Node.js Modules
 const assert = require('assert');
 
 // MBEE Modules
-const ProjController = M.require('controllers.project-controller');
 const Element = M.require('models.element');
+const Project = M.require('models.project');
 const sani = M.require('lib.sanitization');
 const utils = M.require('lib.utils');
-
-// eslint consistent-return rule is disabled for this file. The rule may not fit
-// controller-related functions as returns are inconsistent.
-/* eslint-disable consistent-return */
+const validators = M.require('lib.validators');
 
 /**
- * @description This function returns all elements attached to the project.
+ * @description This function finds one or many elements. Depending on the
+ * parameters provided, this function will find a single element by ID, multiple
+ * elements by ID, or all elements within a project. The user making the request
+ * must be part of the specified project or be a system-wide admin.
  *
- * @param {User} reqUser - The user object of the requesting user.
- * @param {String} organizationID - The organization ID.
- * @param {String} projectID - The project ID.
- * @param {Boolean} softDeleted - A boolean value indicating whether to soft delete.
+ * @param {User} requestingUser - The object containing the requesting user.
+ * @param {string} organizationID - The ID of the owning organization.
+ * @param {string} projectID - The ID of the owning project.
+ * @param {string} branch - The ID of the branch to find.
+ * @param {(string|string[])} [elements] - The elements to find. Can either be
+ * an array of element ids, a single element id, or not provided, which defaults
+ * to every element in a project being found.
+ * @param {Object} [options] - A parameter that provides supported options.
+ * @param {string[]} [options.populate] - A list of fields to populate on return
+ * of the found objects. By default, no fields are populated.
+ * @param {boolean} [options.archived] - If true, find results will include
+ * archived objects. The default value is false.
+ * @param {boolean} [options.subtree] - If true, all elements in the subtree of
+ * the found elements will also be returned. The default value is false.
  *
- * @return {Promise} resolve - element
- *                   reject - error
- @example
- * findElements({User}, 'orgID', 'projectID', false)
- * .then(function(element) {
- *   // Do something with the found element
- * })
- * .catch(function(error) {
- *   M.log.error(error);
- * });
- */
-function findElements(reqUser, organizationID, projectID, softDeleted = false) {
-  return new Promise((resolve, reject) => {
-    // Error Check: ensure input parameters are valid
-    try {
-      assert.ok(typeof organizationID === 'string', 'Organization ID is not a string.');
-      assert.ok(typeof projectID === 'string', 'Project ID is not a string.');
-      assert.ok(typeof softDeleted === 'boolean', 'Soft deleted flag is not a boolean.');
-    }
-    catch (error) {
-      throw new M.CustomError(error.message, 400, 'warn');
-    }
-
-    // Sanitize query input
-    const orgID = sani.sanitize(organizationID);
-    const projID = sani.sanitize(projectID);
-    const projectUID = utils.createID(orgID, projID);
-
-    const searchParams = { id: { $regex: `^${projectUID}:` }, deleted: false };
-
-    // Error Check: Ensure user has permissions to find deleted elements
-    if (softDeleted && !reqUser.admin) {
-      throw new M.CustomError('User does not have permissions.', 403, 'warn');
-    }
-    // Check softDeleted flag true
-    if (softDeleted) {
-      // softDeleted flag true and User Admin true, remove deleted: false
-      delete searchParams.deleted;
-    }
-
-    // Find elements
-    findElementsQuery(searchParams)
-    .then((elements) => {
-      // Filter results to only the elements on which user has read access
-      const res = elements.filter(e => e.project.getPermissions(reqUser).read || reqUser.admin);
-
-      // Return resulting elements
-      return resolve(res);
-    })
-    .catch((error) => reject(M.CustomError.parseCustomError(error)));
-  });
-}
-
-/**
- * @description This function creates multiple elements.
- *
- * @param {User} reqUser - The user object of the requesting user.
- * @param {String} organizationID - The ID of the organization housing the project.
- * @param {String} projectID - The ID of the project to add elements to.
- * @param {Object} arrElements - The object containing element data to create.
- *
- * @return {Promise} resolve - created elements
- *                   reject -  error
+ * @return {Promise} Array of found element objects
  *
  * @example
- * createElements({User}, 'orgID', 'projID', [{Elem1}, {Elem2}, ...])
- * .then(function(elements) {
- *   // Do something with the created elements
- * })
- * .catch(function(error) {
- *   M.log.error(error);
- * });
- */
-function createElements(reqUser, organizationID, projectID, arrElements) {
-  return new Promise((resolve, reject) => {
-    // Error Check: ensure input parameters are valid
-    try {
-      assert.ok(typeof organizationID === 'string', 'Organization ID is not a string.');
-      assert.ok(typeof projectID === 'string', 'Project ID is not a string.');
-      assert.ok(typeof arrElements === 'object', 'Project array is not an object.');
-      let index = 1;
-      // Loop through each element, checking for valid ids and types
-      Object(arrElements).forEach((element) => {
-        assert.ok(element.hasOwnProperty('id'), `Element #${index} is missing an id.`);
-        assert.ok(typeof element.id === 'string', `Element #${index}'s id is not a string.`);
-        assert.ok(element.hasOwnProperty('type'), `Element #${index} is missing a type.`);
-        assert.ok(Element.Element.getValidTypes().includes(utils.toTitleCase(element.type)),
-          `Element #${index} has an invalid type of ${element.type}.`);
-        // If element is a relationship, ensure source/target exist
-        if (utils.toTitleCase(element.type) === 'Relationship') {
-          assert.ok(element.hasOwnProperty('target'), `Element #${index} is missing a target id.`);
-          assert.ok(typeof element.target === 'string',
-            `Element #${index}'s target is not a string.`);
-          assert.ok(element.hasOwnProperty('source'), `Element #${index} is missing a source id.`);
-          assert.ok(typeof element.source === 'string',
-            `Element #${index}'s source is not a string.`);
-        }
-        // Error Check: Ensure object contains valid keys
-        assert.ok(Element.Element.validateObjectKeys(element),
-          `Element #${index} contains invalid keys.`);
-        index++;
-      });
-    }
-    catch (error) {
-      throw new M.CustomError(error.message, 400, 'warn');
-    }
-
-    // Sanitize organizationID and projectID
-    const orgID = sani.sanitize(organizationID);
-    const projID = sani.sanitize(projectID);
-
-    // Initialize UID list, UUID list, created boolean and createdElements array
-    const arrUID = [];
-    const arrUUID = [];
-    let created = false;
-    let createdElements = [];
-
-    // Define arrays of different element types
-    const packageArray = [];
-    const relationshipArray = [];
-    const blockArray = [];
-
-    // Loop through each element
-    arrElements.forEach((element) => {
-      // Generate unique UID for every element
-      const uid = utils.createID(orgID, projID, element.id);
-      arrUID.push(uid);
-      element.uid = uid;
-
-      // If element has uuid, add it to list
-      if (element.hasOwnProperty('uuid')) {
-        arrUUID.push(element.uuid);
-      }
-
-      // If element doesn't have parent, add it
-      if (!element.hasOwnProperty('parent')) {
-        element.parent = null;
-      }
-    });
-
-    // Generate find query
-    const findQuery = { $or: [{ id: { $in: arrUID } }, { uuid: { $in: arrUUID } }] };
-
-    // Find any existing elements that match the query
-    findElementsQuery(findQuery)
-    .then((elements) => {
-      // Error Check: ensure no elements already exist
-      if (elements.length > 0) {
-        // Get the ids of the elements that already exist
-        const existingIDs = elements.map(e => e.id);
-        const existingUUIDs = elements.filter(e => arrUUID.includes(e.uuid));
-        let message = '';
-
-        // If an element with matching uuid exists
-        if (existingUUIDs.length > 0) {
-          message += `Elements(s) with the following uuid(s) ' +
-          'already exists: [${existingUUIDs.toString()}].`;
-        }
-
-        // If an elements with matching id exists
-        if (existingIDs.length > 0) {
-          message += ` Elements(s) with the following id(s) ' +
-          'already exists: [${existingIDs.toString()}].`;
-        }
-
-        // Reject error
-        throw new M.CustomError(message, 403, 'warn');
-      }
-
-      // Find the project
-      return ProjController.findProject(reqUser, orgID, projID);
-    })
-    .then((proj) => {
-      // Error Check: ensure user has write permissions on project
-      if (!proj.getPermissions(reqUser).write && !reqUser.admin) {
-        throw new M.CustomError('User does not have permissions.', 403, 'warn');
-      }
-
-      // Set the project for each element and convert to element objects
-      arrElements.forEach((element) => {
-        // Create element data object
-        const elemData = {
-          id: element.uid,
-          name: element.name,
-          project: proj._id,
-          uuid: element.uuid,
-          documentation: element.documentation,
-          custom: element.custom,
-          createdBy: reqUser._id,
-          lastModifiedBy: reqUser._id
-        };
-
-        // Add element to correct type array
-        if (utils.toTitleCase(element.type) === 'Package') {
-          // Create package object
-          const pack = new Element.Package(sani.sanitize(elemData));
-
-          // Set hidden parent field used by middleware
-          pack.$parent = element.parent;
-
-          // Add package to packageArray
-          packageArray.push(pack);
-        }
-        else if (utils.toTitleCase(element.type) === 'Relationship') {
-          // Create relationship object
-          const rel = new Element.Relationship(sani.sanitize(elemData));
-
-          // Set hidden source, target, and parent fields used by middleware
-          rel.$source = element.source;
-          rel.$target = element.target;
-          rel.$parent = element.parent;
-
-          // Add relationship to relationshipArray
-          relationshipArray.push(rel);
-        }
-        else {
-          // Create block object
-          const block = new Element.Block(sani.sanitize(elemData));
-
-          // Set hidden parent field used by middleware
-          block.$parent = element.parent;
-
-          // Add block to blockArray
-          blockArray.push(block);
-        }
-      });
-
-      // Create array of package ids
-      const packIDs = packageArray.map(p => p.id);
-      // For each package
-      packageArray.forEach((pack) => {
-        // If the packages parent is also being created, set its _id
-        if (pack.$parent) {
-          const packID = utils.createID(orgID, projID, pack.$parent);
-          if (packIDs.includes(packID)) {
-            pack.parent = packageArray.filter(p => p.id === packID)[0]._id;
-            pack.$parent = null;
-          }
-
-          // Add package to parents contains array
-          packageArray.filter(p => p.id === packID)[0].contains.push(pack._id);
-        }
-      });
-
-      // Create array of relationship ids
-      const relIDs = relationshipArray.map(r => r.id);
-      // For each relationship
-      relationshipArray.forEach((rel) => {
-        // If the relationships target is also being created, set its _id
-        if (rel.$target) {
-          const targetID = utils.createID(orgID, projID, rel.$target);
-          if (relIDs.includes(targetID)) {
-            rel.target = relationshipArray.filter(r => r.id === targetID)[0]._id;
-          }
-        }
-
-        // If the relationships source is also being created, set its _id
-        if (rel.$source) {
-          const sourceID = utils.createID(orgID, projID, rel.$source);
-          if (relIDs.includes(sourceID)) {
-            rel.source = relationshipArray.filter(r => r.id === sourceID)[0]._id;
-          }
-        }
-      });
-
-
-      // Set created boolean to true
-      created = true;
-
-      // Create packages first
-      return Element.Element.create(packageArray);
-    })
-    .then((createdPackages) => {
-      // Add createdPackages to createdElements array
-      createdElements = createdPackages || [];
-
-      // Create blocks second
-      return Element.Element.create(blockArray);
-    })
-    .then((createdBlocks) => {
-      // Add createdBlocks to createdElements array
-      createdElements = createdElements.concat(createdBlocks || []);
-
-      // Create relationships third
-      return Element.Element.create(relationshipArray);
-    })
-    .then((createdRelationships) => {
-      // Add createdRelationships to createdElements array
-      createdElements = createdElements.concat(createdRelationships || []);
-
-      // Return all of the created elements
-      const createdID = createdElements.map(e => e._id);
-      return findElementsQuery({ _id: { $in: createdID } });
-    })
-    .then((elements) => resolve(elements))
-    .catch((error) => {
-      // If error is a CustomError, reject it
-      if (error instanceof M.CustomError && !created) {
-        return reject(error);
-      }
-      // If it's not a CustomError, the create failed so delete all successfully
-      // created elements and reject the error.
-      return Element.Element.deleteMany({ id: { $in: arrUID } })
-      .then(() => reject(M.CustomError.parseCustomError(error)))
-      .catch((error2) => reject(M.CustomError.parseCustomError(error2)));
-    });
-  });
-}
-
-/**
- * @description This function updates found elements from a given query.
- *
- * @param {User} reqUser - The user object of the requesting user.
- * @param {Object} query -The query used to find/update elements.
- * @param {Object} updateInfo - An object containing updated elements data
- *
- * @return {Promise} resolve - array of updated elements
- *                   reject -  error
- *
- * @example
- * updateElements({User}, { project: 'projectid' }, { name: 'New Element Name' })
- * .then(function(elements) {
- *   // Do something with the updated elements
- * })
- * .catch(function(error) {
- *   M.log.error(error);
- * });
- */
-function updateElements(reqUser, query, updateInfo) {
-  return new Promise((resolve, reject) => {
-    // Define flag for updating 'Mixed' fields and foundElements array
-    let containsMixed = false;
-    let foundElements = [];
-
-    // Error Check: ensure input parameters are valid
-    try {
-      assert.ok(typeof query === 'object', 'Update query is not an object.');
-      assert.ok(typeof updateInfo === 'object', 'Update info is not an object.');
-      // Error Check: Ensure object contains valid keys
-      assert.ok(Element.Element.validateObjectKeys(updateInfo), 'Update contains invalid keys.');
-      // Loop through each desired update
-      Object.keys(updateInfo).forEach((key) => {
-        // Error Check: ensure user can update each field
-        assert.ok(Element.Element.schema.methods.getValidUpdateFields().includes(key),
-          `Element property [${key}] cannot be changed.`);
-
-        // Error Check: ensure parameter is not unique
-        assert.ok(!Element.Element.schema.obj[key].unique,
-          `Cannot use batch update on the unique field [${key}].`);
-
-        // If the field is a mixed field, set the flag
-        if (Element.Element.schema.obj[key].type.schemaName === 'Mixed') {
-          containsMixed = true;
-        }
-      });
-    }
-    catch (error) {
-      return reject(new M.CustomError(error.message, 400, 'warn'));
-    }
-
-    // Find the elements to update
-    findElementsQuery(query)
-    .then((elements) => {
-      // Set foundElements array
-      foundElements = elements;
-
-      // Loop through each found elements
-      elements.forEach((element) => {
-        // Error Check: ensure user has permission to update element
-        if (!element.project.getPermissions(reqUser).write && !reqUser.admin) {
-          throw new M.CustomError('User does not have permissions.', 403, 'warn');
-        }
-      });
-
-      // If updating a mixed field, update each element individually
-      if (containsMixed) {
-        M.log.info('Updating elements.... this could take a while.');
-        // Create array of promises
-        const promises = [];
-        // Loop through each element
-        elements.forEach((element) => {
-          // Loop through each update
-          Object.keys(updateInfo).forEach((key) => {
-            // If a 'Mixed' field
-            if (Element.Element.schema.obj[key].type.schemaName === 'Mixed') {
-              // Merge changes into original 'Mixed' field
-              utils.updateAndCombineObjects(element[key], sani.sanitize(updateInfo[key]));
-              // Mark that the 'Mixed' field has been modified
-              element.markModified(key);
-            }
-            else {
-              // Update the value in the element
-              element[key] = sani.sanitize(updateInfo[key]);
-            }
-          });
-
-          // Update last modified field
-          element.lastModifiedBy = reqUser;
-
-          // Add element.save() to promise array
-          promises.push(element.save());
-        });
-
-        // Once all promises complete, return
-        return Promise.all(promises);
-      }
-
-      // No mixed field update, update all together
-      return Element.Element.updateMany(query, updateInfo);
-    })
-    .then((retQuery) => {
-      // Check if some of the elements in updateMany failed
-      if (!containsMixed && retQuery.n !== foundElements.length) {
-        // The number updated does not match the number attempted, log it
-        throw new M.CustomError(
-          'Some of the following elements failed to update: '
-          + `[${foundElements.map(e => e.uid)}].`, 500, 'error'
-        );
-      }
-
-      // Find the updated elements to return them
-      return findElementsQuery(query);
-    })
-    // Return the updated elements
-    .then((updatedElements) => resolve(updatedElements))
-    .catch((error) => reject(M.CustomError.parseCustomError(error)));
-  });
-}
-
-/**
- * @description This function removes multiple elements.
- *
- * @param {User} reqUser - The user object of the requesting user.
- * @param {Object} query - The query used to find/delete elements
- * @param {Boolean} hardDelete - A boolean value indicating whether to hard delete.
- *
- * @return {Promise} resolve - deleted elements
- *                   reject -  error
- *
- * @example
- * removeElements({User}, { proj: 'projID' }, 'false')
- * .then(function(elements) {
- *   // Do something with the deleted elements
- * })
- * .catch(function(error) {
- *   M.log.error(error);
- * });
- */
-function removeElements(reqUser, query, hardDelete = false) {
-  return new Promise((resolve, reject) => {
-    // Error Check: ensure input parameters are valid
-    try {
-      assert.ok(typeof query === 'object', 'Remove query is not an object.');
-      assert.ok(typeof hardDelete === 'boolean', 'Hard deleted flag is not a boolean.');
-    }
-    catch (error) {
-      throw new M.CustomError(error.message, 400, 'error', 'warn');
-    }
-
-    // If hard deleting, ensure user is a site-wide admin
-    if (hardDelete && !reqUser.admin) {
-      throw new M.CustomError(
-        'User does not have permission to permanently delete a element.', 403, 'warn'
-      );
-    }
-
-    // Define found elements array and child query
-    let foundElements = [];
-    const childQuery = { id: { $in: [] } };
-
-    // Find the elements to delete
-    findElementsQuery(query)
-    .then((elements) => {
-      // Set foundElements
-      foundElements = elements;
-      const foundElementsIDs = foundElements.map(e => e._id.toString());
-
-      // Loop through each found element
-      Object(elements).forEach((element) => {
-        // Error Check: ensure user is global admin or project writer
-        if (!element.project.getPermissions(reqUser).write && !reqUser.admin) {
-          throw new M.CustomError('User does not have permissions to '
-              + `delete elements in the project [${element.project.name}].`, 403, 'warn');
-        }
-
-        // If the element is a package, remove the children as well
-        if (element.type === 'Package') {
-          // For each child element
-          element.contains.forEach((child) => {
-            // Add child to foundElements
-            if (!foundElementsIDs.includes(child._id.toString())) {
-              foundElements.push(child);
-            }
-
-            // Add child to child query
-            childQuery.id.$in.push(child.id);
-          });
-        }
-      });
-
-      // If hard delete, delete elements, otherwise update elements
-      return (hardDelete)
-        ? Element.Element.deleteMany(query)
-        : Element.Element.updateMany(query, { deleted: true, deletedBy: reqUser });
-    })
-    // Delete any child elements
-    .then(() => ((hardDelete)
-      ? Element.Element.deleteMany(childQuery)
-      : Element.Element.updateMany(childQuery, { deleted: true, deletedBy: reqUser })))
-    // Return the deleted elements
-    .then(() => resolve(foundElements))
-    // Return reject with custom error
-    .catch((error) => reject(M.CustomError.parseCustomError(error)));
-  });
-}
-
-/**
- * @description This function returns element if found.
- *
- * @param {User} reqUser - The user object of the requesting user.
- * @param {String} organizationID - The organization ID.
- * @param {String} projectID - The project ID.
- * @param {String} elementID - The element ID.
- * @param {Boolean} softDeleted - A boolean value indicating whether to soft delete.
- *
- * @return {Promise} resolve - element
- *                   reject - error
- *
- * @example
- * findElement({User}, 'orgID', 'projectID', 'elementID', false)
- * .then(function(element) {
- *   // Do something with the found element
- * })
- * .catch(function(error) {
- *   M.log.error(error);
- * });
- */
-function findElement(reqUser, organizationID, projectID, elementID, softDeleted = false) {
-  return new Promise((resolve, reject) => {
-    // Error Check: ensure input parameters are valid
-    try {
-      assert.ok(typeof organizationID === 'string', 'Organization ID is not a string.');
-      assert.ok(typeof projectID === 'string', 'Project ID is not a string.');
-      assert.ok(typeof elementID === 'string', 'Element ID is not a string.');
-      assert.ok(typeof softDeleted === 'boolean', 'Soft deleted flag is not a boolean.');
-    }
-    catch (error) {
-      throw new M.CustomError(error.message, 400, 'warn');
-    }
-
-    // Sanitize query inputs
-    const orgID = sani.sanitize(organizationID);
-    const projID = sani.sanitize(projectID);
-    const elemID = sani.sanitize(elementID);
-    const elemUID = utils.createID(orgID, projID, elemID);
-
-    // Search for an element that matches the id or uuid
-    let searchParams = { $and: [{ $or: [{ id: elemUID },
-      { uuid: elemID }] }, { deleted: false }] };
-
-    // Error Check: Ensure user has permissions to find deleted elements
-    if (softDeleted && !reqUser.admin) {
-      throw new M.CustomError('User does not have permissions.', 403, 'warn');
-    }
-    // Check softDeleted flag true
-    if (softDeleted) {
-      // softDeleted flag true and User Admin true, remove deleted: false
-      searchParams = { $or: [{ id: elemUID }, { uuid: elemID }] };
-    }
-
-    // Find elements
-    findElementsQuery(searchParams)
-    .then((elements) => {
-      // Error Check: ensure at least one element was found
-      if (elements.length === 0) {
-        // No elements found, reject error
-        throw new M.CustomError('Element not found.', 404, 'warn');
-      }
-
-      // Error Check: ensure no more than one element was found
-      if (elements.length > 1) {
-        throw new M.CustomError('More than one element found.', 400, 'warn');
-      }
-
-      // Error Check: ensure reqUser has either read permissions or is global admin
-      if (!elements[0].project.getPermissions(reqUser).read && !reqUser.admin) {
-        throw new M.CustomError('User does not have permissions.', 403, 'warn');
-      }
-
-      // All checks passed, resolve element
-      return resolve(elements[0]);
-    })
-    .catch((error) => reject(M.CustomError.parseCustomError(error)));
-  });
-}
-
-/**
- * @description This function takes a query and finds all matching elements.
- *
- * @param {Object} elementQuery  The query to be used to find the element.
- *
- * @return {Promise} resolve - array of elements
- *                   reject - error
- *
- * @example
- * findElementQuery({ uid: 'org:project:id' })
+ * find({User}, 'orgID', 'projID', 'branchID', ['elem1', 'elem2'], { populate: 'parent' })
  * .then(function(elements) {
  *   // Do something with the found elements
  * })
@@ -658,352 +66,1156 @@ function findElement(reqUser, organizationID, projectID, elementID, softDeleted 
  *   M.log.error(error);
  * });
  */
-function findElementsQuery(elementQuery) {
+function find(requestingUser, organizationID, projectID, branch, elements, options) {
   return new Promise((resolve, reject) => {
-    // Find elements
-    Element.Element.find(elementQuery)
-    .populate('parent project source target contains')
-    .then((arrElements) => resolve(arrElements))
-    .catch((error) => reject(M.CustomError.parseCustomError(error)));
-  });
-}
-
-/**
- * @description This function creates an element.
- *
- * @param {User} reqUser  The user object of the requesting user.
- * @param {Object} element  The JSON object containing the element data
- *
- * @return {Promise} resolve - new Element
- *                   reject - error
- *
- * @example
- * createElement({User}, { id: 'elementID', project: { id: 'projID', org: {id: 'orgID' }}})
- * .then(function(element) {
- *   // Do something with the newly created element
- * })
- * .catch(function(error) {
- *   M.log.error(error);
- * });
- */
-function createElement(reqUser, element) {
-  return new Promise((resolve, reject) => {
-    // Initialize optional fields with a default
-    let elemName = null;
-    let parentID = null;
-    let custom = {};
-    let documentation = null;
-    let uuid = '';
-
-    // Error Check: ensure input parameters are valid
+    // Ensure input parameters are correct type
     try {
-      assert.ok(element.hasOwnProperty('id'), 'ID not provided in request body.');
-      assert.ok(element.hasOwnProperty('type'), 'Element type not provided in request body.');
-      assert.ok(element.hasOwnProperty('projectUID'), 'Project UID not provided in request body.');
-      assert.ok(typeof element.id === 'string', 'ID in request body is not a string.');
-      assert.ok(typeof element.type === 'string', 'Element type in request body is not a string.');
-      // Error Check: Ensure object contains valid keys
-      assert.ok(Element.Element.validateObjectKeys(element), 'Element contains invalid keys.');
-
-      if (typeof element.name === 'string') {
-        elemName = sani.sanitize(element.name);
-      }
-      if (typeof element.parent === 'string') {
-        parentID = sani.sanitize(element.parent);
-      }
-      if (typeof element.custom === 'object') {
-        custom = sani.sanitize(element.custom);
-      }
-      if (typeof element.documentation === 'string') {
-        documentation = sani.sanitize(element.documentation);
-      }
-      if (typeof element.uuid === 'string') {
-        uuid = sani.sanitize(element.uuid);
-      }
-    }
-    catch (error) {
-      throw new M.CustomError(error.message, 400, 'warn');
-    }
-
-    // Sanitize query inputs
-    const elemID = sani.sanitize(element.id);
-    const splitProjectUID = utils.parseID(sani.sanitize(element.projectUID));
-    const elemUID = utils.createID(splitProjectUID[0], splitProjectUID[1], elemID);
-    const elementType = utils.toTitleCase(sani.sanitize(element.type));
-
-    // Initialize foundProject
-    let foundProj = null;
-
-    // Error Check: make sure the project exists
-    ProjController.findProject(reqUser, splitProjectUID[0], splitProjectUID[1])
-    .then((proj) => {
-      // Error check: make sure user has write permissions on project
-      if (!proj.getPermissions(reqUser).write && !reqUser.admin) {
-        throw new M.CustomError('User does not have permission.', 403, 'warn');
-      }
-
-      // Set foundProject to the found project
-      foundProj = proj;
-
-      // Error check - check if the element already exists
-      // Must nest promises since the catch uses proj, returned from findProject.
-      return findElementsQuery({ $or: [{ id: elemUID }, { uuid: uuid }] });
-    })
-    .then((elements) => {
-      // Error Check: ensure no elements were found
-      if (elements.length > 0) {
-        throw new M.CustomError('Element already exists.', 400, 'warn');
-      }
-
-      // Error Check - NOT included element type
-      if (!Element.Element.getValidTypes().includes(elementType)) {
-        throw new M.CustomError('Invalid element type.', 400, 'warn');
-      }
-
-      // Create the new element object
-      const elemObject = new Element[elementType]({
-        id: elemUID,
-        name: elemName,
-        project: foundProj,
-        custom: custom,
-        documentation: documentation,
-        uuid: uuid,
-        createdBy: reqUser,
-        lastModifiedBy: reqUser
-      });
-
-      // Set the hidden parent field, used by middleware
-      elemObject.$parent = parentID;
-
-      // If relationship, set hidden source and target, used by middleware
-      if (elementType === 'Relationship') {
-        elemObject.$target = element.target;
-        elemObject.$source = element.source;
-      }
-
-      // Save the element
-      return elemObject.save();
-    })
-    // Return new element
-    .then((newElement) => resolve(newElement))
-    // Return reject with custom error
-    .catch((error) => reject(M.CustomError.parseCustomError(error)));
-  });
-}
-
-/**
- * @description This function updates an element.
- *
- * @param {User} reqUser - The object containing the requesting user.
- * @param {String} organizationID - The organization ID of the project.
- * @param {String} projectID - The project ID.
- * @param {String} elementID - The element ID.
- * @param {Object} elementUpdated - Update data object OR element to be updated
- *
- * @return {Promise} resolve - updated element
- *                   reject -  error
- *
- * @example
- * updateElement({User}, 'orgID', 'projectID', 'elementID', { name: 'Updated Element' })
- * .then(function(element) {
- *   // do something with the updated element.
- * })
- * .catch(function(error) {
- *   M.log.error(error);
- * });
- *
- */
-function updateElement(reqUser, organizationID, projectID, elementID, elementUpdated) {
-  return new Promise((resolve, reject) => {
-    // Error Check: ensure input parameters are valid
-    try {
+      assert.ok(typeof requestingUser === 'object', 'Requesting user is not an object.');
+      assert.ok(requestingUser !== null, 'Requesting user cannot be null.');
+      // Ensure that requesting user has an _id field
+      assert.ok(requestingUser._id, 'Requesting user is not populated.');
       assert.ok(typeof organizationID === 'string', 'Organization ID is not a string.');
       assert.ok(typeof projectID === 'string', 'Project ID is not a string.');
-      assert.ok(typeof elementID === 'string', 'Element ID is not a string.');
-      assert.ok(typeof elementUpdated === 'object', 'Element data is not a object.');
-      // Error Check: Ensure object contains valid keys
-      assert.ok(Element.Element.validateObjectKeys(elementUpdated), 'Element contains invalid keys.');
+      assert.ok(typeof branch === 'string', 'Branch ID is not a string.');
+      // Ensure user is on the master branch
+      assert.ok(branch === 'master', 'User must be on the master branch.');
+
+      const elementsTypes = ['undefined', 'object', 'string'];
+      const optionsTypes = ['undefined', 'object'];
+      assert.ok(elementsTypes.includes(typeof elements), 'Elements parameter is an invalid type.');
+      // If elements is an object, ensure it's an array of strings
+      if (typeof elements === 'object') {
+        assert.ok(Array.isArray(elements), 'Elements is an object, but not an array.');
+        assert.ok(elements.every(e => typeof e === 'string'), 'Elements is not an array of'
+          + ' strings.');
+      }
+      assert.ok(optionsTypes.includes(typeof options), 'Options parameter is an invalid type.');
     }
-    catch (error) {
-      throw new M.CustomError(error.message, 400, 'warn');
+    catch (err) {
+      throw new M.CustomError(err.message, 400, 'warn');
     }
 
-    // Check if elementUpdated is instance of Element model
-    if (elementUpdated instanceof Element.Element) {
-      // Disabling linter because the reassign is needed to convert the object to JSON
-      // elementUpdated is instance of Element model, convert to JSON
-      elementUpdated = elementUpdated.toJSON(); // eslint-disable-line no-param-reassign
+    // Sanitize input parameters
+    const saniElements = (elements !== undefined)
+      ? sani.sanitize(JSON.parse(JSON.stringify(elements)))
+      : undefined;
+    const reqUser = JSON.parse(JSON.stringify(requestingUser));
+    const orgID = sani.sanitize(organizationID);
+    const projID = sani.sanitize(projectID);
+    let foundElements = [];
+
+    // Set options if no elements were provided, but options were
+    if (typeof elements === 'object' && elements !== null && !Array.isArray(elements)) {
+      options = elements; // eslint-disable-line no-param-reassign
     }
 
-    // Find element
-    // Note: organizationID, projectID, and elementID are sanitized in findElement()
-    findElement(reqUser, organizationID, projectID, elementID)
-    .then((element) => {
-      // Error Check: ensure reqUser is a project admin or global admin
-      if (!element.project.getPermissions(reqUser).admin && !reqUser.admin) {
-        // reqUser does NOT have admin permissions or NOT global admin, reject error
-        throw new M.CustomError('User does not have permissions.', 403, 'warn');
+    // Initialize valid options
+    let archived = false;
+    let populateString = 'contains ';
+    let subtree = false;
+
+    // Ensure options are valid
+    if (options) {
+      // If the option 'archived' is supplied, ensure it's a boolean
+      if (options.hasOwnProperty('archived')) {
+        if (typeof options.archived !== 'boolean') {
+          throw new M.CustomError('The option \'archived\' is not a boolean.', 400, 'warn');
+        }
+        archived = options.archived;
       }
 
-      // Get list of keys the user is trying to update
-      const elemUpdateFields = Object.keys(elementUpdated);
-      // Get list of parameters which can be updated from model
-      const validUpdateFields = element.getValidUpdateFields();
-
-      // Allocate update val and field before for loop
-      let updateField = '';
-
-      // Loop through elemUpdateFields
-      for (let i = 0; i < elemUpdateFields.length; i++) {
-        updateField = elemUpdateFields[i];
-
-        // Error Check: check if updated field also exists in the original element.
-        if (!element.toJSON().hasOwnProperty(updateField)) {
-          // Original element does NOT contain updatedField, reject error
-          throw new M.CustomError(`Element does not contain field ${updateField}.`, 400, 'warn');
+      // If the option 'populate' is supplied, ensure it's a string
+      if (options.hasOwnProperty('populate')) {
+        if (!Array.isArray(options.populate)) {
+          throw new M.CustomError('The option \'populate\' is not an array.', 400, 'warn');
         }
-
-        // Check if updated field is equal to the original field
-        if (utils.deepEqual(element.toJSON()[updateField], elementUpdated[updateField])) {
-          // Updated value matches existing value, continue to next loop iteration
-          continue;
-        }
-
-        // Error Check: Check if field can be updated
-        if (!validUpdateFields.includes(updateField)) {
-          // field cannot be updated, reject error
+        if (!options.populate.every(o => typeof o === 'string')) {
           throw new M.CustomError(
-            `Element property [${updateField}] cannot be changed.`, 403, 'warn'
+            'Every value in the populate array must be a string.', 400, 'warn'
           );
         }
 
-        // Check if updateField type is 'Mixed'
-        if (Element.Element.schema.obj[updateField].type.schemaName === 'Mixed') {
-          // Only objects should be passed into mixed data
-          if (typeof elementUpdated[updateField] !== 'object') {
-            throw new M.CustomError(`${updateField} must be an object`, 400, 'warn');
+        // Ensure each field is able to be populated
+        const validPopulateFields = Element.getValidPopulateFields();
+        options.populate.forEach((p) => {
+          if (!validPopulateFields.includes(p)) {
+            throw new M.CustomError(`The field ${p} cannot be populated.`, 400, 'warn');
           }
+        });
 
-          // Update each value in the object
-          // eslint-disable-next-line no-loop-func
-          Object.keys(elementUpdated[updateField]).forEach((key) => {
-            element.custom[key] = sani.sanitize(elementUpdated[updateField][key]);
-          });
-
-          // Mark mixed fields as updated, required for mixed fields to update in mongoose
-          // http://mongoosejs.com/docs/schematypes.html#mixed
-          element.markModified(updateField);
-        }
-        else {
-          // Schema type is not mixed
-          // Sanitize field and update field in element object
-          element[updateField] = sani.sanitize(elementUpdated[updateField]);
-        }
+        populateString += options.populate.join(' ');
       }
 
-      // Update last modified field
-      element.lastModifiedBy = reqUser;
+      // If the option 'subtree' is supplied ensure it's a boolean
+      if (options.hasOwnProperty('subtree')) {
+        if (typeof options.subtree !== 'boolean') {
+          throw new M.CustomError('The option \'subtree\' is not a boolean.', 400, 'warn');
+        }
+        subtree = options.subtree;
+      }
+    }
 
-      // Save updated element
-      return element.save();
+    // Find the project
+    Project.findOne({ _id: utils.createID(orgID, projID) })
+    .then((project) => {
+      // Check that the project was found
+      if (!project) {
+        throw new M.CustomError(`Project [${projID}] not found in the `
+        + `organization [${orgID}].`, 404, 'warn');
+      }
+
+      // Verify the user has read permissions on the project
+      if (!reqUser.admin && (!project.permissions[reqUser._id]
+        || !project.permissions[reqUser._id].includes('read'))) {
+        throw new M.CustomError('User does not have permission to get'
+            + ` elements on the project [${utils.parseID(project._id).pop()}].`, 403, 'warn');
+      }
+
+      let elementsToFind = [];
+
+      // Check the type of the elements parameter
+      if (Array.isArray(saniElements) && saniElements.every(e => typeof e === 'string')) {
+        // An array of element ids, find all
+        elementsToFind = saniElements.map(e => utils.createID(orgID, projID, e));
+      }
+      else if (typeof saniElements === 'string') {
+        // A single element id
+        elementsToFind = [utils.createID(orgID, projID, saniElements)];
+      }
+      else if (((typeof saniElements === 'object' && saniElements !== null)
+          || saniElements === undefined)) {
+        // Find all elements in the project
+        elementsToFind = [];
+      }
+      else {
+        // Invalid parameter, throw an error
+        throw new M.CustomError('Invalid input for finding elements.', 400, 'warn');
+      }
+
+      // If wanting to find subtree, find subtree ids
+      if (subtree) {
+        return findElementTree(orgID, projID, 'master', elementsToFind);
+      }
+
+      return elementsToFind;
     })
-    // Return updated element
-    .then((updatedElement) => resolve(updatedElement))
-    // Return reject with custom error
+    .then((elementIDs) => {
+      // Define searchQuery
+      const searchQuery = { project: utils.createID(orgID, projID), archived: false };
+      // If the archived field is true, remove it from the query
+      if (archived) {
+        delete searchQuery.archived;
+      }
+
+      // If no IDs provided, find all elements in a project
+      if (elementIDs.length === 0) {
+        // Find all elements in a project
+        return Element.find(searchQuery).populate(populateString);
+      }
+      // Find elements by ID
+
+      const promises = [];
+
+      // Find elements in batches
+      for (let i = 0; i < elementIDs.length / 50000; i++) {
+        // Split elementIDs list into batches of 50000
+        searchQuery._id = elementIDs.slice(i * 50000, i * 50000 + 50000);
+
+        // Add find operation to promises array
+        promises.push(Element.find(searchQuery).populate(populateString)
+        .then((_foundElements) => {
+          foundElements = foundElements.concat(_foundElements);
+        }));
+      }
+
+      // Return when all elements have been found
+      return Promise.all(promises);
+    })
+    .then((found) => {
+      // If each item in found is not undefined, its the return from Element.find()
+      if (!found.every(o => typeof o === 'undefined')) {
+        return resolve(found);
+      }
+      // Each item in found is undefined, which is the return from Promise.all(), return
+      // foundElements
+
+      return resolve(foundElements);
+    })
     .catch((error) => reject(M.CustomError.parseCustomError(error)));
   });
 }
 
 /**
- * @description This function deletes an element.
+ * @description This functions creates one or many elements. In addition to
+ * creating the elements from the data supplied, this function also checks for
+ * elements with duplicate IDs, ensures the user has write permissions on the
+ * provided project, ensures existence of specified parents, sources and
+ * targets, and then returns the elements which were created.
  *
- * @param {User} reqUser  The user object of the requesting user.
- * @param {String} organizationID  The organization ID.
- * @param {String} projectID  The project ID.
- * @param {String} elementID  The element ID.
- * @param {Object} hardDelete  Flag denoting whether to hard or soft delete.
+ * @param {User} requestingUser - The object containing the requesting user.
+ * @param {string} organizationID - The ID of the owning organization.
+ * @param {string} projectID - The ID of the owning project.
+ * @param {string} branch - The ID of the branch to add elements to.
+ * @param {(Object|Object[])} elements - Either an array of objects containing
+ * element data or a single object containing element data to create.
+ * @param {string} elements.id - The ID of the element being created.
+ * @param {string} [elements.name] - The name of the element.
+ * @param {string} [elements.parent = 'model'] - The ID of the parent of the
+ * element. The default value is 'model'
+ * @param {string} [elements.source] - The ID of the source element. If
+ * provided, the parameter target is required.
+ * @param {string} [elements.target] - The ID of the target element. If
+ * provided, the parameter source is required.
+ * @param {string} [elements.documentation] - Any additional text
+ * documentation about an element.
+ * @param {string} [elements.type] - An optional type string.
+ * @param {Object} [elements.custom] - Any additional key/value pairs for an
+ * object. Must be proper JSON form.
+ * @param {Object} [options] - A parameter that provides supported options.
+ * @param {string[]} [options.populate] - A list of fields to populate on return
+ * of the found objects. By default, no fields are populated.
  *
- * @return {Promise} resolve - deleted element
- *                   reject -  error
+ * @return {Promise} Array of created element objects
  *
  * @example
- * removeElement({User}, 'orgID', 'projectID', 'elementID', false)
- * .then(function(element) {
- *   // Do something with the newly deleted element
+ * create({User}, 'orgID', 'projID', 'branch', [{Elem1}, {Elem2}, ...], { populate: ['parent'] })
+ * .then(function(elements) {
+ *   // Do something with the newly created elements
  * })
  * .catch(function(error) {
  *   M.log.error(error);
  * });
  */
-function removeElement(reqUser, organizationID, projectID, elementID, hardDelete = false) {
+function create(requestingUser, organizationID, projectID, branch, elements, options) {
   return new Promise((resolve, reject) => {
-    // Error Check: ensure input parameters are valid
+    // Ensure input parameters are correct type
     try {
+      assert.ok(typeof requestingUser === 'object', 'Requesting user is not an object.');
+      assert.ok(requestingUser !== null, 'Requesting user cannot be null.');
+      // Ensure that requesting user has an _id field
+      assert.ok(requestingUser._id, 'Requesting user is not populated.');
       assert.ok(typeof organizationID === 'string', 'Organization ID is not a string.');
       assert.ok(typeof projectID === 'string', 'Project ID is not a string.');
-      assert.ok(typeof elementID === 'string', 'Element ID is not a string.');
-      assert.ok(typeof hardDelete === 'boolean', 'Hard delete flag is not a boolean.');
-    }
-    catch (error) {
-      return reject(new M.CustomError(error.message, 400, 'warn'));
-    }
-
-    // Error Check: if hard deleting, ensure user is global admin
-    if (hardDelete && !reqUser.admin) {
-      return reject(new M.CustomError('User does not have permission to hard delete an'
-        + ' element.', 403, 'warn'));
-    }
-
-    // Define foundElement
-    let foundElement = null;
-
-    // Find the element
-    findElement(reqUser, organizationID, projectID, elementID, true)
-    .then((element) => {
-      // Set foundElement
-      foundElement = element;
-
-      // Error Check: ensure user has permissions to delete element
-      if (!element.project.getPermissions(reqUser).write && !reqUser.admin) {
-        return reject(new M.CustomError('User does not have permission.', 403, 'warn'));
+      assert.ok(typeof branch === 'string', 'Branch ID is not a string.');
+      // Ensure user is on the master branch
+      assert.ok(branch === 'master', 'User must be on the master branch.');
+      assert.ok(typeof elements === 'object', 'Elements parameter is not an object.');
+      assert.ok(elements !== null, 'Elements parameter cannot be null.');
+      // If elements is an array, ensure each item inside is an object
+      if (Array.isArray(elements)) {
+        assert.ok(elements.every(e => typeof e === 'object'), 'Every item in elements is not an'
+          + ' object.');
+        assert.ok(elements.every(e => e !== null), 'One or more items in elements is null.');
       }
+      const optionsTypes = ['undefined', 'object'];
+      assert.ok(optionsTypes.includes(typeof options), 'Options parameter is an invalid type.');
+    }
+    catch (err) {
+      throw new M.CustomError(err.message, 400, 'warn');
+    }
 
-      // Hard delete
-      if (hardDelete) {
-        return Element.Element.deleteMany({ $or: [{ _id: element._id }, { parent: element._id }] });
-      }
-      // Create promises array
-      const promises = [];
-      // Soft delete
-      element.deleted = true;
+    // Sanitize input parameters and create function-wide variables
+    const saniElements = sani.sanitize(JSON.parse(JSON.stringify(elements)));
+    const reqUser = JSON.parse(JSON.stringify(requestingUser));
+    const orgID = sani.sanitize(organizationID);
+    const projID = sani.sanitize(projectID);
+    let elementObjects = [];
+    const remainingElements = [];
+    let populatedElements = [];
 
-      // Update deleted by field
-      element.deletedBy = reqUser;
+    // Initialize valid options
+    let populateString = 'contains ';
 
-      // Add element.save() to promises array
-      promises.push(element.save());
+    // Ensure options are valid
+    if (options) {
+      // If the option 'populate' is supplied, ensure it's a string
+      if (options.hasOwnProperty('populate')) {
+        if (!Array.isArray(options.populate)) {
+          throw new M.CustomError('The option \'populate\' is not an array.', 400, 'warn');
+        }
+        if (!options.populate.every(o => typeof o === 'string')) {
+          throw new M.CustomError(
+            'Every value in the populate array must be a string.', 400, 'warn'
+          );
+        }
 
-      // If the deleted element is a package
-      if (element.type === 'Package') {
-        // Soft-delete each of it's children
-        element.contains.forEach((child) => {
-          child.deleted = true;
-          child.deletedBy = reqUser;
-          promises.push(child.save());
+        // Ensure each field is able to be populated
+        const validPopulateFields = Element.getValidPopulateFields();
+        options.populate.forEach((p) => {
+          if (!validPopulateFields.includes(p)) {
+            throw new M.CustomError(`The field ${p} cannot be populated.`, 400, 'warn');
+          }
         });
+
+        populateString += options.populate.join(' ');
+      }
+    }
+
+    // Define array to store element data
+    let elementsToCreate = [];
+
+    // Check the type of the elements parameter
+    if (Array.isArray(saniElements) && saniElements.every(e => typeof e === 'object')) {
+      // elements is an array, create many elements
+      elementsToCreate = saniElements;
+    }
+    else if (typeof saniElements === 'object') {
+      // elements is an object, create a single element
+      elementsToCreate = [saniElements];
+    }
+    else {
+      // elements is not an object or array, throw an error
+      throw new M.CustomError('Invalid input for creating elements.', 400, 'warn');
+    }
+
+    // Create array of id's for lookup and array of valid keys
+    const arrIDs = [];
+    const validElemKeys = ['id', 'name', 'parent', 'source', 'target',
+      'documentation', 'type', 'custom'];
+
+    // Check that each element has an id and set the parent if null
+    try {
+      let index = 1;
+      elementsToCreate.forEach((elem) => {
+        // Ensure keys are valid
+        Object.keys(elem).forEach((k) => {
+          assert.ok(validElemKeys.includes(k), `Invalid key [${k}].`);
+        });
+
+        // Ensure each element has an id and that it's a string
+        assert.ok(elem.hasOwnProperty('id'), `Element #${index} does not have an id.`);
+        assert.ok(typeof elem.id === 'string', `Element #${index}'s id is not a string.`);
+        elem.id = utils.createID(orgID, projID, elem.id);
+        arrIDs.push(elem.id);
+        elem._id = elem.id;
+
+        // Set the element parent if null
+        if (!elem.hasOwnProperty('parent') || elem.parent === null || elem.parent === '') {
+          elem.parent = 'model';
+        }
+        assert.ok(typeof elem.parent === 'string', `Element #${index}'s parent is not a string.`);
+        assert.ok(utils.createID(orgID, projID, elem.parent) !== elem._id,
+          'Elements parent cannot be self.');
+
+        // If element has a source, ensure it has a target
+        if (elem.hasOwnProperty('source')) {
+          assert.ok(elem.hasOwnProperty('target'), `Element #${index} is missing a target id.`);
+          assert.ok(typeof elem.target === 'string',
+            `Element #${index}'s target is not a string.`);
+        }
+
+        // If element has a target, ensure it has a source
+        if (elem.hasOwnProperty('target')) {
+          assert.ok(elem.hasOwnProperty('source'), `Element #${index} is missing a source id.`);
+          assert.ok(typeof elem.source === 'string',
+            `Element #${index}'s source is not a string.`);
+        }
+
+        index++;
+      });
+    }
+    catch (err) {
+      throw new M.CustomError(err.message, 403, 'warn');
+    }
+
+    // Attempt to convert elements to JMI type 2, to see if duplicate ids exist
+    try {
+      utils.convertJMI(1, 2, elementsToCreate, '_id');
+    }
+    catch (err) {
+      throw new M.CustomError('Cannot create multiple elements with the same ID.', 403, 'warn');
+    }
+
+    // Find the project to verify existence and permissions
+    Project.findOne({ _id: utils.createID(orgID, projID) })
+    .then((foundProject) => {
+      // Check that the project was found
+      if (!foundProject) {
+        throw new M.CustomError(`Project [${projID}] not found in the `
+          + `organization [${orgID}].`, 404, 'warn');
       }
 
-      // Return once all promises are complete
+      // Verify user has write permissions on the project
+      if (!reqUser.admin && (!foundProject.permissions[reqUser._id]
+        || !foundProject.permissions[reqUser._id].includes('write'))) {
+        throw new M.CustomError('User does not have permission to create'
+            + ' elements on the project '
+            + `[${utils.parseID(foundProject._id).pop()}].`, 403, 'warn');
+      }
+
+      const promises = [];
+      for (let i = 0; i < arrIDs.length / 50000; i++) {
+        // Split arrIDs into batches of 50000
+        const tmpQuery = { _id: { $in: arrIDs.slice(i * 50000, i * 50000 + 50000) } };
+        // Attempt to find any elements with matching _id
+        promises.push(Element.find(tmpQuery, '_id')
+        .then((foundElements) => {
+          if (foundElements.length > 0) {
+            // Get array of the foundElements's ids
+            const foundElementIDs = foundElements.map(e => utils.parseID(e._id).pop());
+
+            // There are one or more elements with conflicting IDs
+            throw new M.CustomError('Elements with the following IDs already exist'
+                  + ` [${foundElementIDs.toString()}].`, 403, 'warn');
+          }
+        }));
+      }
       return Promise.all(promises);
     })
     .then(() => {
-      // Set deleted boolean on foundElement
-      foundElement.deleted = true;
+      // For each object of element data, create the element object
+      elementObjects = elementsToCreate.map((e) => {
+        const elemObj = new Element(e);
+        // Set the project, lastModifiedBy and createdBy
+        elemObj.project = utils.createID(orgID, projID);
+        elemObj.lastModifiedBy = reqUser._id;
+        elemObj.createdBy = reqUser._id;
+        elemObj.updatedOn = Date.now();
+        elemObj.archivedBy = (elemObj.archived) ? reqUser._id : null;
 
-      // Return found element
-      return resolve(foundElement);
+        // Add hidden fields
+        elemObj.$parent = utils.createID(orgID, projID, e.parent);
+        elemObj.$source = (e.source)
+          ? utils.createID(orgID, projID, e.source)
+          : null;
+        elemObj.$target = (e.target)
+          ? utils.createID(orgID, projID, e.target)
+          : null;
+
+        return elemObj;
+      });
+
+      // Convert elemObjects array to JMI type 2 for easier lookup
+      const jmi2 = utils.convertJMI(1, 2, elementObjects);
+
+      // Define array of elements that need to be searched for in DB
+      const elementsToFind = [];
+
+      // Loop through each element and set its parent (and source and target)
+      elementObjects.forEach((element) => {
+        // If the element has a parent
+        if (element.$parent) {
+          // If the element's parent is also being created
+          if (jmi2.hasOwnProperty(element.$parent)) {
+            const parentObj = jmi2[element.$parent];
+            element.parent = parentObj._id;
+            element.$parent = null;
+          }
+          else {
+            // Add elements parent to list of elements to search for in DB
+            elementsToFind.push(element.$parent);
+            remainingElements.push(element);
+          }
+        }
+
+        // If the element has a source
+        if (element.$source) {
+          // If the element's source is also being created
+          if (jmi2.hasOwnProperty(element.$source)) {
+            element.source = element.$source;
+            element.$source = null;
+          }
+          else {
+            // Add elements source to list of elements to search for in DB
+            elementsToFind.push(element.$source);
+            remainingElements.push(element);
+          }
+        }
+
+        // If the element has a target
+        if (element.$target) {
+          // If the element's target is also being created
+          if (jmi2.hasOwnProperty(element.$target)) {
+            element.target = element.$target;
+            element.$target = null;
+          }
+          else {
+            // Add elements target to list of elements to search for in DB
+            elementsToFind.push(element.$target);
+            remainingElements.push(element);
+          }
+        }
+      });
+
+      // Create query for finding elements
+      const findExtraElementsQuery = { _id: { $in: elementsToFind } };
+
+      // Find extra elements, and only return _id for faster lookup
+      return Element.find(findExtraElementsQuery, '_id');
     })
-    // Return reject with custom error
+    .then((extraElements) => {
+      // Convert extraElements to JMI type 2 for easier lookup
+      const extraElementsJMI2 = utils.convertJMI(1, 2, extraElements);
+      // Loop through each remaining element that does not have it's parent,
+      // source, or target set yet
+      remainingElements.forEach((element) => {
+        // If the element has a parent
+        if (element.$parent) {
+          try {
+            element.parent = extraElementsJMI2[element.$parent]._id;
+            element.$parent = null;
+          }
+          catch (e) {
+            // Parent not found in db, throw an error
+            throw new M.CustomError(`Parent element ${element.$parent} not found.`, 404, 'warn');
+          }
+        }
+
+        // If the element is a relationship and has a source
+        if (element.$source) {
+          try {
+            element.source = extraElementsJMI2[element.$source]._id;
+            element.$source = null;
+          }
+          catch (e) {
+            // Source not found in db, throw an error
+            throw new M.CustomError(`Source element ${element.$source} not found.`, 404, 'warn');
+          }
+        }
+
+        // If the element is a relationship and has a target
+        if (element.$target) {
+          try {
+            element.target = extraElementsJMI2[element.$target]._id;
+            element.$target = null;
+          }
+          catch (e) {
+            // Target not found in db, throw an error
+            throw new M.CustomError(`Target element ${element.$target} not found.`, 404, 'warn');
+          }
+        }
+      });
+
+      return Element.insertMany(elementObjects);
+    })
+    .then((createdElements) => {
+      const promises = [];
+      const createdIDs = createdElements.map(e => e._id);
+      // Find elements in batches
+      for (let i = 0; i < createdIDs.length / 50000; i++) {
+        // Split elementIDs list into batches of 50000
+        const tmpQuery = { _id: { $in: createdIDs.slice(i * 50000, i * 50000 + 50000) } };
+
+        // Add find operation to promises array
+        promises.push(Element.find(tmpQuery).populate(populateString)
+        .then((_foundElements) => {
+          populatedElements = populatedElements.concat(_foundElements);
+        }));
+      }
+
+      // Return when all elements have been found
+      return Promise.all(promises);
+    })
+    .then(() => resolve(populatedElements))
     .catch((error) => reject(M.CustomError.parseCustomError(error)));
+  });
+}
+
+/**
+ * @description This function updates one or many elements. Multiple fields on
+ * multiple elements can be updated as long as they are valid. If changing an
+ * elements parent, only one element can be updated at a time. If updating the
+ * custom data on an element, and key/value pairs that exist in the update
+ * object don't exist in the current custom data, the key/value pair will be
+ * added. If the key/value pairs do exist, the value will be changed. If an
+ * element is archived, it must first be unarchived before any other updates
+ * occur. The user must have write permissions on a project or be a system-wide
+ * admin to update elements.
+ *
+ * @param {User} requestingUser - The object containing the requesting user.
+ * @param {string} organizationID - The ID of the owning organization.
+ * @param {string} projectID - The ID of the owning project.
+ * @param {string} branch - The ID of the branch to update elements on.
+ * @param {(Object|Object[])} elements - Either an array of objects containing
+ * updates to elements, or a single object containing updates.
+ * @param {string} elements.id - The ID of the element being updated. Field
+ * cannot be updated but is required to find element.
+ * @param {string} [elements.name] - The updated name of the element.
+ * @param {string} [elements.parent] - The ID of the new elements parent. Cannot
+ * update element parents in bulk.
+ * @param {string} [elements.documentation] - The updated documentation of the
+ * element.
+ * @param {string} [elements.type] - An optional type string.
+ * @param {Object} [elements.custom] - The additions or changes to existing
+ * custom data. If the key/value pair already exists, the value will be changed.
+ * If the key/value pair does not exist, it will be added.
+ * @param {boolean} [elements.archived] - The updated archived field. If true,
+ * the element will not be able to be found until unarchived.
+ * @param {Object} [options] - A parameter that provides supported options.
+ * @param {string[]} [options.populate] - A list of fields to populate on return
+ * of the found objects. By default, no fields are populated.
+ *
+ * @return {Promise} Array of updated element objects
+ *
+ * @example
+ * update({User}, 'orgID', 'projID', branch', [{Elem1}, {Elem22}...], { populate: 'parent' })
+ * .then(function(elements) {
+ *   // Do something with the newly updated elements
+ * })
+ * .catch(function(error) {
+ *   M.log.error(error);
+ * });
+ */
+function update(requestingUser, organizationID, projectID, branch, elements, options) {
+  return new Promise((resolve, reject) => {
+    // Ensure input parameters are correct type
+    try {
+      assert.ok(typeof requestingUser === 'object', 'Requesting user is not an object.');
+      assert.ok(requestingUser !== null, 'Requesting user cannot be null.');
+      // Ensure that requesting user has an _id field
+      assert.ok(requestingUser._id, 'Requesting user is not populated.');
+      assert.ok(typeof organizationID === 'string', 'Organization ID is not a string.');
+      assert.ok(typeof projectID === 'string', 'Project ID is not a string.');
+      assert.ok(typeof branch === 'string', 'Branch ID is not a string.');
+      // Ensure user is on the master branch
+      assert.ok(branch === 'master', 'User must be on the master branch.');
+      assert.ok(typeof elements === 'object', 'Elements parameter is not an object.');
+      assert.ok(elements !== null, 'Elements parameter cannot be null.');
+      // If elements is an array, ensure each item inside is an object
+      if (Array.isArray(elements)) {
+        assert.ok(elements.every(e => typeof e === 'object'), 'Every item in elements is not an'
+          + ' object.');
+        assert.ok(elements.every(e => e !== null), 'One or more items in elements is null.');
+      }
+      const optionsTypes = ['undefined', 'object'];
+      assert.ok(optionsTypes.includes(typeof options), 'Options parameter is an invalid type.');
+    }
+    catch (err) {
+      throw new M.CustomError(err.message, 400, 'warn');
+    }
+
+    // Sanitize input parameters and create function-wide variables
+    const reqUser = JSON.parse(JSON.stringify(requestingUser));
+    const orgID = sani.sanitize(organizationID);
+    const projID = sani.sanitize(projectID);
+    const saniElements = sani.sanitize(JSON.parse(JSON.stringify(elements)));
+    let foundElements = [];
+    let elementsToUpdate = [];
+    let searchQuery = {};
+    const duplicateCheck = {};
+    let foundUpdatedElements = [];
+    const arrIDs = [];
+
+    // Initialize valid options
+    let populateString = 'contains ';
+
+    // Ensure options are valid
+    if (options) {
+      // If the option 'populate' is supplied, ensure it's a string
+      if (options.hasOwnProperty('populate')) {
+        if (!Array.isArray(options.populate)) {
+          throw new M.CustomError('The option \'populate\' is not an array.', 400, 'warn');
+        }
+        if (!options.populate.every(o => typeof o === 'string')) {
+          throw new M.CustomError(
+            'Every value in the populate array must be a string.', 400, 'warn'
+          );
+        }
+
+        // Ensure each field is able to be populated
+        const validPopulateFields = Element.getValidPopulateFields();
+        options.populate.forEach((p) => {
+          if (!validPopulateFields.includes(p)) {
+            throw new M.CustomError(`The field ${p} cannot be populated.`, 400, 'warn');
+          }
+        });
+
+        populateString += options.populate.join(' ');
+      }
+    }
+
+    // Find the project
+    Project.findOne({ _id: utils.createID(orgID, projID) })
+    .then((foundProject) => {
+      // Check that the project was found
+      if (!foundProject) {
+        throw new M.CustomError(`Project [${projID}] not found in the `
+          + `organization [${orgID}].`, 404, 'warn');
+      }
+
+      // Verify user has write permissions on the project
+      if (!reqUser.admin && (!foundProject.permissions[reqUser._id]
+        || !foundProject.permissions[reqUser._id].includes('write'))) {
+        throw new M.CustomError('User does not have permission to update'
+          + ` elements on the project [${utils.parseID(foundProject._id).pop()}].`, 403, 'warn');
+      }
+
+      // Check the type of the elements parameter
+      if (Array.isArray(saniElements) && saniElements.every(e => typeof e === 'object')) {
+        // elements is an array, update many elements
+        elementsToUpdate = saniElements;
+
+        // Ensure element keys are valid to update in bulk
+        const validBulkFields = Element.getValidBulkUpdateFields();
+        validBulkFields.push('id');
+        // For each element
+        elementsToUpdate.forEach((e) => {
+          // For each key
+          Object.keys(e).forEach((key) => {
+            // If it can't be updated in bulk,throw an error
+            if (!validBulkFields.includes(key)) {
+              throw new M.CustomError(`Cannot update the field ${key} in bulk.`, 400, 'warn');
+            }
+          });
+        });
+      }
+      else if (typeof saniElements === 'object') {
+        // elements is an object, update a single element
+        elementsToUpdate = [saniElements];
+        // If updating parent, ensure it won't cause a circular reference
+        if (saniElements.hasOwnProperty('parent')) {
+          // Turn parent ID into a name-spaced ID
+          saniElements.parent = utils.createID(orgID, projID, saniElements.parent);
+          // Find if a circular reference exists
+          return moveElementCheck(orgID, projID, branch, saniElements);
+        }
+      }
+      else {
+        throw new M.CustomError('Invalid input for updating elements.', 400, 'warn');
+      }
+    })
+    .then(() => {
+      // Create list of ids
+      try {
+        let index = 1;
+        elementsToUpdate.forEach((elem) => {
+          // Ensure each element has an id and that its a string
+          assert.ok(elem.hasOwnProperty('id'), `Element #${index} does not have an id.`);
+          assert.ok(typeof elem.id === 'string', `Element #${index}'s id is not a string.`);
+          elem.id = utils.createID(orgID, projID, elem.id);
+          // If a duplicate ID, throw an error
+          if (duplicateCheck[elem.id]) {
+            throw new M.CustomError(`Multiple objects with the same ID [${elem.id}] exist in the`
+              + ' update.', 400, 'warn');
+          }
+          else {
+            duplicateCheck[elem.id] = elem.id;
+          }
+          arrIDs.push(elem.id);
+          elem._id = elem.id;
+          index++;
+        });
+      }
+      catch (err) {
+        throw new M.CustomError(err.message, 403, 'warn');
+      }
+
+      const promises = [];
+      searchQuery = { project: utils.createID(orgID, projID) };
+
+      // Find elements in batches
+      for (let i = 0; i < elementsToUpdate.length / 50000; i++) {
+        // Split elementIDs list into batches of 50000
+        searchQuery._id = elementsToUpdate.slice(i * 50000, i * 50000 + 50000);
+
+        // Add find operation to promises array
+        promises.push(Element.find(searchQuery)
+        .then((_foundElements) => {
+          foundElements = foundElements.concat(_foundElements);
+        }));
+      }
+
+      // Return when all elements have been found
+      return Promise.all(promises);
+    })
+    .then(() => {
+      // Verify the same number of elements are found as desired
+      if (foundElements.length !== arrIDs.length) {
+        const foundIDs = foundElements.map(e => e._id);
+        const notFound = arrIDs.filter(e => !foundIDs.includes(e)).map(e => utils.parseID(e).pop());
+        throw new M.CustomError(
+          `The following elements were not found: [${notFound.toString()}].`, 404, 'warn'
+        );
+      }
+
+      // Convert elementsToUpdate to JMI type 2
+      const jmiType2 = utils.convertJMI(1, 2, elementsToUpdate);
+      const bulkArray = [];
+      // Get array of editable parameters
+      const validFields = Element.getValidUpdateFields();
+
+      // For each found element
+      foundElements.forEach((element) => {
+        const updateElement = jmiType2[element._id];
+        // Remove id and _id field from update object
+        delete updateElement.id;
+        delete updateElement._id;
+
+        // Error Check: if element is currently archived, it must first be unarchived
+        if (element.archived && updateElement.archived !== false) {
+          throw new M.CustomError(`Element [${element._id}] is archived. `
+              + 'Archived objects cannot be modified.', 403, 'warn');
+        }
+
+        // For each key in the updated object
+        Object.keys(updateElement).forEach((key) => {
+          // Check if the field is valid to update
+          if (!validFields.includes(key)) {
+            throw new M.CustomError(`Element property [${key}] cannot `
+                + 'be changed.', 400, 'warn');
+          }
+
+          // Get validator for field if one exists
+          if (validators.element.hasOwnProperty(key)) {
+            // If validation fails, throw error
+            if (!RegExp(validators.element[key]).test(updateElement[key])) {
+              throw new M.CustomError(
+                `Invalid ${key}: [${updateElement[key]}]`, 403, 'warn'
+              );
+            }
+          }
+
+          // If the type of field is mixed
+          if (Element.schema.obj[key]
+            && Element.schema.obj[key].type.schemaName === 'Mixed') {
+            // Only objects should be passed into mixed data
+            if (typeof updateElement !== 'object') {
+              throw new M.CustomError(`${key} must be an object`, 400, 'warn');
+            }
+
+            // Add and replace parameters of the type 'Mixed'
+            utils.updateAndCombineObjects(element[key], updateElement[key]);
+
+            // Set updateElement mixed field
+            updateElement[key] = element[key];
+
+            // Mark mixed fields as updated, required for mixed fields to update in mongoose
+            // http://mongoosejs.com/docs/schematypes.html#mixed
+            element.markModified(key);
+          }
+          // Set archivedBy if archived field is being changed
+          else if (key === 'archived') {
+            // Error Check: ensure user cannot archive the root model element
+            if (element._id === utils.createID(orgID, projID, 'model')) {
+              throw new M.CustomError('User cannot archive the root model element.', 403, 'warn');
+            }
+
+            // If the element is being archived
+            if (updateElement[key] && !element[key]) {
+              updateElement.archivedBy = reqUser._id;
+              updateElement.archivedOn = Date.now();
+            }
+            // If the element is being unarchived
+            else if (!updateElement[key] && element[key]) {
+              updateElement.archivedBy = null;
+              updateElement.archivedOn = null;
+            }
+          }
+        });
+
+        // Update lastModifiedBy field and updatedOn
+        updateElement.lastModifiedBy = reqUser._id;
+        updateElement.updatedOn = Date.now();
+
+        // Update the element
+        bulkArray.push({
+          updateOne: {
+            filter: { _id: element._id },
+            update: updateElement
+          }
+        });
+      });
+
+      // Update all elements through a bulk write to the database
+      return Element.bulkWrite(bulkArray);
+    })
+    .then(() => {
+      const promises2 = [];
+      // Find elements in batches
+      for (let i = 0; i < arrIDs.length / 50000; i++) {
+        // Split arrIDs list into batches of 50000
+        searchQuery._id = arrIDs.slice(i * 50000, i * 50000 + 50000);
+
+        // Add find operation to promises array
+        promises2.push(Element.find(searchQuery).populate(populateString)
+        .then((_foundElements) => {
+          foundUpdatedElements = foundUpdatedElements.concat(_foundElements);
+        }));
+      }
+
+      // Return when all elements have been found
+      return Promise.all(promises2);
+    })
+    .then(() => resolve(foundUpdatedElements))
+    .catch((error) => reject(M.CustomError.parseCustomError(error)));
+  });
+}
+
+/**
+ * @description This function removes one or many elements as well as the
+ * subtree under those elements. This function can be used by system-wide admins
+ * ONLY. Once the elements are deleted, the IDs of the deleted elements are
+ * returned.
+ *
+ * @param {User} requestingUser - The object containing the requesting user.
+ * @param {string} organizationID - The ID of the owning organization.
+ * @param {string} projectID - The ID of the owning project.
+ * @param {string} branch - The ID of the branch to remove elements from.
+ * @param {(string|string[])} elements - The elements to remove. Can either be
+ * an array of element ids or a single element id.
+ * @param {Object} [options] - A parameter that provides supported options.
+ * Currently there are no supported options.
+ *
+ * @return {Promise} Array of deleted element ids
+ *
+ * @example
+ * remove({User}, 'orgID', 'projID', 'branch', ['elem1', 'elem2'])
+ * .then(function(elements) {
+ *   // Do something with the deleted elements
+ * })
+ * .catch(function(error) {
+ *   M.log.error(error);
+ * });
+ */
+function remove(requestingUser, organizationID, projectID, branch, elements, options) {
+  return new Promise((resolve, reject) => {
+    // Ensure input parameters are correct type
+    try {
+      assert.ok(typeof requestingUser === 'object', 'Requesting user is not an object.');
+      assert.ok(requestingUser !== null, 'Requesting user cannot be null.');
+      // Ensure that requesting user has an _id field
+      assert.ok(requestingUser._id, 'Requesting user is not populated.');
+      assert.ok(requestingUser.admin === true, 'User does not have permissions to delete'
+        + ' elements.');
+      assert.ok(typeof organizationID === 'string', 'Organization ID is not a string.');
+      assert.ok(typeof projectID === 'string', 'Project ID is not a string.');
+      assert.ok(typeof branch === 'string', 'Branch ID is not a string.');
+      // Ensure user is on the master branch
+      assert.ok(branch === 'master', 'User must be on the master branch.');
+
+      const elementsTypes = ['object', 'string'];
+      const optionsTypes = ['undefined', 'object'];
+      assert.ok(elementsTypes.includes(typeof elements), 'Elements parameter is an invalid type.');
+      // If elements is an object, ensure it's an array of strings
+      if (typeof elements === 'object') {
+        assert.ok(Array.isArray(elements), 'Elements is an object, but not an array.');
+        assert.ok(elements.every(e => typeof e === 'string'), 'Elements is not an array of'
+          + ' strings.');
+      }
+      assert.ok(optionsTypes.includes(typeof options), 'Options parameter is an invalid type.');
+    }
+    catch (err) {
+      throw new M.CustomError(err.message, 400, 'warn');
+    }
+
+    // Sanitize input parameters and create function-wide variables
+    const orgID = sani.sanitize(organizationID);
+    const projID = sani.sanitize(projectID);
+    const saniElements = sani.sanitize(JSON.parse(JSON.stringify(elements)));
+    let elementsToFind = [];
+    let foundIDs = [];
+
+    // Check the type of the elements parameter
+    if (Array.isArray(saniElements) && saniElements.every(e => typeof e === 'string')
+      && saniElements.length !== 0) {
+      // An array of element ids, remove all
+      elementsToFind = saniElements.map(e => utils.createID(orgID, projID, e));
+    }
+    else if (typeof saniElements === 'string') {
+      // A single element id, remove one
+      elementsToFind = [utils.createID(orgID, projID, saniElements)];
+    }
+    else {
+      // Invalid parameter, throw an error
+      throw new M.CustomError('Invalid input for removing elements.', 400, 'warn');
+    }
+
+    // Find the elements to delete
+    Element.find({ _id: { $in: elementsToFind } })
+    .then((foundElements) => {
+      const foundElementIDs = foundElements.map(e => e._id);
+
+      // Check if all elements were found
+      const notFoundIDs = elementsToFind.filter(e => !foundElementIDs.includes(e));
+      // Some elements not found, throw an error
+      if (notFoundIDs.length > 0) {
+        throw new M.CustomError('The following elements were not found: '
+          + `[${notFoundIDs.map(e => utils.parseID(e)
+          .pop())}].`, 404, 'warn');
+      }
+
+      // Find all element IDs and their subtree IDs
+      return findElementTree(orgID, projID, 'master', elementsToFind);
+    })
+    .then((_foundIDs) => {
+      foundIDs = _foundIDs;
+      const promises = [];
+
+      // Error Check: ensure user cannot delete root model element
+      if (foundIDs.includes(utils.createID(orgID, projID, 'model'))) {
+        throw new M.CustomError('User cannot delete the root model element.', 403, 'warn');
+      }
+
+      // Split elements into batches of 50000 or less
+      for (let i = 0; i < foundIDs.length / 50000; i++) {
+        const batchIDs = foundIDs.slice(i * 50000, i * 50000 + 50000);
+        // Delete batch
+        promises.push(Element.deleteMany({ _id: { $in: batchIDs } }));
+      }
+      // Return when all deletes have completed
+      return Promise.all(promises);
+    })
+    .then(() => {
+      const uniqueIDs = {};
+
+      // Parse foundIDs and only return unique ones
+      foundIDs.forEach((id) => {
+        if (!uniqueIDs[id]) {
+          uniqueIDs[id] = id;
+        }
+      });
+
+      // Return just the unique ids
+      return resolve(Object.keys(uniqueIDs));
+    })
+    .catch((error) => reject(M.CustomError.parseCustomError(error)));
+  });
+}
+
+/**
+ * @description A non-exposed helper function which finds the subtree of given
+ * elements.
+ *
+ * @param {string} organizationID - The ID of the owning organization.
+ * @param {string} projectID - The ID of the owning project.
+ * @param {string} branch - The ID of the branch to find elements from.
+ * @param {string[]} elementIDs - The elements whose subtrees are being found.
+ *
+ * @return {Promise} resolve - Array of found element ids
+ *                   reject - error
+ *
+ * @example
+ * findElementTree('orgID', 'projID', 'branch', ['elem1', 'elem2',...])
+ * .then(function(elementIDs) {
+ *   // Do something with the found element IDs
+ * })
+ * .catch(function(error) {
+ *   M.log.error(error);
+ * });
+ */
+function findElementTree(organizationID, projectID, branch, elementIDs) {
+  // Ensure elementIDs is an array
+  if (!Array.isArray(elementIDs)) {
+    throw new M.CustomError('ElementIDs array is not an array.', 400, 'warn');
+  }
+
+  // Set the foundElements array to initial element IDs
+  let foundElements = elementIDs;
+
+  // If no elements provided, find all elements in project
+  if (foundElements.length === 0) {
+    foundElements = [utils.createID(organizationID, projectID, 'model')];
+  }
+
+  // Define nested helper function
+  function findElementTreeHelper(ids) {
+    return new Promise((resolve, reject) => {
+      // Find all elements whose parent is in the list of given ids
+      Element.find({ parent: { $in: ids } }, '_id')
+      .then(elements => {
+        // Get a list of element ids
+        const foundIDs = elements.map(e => e._id);
+        // Add these elements to the global list of found elements
+        foundElements = foundElements.concat(foundIDs);
+
+        // If no elements were found, exit the recursive function
+        if (foundIDs.length === 0) {
+          return '';
+        }
+
+        // Recursively find the sub-children of the found elements in batches of 50000 or less
+        for (let i = 0; i < foundIDs.length / 50000; i++) {
+          const tmpIDs = foundIDs.slice(i * 50000, i * 50000 + 50000);
+          return findElementTreeHelper(tmpIDs);
+        }
+      })
+      .then(() => resolve())
+      .catch((error) => reject(M.CustomError.parseCustomError(error)));
+    });
+  }
+
+  return new Promise((resolve, reject) => {
+    const promises = [];
+
+    // If initial batch of ids is greater than 50000, split up in batches
+    for (let i = 0; i < foundElements.length / 50000; i++) {
+      const tmpIDs = foundElements.slice(i * 50000, i * 50000 + 50000);
+      // Find elements subtree
+      promises.push(findElementTreeHelper(tmpIDs));
+    }
+
+    Promise.all(promises)
+    .then(() => resolve(foundElements))
+    .catch((error) => reject(error));
+  });
+}
+
+/**
+ * @description A non-exposed helper function that throws an error if the new
+ * elements parent is in the given elements subtree.
+ *
+ * @param {string} organizationID - The ID of the owning organization.
+ * @param {string} projectID - The ID of the owning project.
+ * @param {string} branch - The ID of the branch to find elements from.
+ * @param {Object} element - The element whose parent is being checked. The
+ * .parent parameter should be the new, desired parent.
+ *
+ * @return {Promise} resolve
+ *                   reject - error
+ *
+ * @example
+ * moveElementCheck('orgID', 'projID', 'branch', {Elem1})
+ * .then(function() {
+ *   // Continue with normal process
+ * })
+ * .catch(function(error) {
+ *   M.log.error(error);
+ * });
+ */
+function moveElementCheck(organizationID, projectID, branch, element) {
+  return new Promise((resolve, reject) => {
+    // Create the name-spaced ID
+    const elementID = utils.createID(organizationID, projectID, element.id);
+
+    // Error Check: ensure elements parent is not self
+    if (element.parent === elementID) {
+      throw new M.CustomError('Elements parent cannot be self.', 403, 'warn');
+    }
+
+    // Define nested helper function
+    function findElementParentRecursive(e) {
+      return new Promise((res, rej) => {
+        Element.findOne({ _id: e.parent })
+        .then((foundElement) => {
+          // If foundElement is null, reject with error
+          if (!foundElement) {
+            throw new M.CustomError(`Parent element ${e.parent} not found.`, 404, 'warn');
+          }
+
+          // If element.parent is root, resolve... there is no conflict
+          if (utils.parseID(foundElement.parent).pop() === 'model') {
+            return '';
+          }
+
+          // If elementID is equal to foundElement.id, a circular reference would
+          // exist, reject with an error
+          if (elementID === foundElement.id) {
+            throw new M.CustomError('A circular reference exists in the model,'
+              + ' element cannot be moved.', 400, 'warn');
+          }
+          else {
+            // Find the parents parent
+            return findElementParentRecursive(foundElement);
+          }
+        })
+        .then(() => resolve())
+        .catch((error) => rej(M.CustomError.parseCustomError(error)));
+      });
+    }
+
+    // Call the recursive find function
+    findElementParentRecursive(element)
+    .then(() => resolve())
+    .catch((error) => reject(error));
   });
 }
