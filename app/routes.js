@@ -18,6 +18,7 @@ const router = express.Router();
 const UIController = M.require('controllers.ui-controller');
 const AuthController = M.require('lib.auth');
 const Middleware = M.require('lib.middleware');
+const Validators = M.require('lib.validators');
 
 /* ---------- Unauthenticated Routes ----------*/
 /**
@@ -32,6 +33,12 @@ router.route('/doc/api')
  */
 router.route('/doc/developers')
 .get(Middleware.logRoute, ((req, res) => res.redirect('/doc/index.html')));
+
+/**
+ * This renders the MBEE flight manual page.
+ */
+router.route('/doc/flight-manual')
+.get(Middleware.logRoute, UIController.flightManual);
 
 /* This renders the about page */
 router.route('/about')
@@ -66,6 +73,31 @@ router.route('/')
   UIController.home
 );
 
+/* This renders the user page for logged in users */
+router.route('/whoami')
+.get(
+  AuthController.authenticate,
+  Middleware.logRoute,
+  UIController.whoami
+);
+
+
+/* This renders the organization list page for logged in users */
+router.route('/organizations')
+.get(
+  AuthController.authenticate,
+  Middleware.logRoute,
+  UIController.organizations
+);
+
+/* This renders the project list page for logged in users */
+router.route('/projects')
+.get(
+  AuthController.authenticate,
+  Middleware.logRoute,
+  UIController.projects
+);
+
 /**
  * Logs the user out by unsetting the req.user and req.session.token objects.
  */
@@ -75,5 +107,56 @@ router.route('/logout')
   Middleware.logRoute,
   UIController.logout
 );
+
+// Parameter validation for the 'orgid' param
+// eslint-disable-next-line consistent-return
+router.param('orgid', (req, res, next, orgid) => {
+  if (RegExp(Validators.org.id).test(orgid)) {
+    next();
+  }
+  else {
+    return res.redirect('/organizations');
+  }
+});
+
+// Parameter validation for the 'projectid' param
+// eslint-disable-next-line consistent-return
+router.param('projectid', (req, res, next, project) => {
+  next();
+});
+
+
+/* This renders an organization for a user */
+router.route('/:orgid')
+.get(
+  AuthController.authenticate,
+  Middleware.logRoute,
+  UIController.organizations
+);
+
+/* This renders an organizations edit form for an admin user */
+router.route('/:orgid/edit')
+.get(
+  AuthController.authenticate,
+  Middleware.logRoute,
+  UIController.organizations
+);
+
+/* This renders a project for a user */
+router.route('/:orgid/:projectid')
+.get(
+  AuthController.authenticate,
+  Middleware.logRoute,
+  UIController.projects
+);
+
+/* This renders a project edit form for an admin user */
+router.route('/:orgid/:projectid/edit')
+.get(
+  AuthController.authenticate,
+  Middleware.logRoute,
+  UIController.projects
+);
+
 
 module.exports = router;

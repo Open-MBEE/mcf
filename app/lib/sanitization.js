@@ -13,7 +13,9 @@
 /**
  * @description Sanitizes database queries and scripting tags.
  *
- * @return {String} sanitized user input
+ * @param {string} userInput - User input to sanitize.
+ *
+ * @return {string} Sanitized string
  */
 module.exports.sanitize = function(userInput) {
   return module.exports.mongo(module.exports.html(userInput));
@@ -54,19 +56,10 @@ module.exports.mongo = function(userInput) {
  * |   <   | &lt             |
  * |   >   | &gt             |
  * |   "   | &quot           |
- * |   `   | &grave          |
- * |   =   | &equals         |
- * |   /   | &sol            |
- * |   \   | &bsol           |
- * |   %   | &percnt         |
- * |   (   | &lpar           |
- * |   )   | &rpar           |
- * |   #   | &num            |
- * |   ^   | &Hat            |
  * |   '   | &#039           |
  * +-------+-----------------+
  *
- * @param {Object} userInput - User object data to be sanitized.
+ * @param {*} userInput - User input data to be sanitized.
  */
 module.exports.html = function(userInput) {
   // Replace known HTML characters with HTML escape sequences.
@@ -76,15 +69,6 @@ module.exports.html = function(userInput) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
-    .replace(/`/g, '&grave;')
-    .replace(/=/g, '&equals;')
-    .replace(/\//g, '&sol;')
-    .replace(/\\/g, '&bsol;')
-    .replace(/%/g, '&percnt;')
-    .replace(/\(/g, '&lpar;')
-    .replace(/\)/g, '&rpar;')
-    .replace(/#/g, '&num;')
-    .replace(/\^/g, '&Hat;')
     .replace(/'/g, '&#039;');
   }
 
@@ -112,7 +96,7 @@ module.exports.html = function(userInput) {
  * |   NUL | \00             |
  * +-------+-----------------+
  *
- * @param {Object} userInput - User object data to be sanitized.
+ * @param {*} userInput - User input data to be sanitized.
  */
 module.exports.ldapFilter = function(userInput) {
   // If string, replace special characters

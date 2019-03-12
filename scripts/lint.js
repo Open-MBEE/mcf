@@ -31,7 +31,8 @@ function lint(_args) {
     `${M.root}/*.js`,
     `${M.root}/app/**/*.js`,
     `${M.root}/plugins/*.js`,
-    `${M.root}/scripts/**/*.js`
+    `${M.root}/scripts/**/*.js`,
+    `${M.root}/test/**/*.js`
   ].concat(_args);
 
   // Run linter with specified args

@@ -8,8 +8,7 @@
  * @license MIT
  *
  * @description This implements an authentication strategy for local
- * authentication (i.e. authenticate against user data stored in the local
- * database as opposed to a remove auth server).
+ * authentication. This should be the default authentication strategy for MBEE.
  */
 
 // Expose auth strategy functions
@@ -18,7 +17,8 @@
 module.exports = {
   handleBasicAuth,
   handleTokenAuth,
-  doLogin
+  doLogin,
+  validatePassword
 };
 
 // MBEE modules
@@ -35,10 +35,10 @@ const utils = M.require('lib.utils');
  *
  * @param {Object} req - Request express object
  * @param {Object} res - Response express object
- * @param {String} username - Username to authenticate
- * @param {String} password - Password to authenticate
- * @returns {Promise} resolve - authenticated user object
- *                    reject - an error
+ * @param {string} username - Username to authenticate
+ * @param {string} password - Password to authenticate
+ *
+ * @returns {Promise} Authenticated user object
  *
  * @example
  * AuthController.handleBasicAuth(req, res, username, password)
@@ -52,8 +52,8 @@ const utils = M.require('lib.utils');
 function handleBasicAuth(req, res, username, password) {
   return new Promise((resolve, reject) => {
     User.findOne({
-      username: username,
-      deletedOn: null
+      _id: username,
+      archived: false
     }, (findUserErr, user) => {
       // Check for errors
       if (findUserErr) {
@@ -85,9 +85,9 @@ function handleBasicAuth(req, res, username, password) {
  *
  * @param {Object} req - Request express object
  * @param {Object} res - Response express object
- * @param {String} token - User authentication token, encrypted
- * @returns {Promise} resolve - local user object
- *                    reject - an error
+ * @param {string} token - User authentication token, encrypted
+ *
+ * @returns {Promise} Local user object
  *
  * @example
  * AuthController.handleTokenAuth(req, res, _token)
@@ -116,8 +116,8 @@ function handleTokenAuth(req, res, token) {
     if (Date.now() < Date.parse(decryptedToken.expires)) {
       // Not expired, find user
       User.findOne({
-        username: sani.sanitize(decryptedToken.username),
-        deletedOn: null
+        _id: sani.sanitize(decryptedToken.username),
+        archivedOn: null
       }, (findUserTokenErr, user) => {
         if (findUserTokenErr) {
           return reject(findUserTokenErr);
@@ -148,7 +148,7 @@ function handleTokenAuth(req, res, token) {
  *
  * @param {Object} req - Request express object
  * @param {Object} res - response express object
- * @param {callback} next - Callback to express authentication
+ * @param {function} next - Callback to express authentication
  */
 function doLogin(req, res, next) {
   // Compute token expiration time
@@ -167,4 +167,37 @@ function doLogin(req, res, next) {
   M.log.info(`${req.originalUrl} Logged in ${req.user.username}`);
   // Callback
   next();
+}
+
+/**
+ * @description Validates a users password with set rules.
+ *
+ * @param {string} password - Password to validate.
+ *
+ * @returns {boolean} If password is correctly validated
+ */
+function validatePassword(password) {
+  // No defined password validator, use default
+  try {
+    // At least 8 characters
+    const lengthValidator = (password.length >= 8);
+    // At least 1 digit
+    const digitsValidator = (password.match(/[0-9]/g).length >= 1);
+    // At least 1 lowercase letter
+    const lowercaseValidator = (password.match(/[a-z]/g).length >= 1);
+    // At least 1 uppercase letter
+    const uppercaseValidator = (password.match(/[A-Z]/g).length >= 1);
+    // At least 1 special character
+    const specialCharValidator = (password.match(/[-`~!@#$%^&*()_+={}[\]:;'",.<>?/|\\]/g).length >= 1);
+    // Validate the password
+    return (lengthValidator
+      && digitsValidator
+      && lowercaseValidator
+      && uppercaseValidator
+      && specialCharValidator);
+  }
+  catch (error) {
+    // Explicitly NOT logging error to avoid password logging
+    return false;
+  }
 }

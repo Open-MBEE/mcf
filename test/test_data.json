@@ -1,0 +1,184 @@
+{
+  "adminUser": {
+    "username": "test_admin",
+    "password": "Test12345@"
+  },
+  "users": [
+    {
+      "username": "testuser00",
+      "password": "Password123@",
+      "preferredName": "Preferred",
+      "fname": "First",
+      "lname": "Last",
+      "email": "user0@test.com",
+      "admin": false,
+      "custom": {
+        "location": "Location00"
+      }
+    },
+    {
+      "username": "testuser01",
+      "password": "Password123@",
+      "preferredName": "Preferred",
+      "fname": "First",
+      "lname": "Last",
+      "email": "user1@test.com",
+      "admin": false,
+      "custom": {
+        "location": "Location01"
+      }
+    },
+    {
+      "username": "testuser02",
+      "password": "Password123@",
+      "preferredName": "Preferred",
+      "fname": "First",
+      "lname": "Last",
+      "email": "user2@test.com",
+      "admin": false,
+      "custom": {
+        "location": "Location02"
+      }
+    },
+    {
+      "username": "testuser03",
+      "password": "Password123@",
+      "preferredName": "Preferred",
+      "fname": "First",
+      "lname": "Last",
+      "email": "user3@test.com",
+      "admin": false,
+      "custom": {
+        "location": "Location03"
+      }
+    }
+  ],
+
+  "orgs": [
+    {
+      "id": "testorg00",
+      "name": "Test Organization 00",
+      "custom": {
+        "leader": "Test Leader 00"
+      }
+    },
+    {
+      "id": "testorg01",
+      "name": "Test Organization 01",
+      "custom": {
+        "leader": "Test Leader 01"
+      }
+    },
+    {
+      "id": "testorg02",
+      "name": "Test Organization 02",
+      "custom": {
+        "leader": "Test Leader 02"
+      }
+    },
+    {
+      "id": "testorg03",
+      "name": "Test Organization 03",
+      "custom": {
+        "leader": "Test Leader 03"
+      }
+    }
+  ],
+
+  "projects": [
+    {
+      "id": "project00",
+      "name": "Project 00",
+      "custom": {
+        "location": "Location 00"
+      }
+    },
+    {
+      "id": "project01",
+      "name": "Project 01",
+      "custom": {
+        "location": "Location 01"
+      }
+    },
+    {
+      "id": "project02",
+      "name": "Project 02",
+      "custom": {
+        "location": "Location 02"
+      }
+    },
+    {
+      "id": "project3",
+      "name": "Project 03",
+      "custom": {
+        "location": "Location 03"
+      }
+    },
+    {
+      "id": "project04",
+      "name": "Project 04",
+      "custom": {
+        "location": "Location 04"
+      }
+    }
+
+  ],
+
+  "elements": [
+    {
+      "id": "batchelem0",
+      "name": "Batch Element 0",
+      "parent": "model",
+      "documentation": "Element #0",
+      "custom": {}
+    },
+    {
+      "id": "batchelem1",
+      "name": "Batch Element 1",
+      "parent": "model",
+      "documentation": "Element #1",
+      "type": "package",
+      "custom": {}
+    },
+    {
+      "id": "batchelem2",
+      "name": "Batch Element 2",
+      "parent": "batchelem1",
+      "documentation": "Element #2",
+      "custom": {}
+    },
+    {
+      "id": "batchelem3",
+      "name": "Batch Element 3",
+      "parent": "batchelem1",
+      "documentation": "Element #3",
+      "custom": {}
+    },
+    {
+      "id": "batchelem4",
+      "name": "Batch Element 4",
+      "parent": "batchelem2",
+      "documentation": "Element #4",
+      "custom": {}
+    },
+    {
+      "id": "batchelem5",
+      "name": "Batch Element 5",
+      "parent": "batchelem2",
+      "source": "batchelem3",
+      "target": "batchelem4",
+      "documentation": "Element #5",
+      "custom": {}
+    },
+    {
+      "id": "batchelem6",
+      "name": "Batch Element 6",
+      "parent": "batchelem2",
+      "source": "batchelem3",
+      "target": "batchelem5",
+      "documentation": "Element #6",
+      "custom": {}
+    }
+  ]
+}
+

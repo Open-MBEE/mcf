@@ -37,7 +37,7 @@ module.exports.ID_DELIMITER = ':';
  *
  * @param {Object} req - Request object
  * @param {Object} res - Response object
- * @param {String} name - Name of the template to render
+ * @param {string} name - Name of the template to render
  * @param {Object} params - List of parameters to render
  */
 module.exports.render = function(req, res, name, params) {
@@ -56,8 +56,8 @@ module.exports.render = function(req, res, name, params) {
  * error is thrown. It is assumed the array should always have items in it, if
  * the array is empty an error is thrown.
  *
- * @param {Object} arrItems - An array of values to check.
- * @param {String} assertType - The type to check. Options: ['string', 'object',
+ * @param {*} arrItems - An array of values to check.
+ * @param {string} assertType - The type to check. Options: ['string', 'object',
  *                            'number', 'undefined', 'boolean', 'symbol'].
  */
 module.exports.assertType = function(arrItems, assertType) {
@@ -95,10 +95,11 @@ module.exports.assertType = function(arrItems, assertType) {
  * of the specified type. Otherwise false is returned. Returns false is
  * assertType throws an error.
  *
- * @param {Object} arrItems - An array of values to check.
- * @param {String} checkType - The type to check. Options: ['string', 'object',
+ * @param {*} arrItems - An array of values to check.
+ * @param {string} checkType - The type to check. Options: ['string', 'object',
  *                            'number', 'undefined', 'boolean', 'symbol'].
- * @return {Boolean} true - type is correct
+ *
+ * @return {boolean} true - type is correct
  *                   false - error
  */
 module.exports.checkType = function(arrItems, checkType) {
@@ -141,7 +142,8 @@ module.exports.assertExists = function(properties, obj) {
  *
  * @param {Object} properties - A list of strings denoting keys.
  * @param {Object} obj - The object being searched.
- * @return {Boolean} true - property exists
+ *
+ * @return {boolean} true - property exists
  *                   false - error
  */
 module.exports.checkExists = function(properties, obj) {
@@ -170,8 +172,9 @@ module.exports.assertAdmin = function(user) {
  * @description Creates a colon delimited string from any number of arguments.
  * If any items are not strings or other failure occurs, an error is thrown.
  *
- * @param {String} args - An arbitrary number of strings to be appended.
- * @return {String} args with uid delimiter
+ * @param {string} args - An arbitrary number of strings to be appended.
+ *
+ * @return {string} Concatenated args with uid delimiter
  */
 module.exports.createID = function(...args) {
   this.assertType(args, 'string');
@@ -182,8 +185,9 @@ module.exports.createID = function(...args) {
  * @description Splits a UID on the UID delimiter up and returns an array of
  * UID components.
  *
- * @param {String} uid - The uid.
- * @return {String} uid with delimiter
+ * @param {string} uid - The uid.
+ *
+ * @return {string[]} Split uid
  */
 module.exports.parseID = function(uid) {
   if (!uid.includes(this.ID_DELIMITER)) {
@@ -195,9 +199,11 @@ module.exports.parseID = function(uid) {
 /**
  * @description Title-cases a string.
  *
- * @param {String} s - The string to be title-cased
- *  @param {boolean} keepUpper- Boolean indicating wither or not keep uppercase characters as is
- * @return {String} the word with upper case
+ * @param {string} s - The string to be title-cased
+ * @param {boolean} [keepUpper=false] - Boolean indicating wither or not keep
+ * uppercase characters as is
+ *
+ * @return {string} The title-cased word
  */
 module.exports.toTitleCase = function(s, keepUpper = false) {
   // Check if s NOT string or contains whitespace
@@ -231,8 +237,8 @@ module.exports.toTitleCase = function(s, keepUpper = false) {
  * @description Checks that two objects are equal by stringifying them and
  * comparing the resulting strings.
  *
- * @param a
- * @param b
+ * @param {*} a
+ * @param {*} b
  */
 module.exports.deepEqual = function(a, b) {
   try {
@@ -262,6 +268,7 @@ module.exports.updateAndCombineObjects = function(originalObj, updateObj) {
     if (!firstKeys.includes(key)) {
       originalObj[key] = updateObj[key];
     }
+
     // If the key is in originalObject, and it's value is a nested object,
     // recursively call this function with the value of the key/value pair
     else if (typeof originalObj[key] === 'object' && typeof updateObj[key] === 'object') {
@@ -272,4 +279,97 @@ module.exports.updateAndCombineObjects = function(originalObj, updateObj) {
       originalObj[key] = updateObj[key];
     }
   });
+};
+
+/**
+ * @description Converts data between different JMI types
+ *
+ * @param {number} from - The current JMI version of the data.
+ * @param {number} to - The JMI version to convert the data to.
+ * @param {Object|Object[]} data - The data to convert between JMI versions.
+ * @param {string} [field=_id] - The field to parse type 1 on
+ *
+ * @return {Object|Object[]} The converted JMI.
+ */
+module.exports.convertJMI = function(from, to, data, field = '_id') {
+  // Convert JMI type 1 to type 2
+  if (from === 1 && to === 2) {
+    // Error Check: Ensure data is in JMI type 1
+    try {
+      assert.ok(Array.isArray(data), 'Data is not in JMI type 1.');
+    }
+    catch (msg) {
+      throw new M.CustomError(msg, 400, 'warn');
+    }
+
+    const returnObj = {};
+    data.forEach((object) => {
+      if (returnObj[object[field]]) {
+        throw new M.CustomError('Invalid object, duplicate keys '
+          + `[${object[field]}] exist.`, 403, 'warn');
+      }
+      returnObj[object[field]] = object;
+    });
+    return returnObj;
+  }
+
+  throw new M.CustomError('JMI conversion not yet implemented.', 501, 'warn');
+};
+
+/**
+ * @description Parse option string into option objects.
+ * Error is thrown for invalid options.
+ * Note: Boolean strings are converted to booleans
+ *          ex. "true" => true
+ *       string separated commas are converted to arrays
+ *          ex. "createdBy, modifiedBy" => {["createdBy", "modifiedBy"]}
+ *
+ * @param {Object} options - An optional parameter that provides supported
+ * options.
+ * @param {Object} validOptions - An object containing valid option as keys and
+ * the object's data type as values. ex. populate: 'array'
+ */
+module.exports.parseOptions = function(options, validOptions) {
+  // Check option is defined
+  if (!options) {
+    // No options, return empty object
+    return {};
+  }
+
+  // Loop through all options
+  Object.keys(options).forEach(function(key) {
+    // Check options are valid
+    if (!validOptions.hasOwnProperty(key)) {
+      // Invalid key, throw error
+      throw new M.CustomError(`Invalid parameter: ${key}`, 400, 'warn');
+    }
+  });
+
+  // Define parsed option object
+  const parsedOptions = {};
+  // Loop through all options
+  Object.keys(options).forEach((option) => {
+    // Check option of boolean type
+    if (validOptions[option] === 'boolean') {
+      // Check and convert string to boolean
+      if (options[option] === 'true') {
+        parsedOptions[option] = true;
+      }
+      else if (options[option] === 'false') {
+        parsedOptions[option] = false;
+      }
+    }
+    // Check array type
+    else if (validOptions[option] === 'array') {
+      if (options[option].includes(',')) {
+        // Multiple options, split into array
+        parsedOptions[option] = options[option].split(',');
+      }
+      else {
+        // Set single option within array
+        parsedOptions[option] = [options[option]];
+      }
+    }
+  });
+  return parsedOptions;
 };

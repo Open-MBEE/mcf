@@ -1,14 +1,14 @@
 /**
  * Classification: UNCLASSIFIED
  *
- * @module  test.302-org-model-tests
+ * @module test.302a-org-model-tests
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
  *
  * @description Tests the organization model by performing various actions
- * such as a create, soft delete, and hard delete. The test Does NOT test the
+ * such as a create, archive, and delete. The test Does NOT test the
  * organization controller but instead directly manipulates data using the
  * database interface to check the organization model's methods, validators,
  * setters, and getters.
@@ -29,7 +29,7 @@ let userAdmin = null;
 
 /* --------------------( Test Data )-------------------- */
 const testUtils = require(path.join(M.root, 'test', 'test-utils'));
-const testData = testUtils.importTestData();
+const testData = testUtils.importTestData('test_data.json');
 
 /* --------------------( Main )-------------------- */
 /**
@@ -46,7 +46,7 @@ describe(M.getModuleName(module.filename), () => {
   before((done) => {
     db.connect()
     // Create admin user
-    .then(() => testUtils.createAdminUser())
+    .then(() => testUtils.createTestAdmin())
     .then((user) => {
       userAdmin = user;
       done();
@@ -65,7 +65,7 @@ describe(M.getModuleName(module.filename), () => {
    */
   after((done) => {
     // Remove admin user
-    testUtils.removeAdminUser()
+    testUtils.removeTestAdmin()
     .then(() => db.disconnect())
     .then(() => done())
     .catch((error) => {
@@ -81,8 +81,8 @@ describe(M.getModuleName(module.filename), () => {
   it('should find an organization', findOrg);
   it('should update an organization', updateOrg);
   it('should get all permissions of an organization', findOrgPermissions);
-  it('should soft delete an organization', softDeleteOrg);
-  it('should hard delete an organization', deleteOrg);
+  it('should archive an organization', archiveOrg);
+  it('should delete an organization', deleteOrg);
 });
 
 /* --------------------( Tests )-------------------- */
@@ -92,7 +92,7 @@ describe(M.getModuleName(module.filename), () => {
 function createOrg(done) {
   // Create an organization from the Organization model object
   const org = new Org({
-    id: testData.orgs[0].id,
+    _id: testData.orgs[0].id,
     name: testData.orgs[0].name,
     permissions: {
       admin: [userAdmin._id],
@@ -116,10 +116,11 @@ function createOrg(done) {
  */
 function findOrg(done) {
   // Find the created organization from the previous createOrg() test
-  Org.findOne({ id: testData.orgs[0].id, name: testData.orgs[0].name })
+  Org.findOne({ _id: testData.orgs[0].id })
   .then((org) => {
     // Verify correct org is returned
     chai.expect(org.id).to.equal(testData.orgs[0].id);
+    chai.expect(org._id).to.equal(testData.orgs[0].id);
     chai.expect(org.name).to.equal(testData.orgs[0].name);
     done();
   })
@@ -136,7 +137,7 @@ function findOrg(done) {
  */
 function updateOrg(done) {
   // Find and update the org created in the previous createOrg() test
-  Org.findOne({ id: testData.orgs[0].id })
+  Org.findOne({ _id: testData.orgs[0].id })
   .then((foundOrg) => {
     foundOrg.name = testData.orgs[0].name;
     return foundOrg.save();
@@ -160,7 +161,7 @@ function updateOrg(done) {
  */
 function findOrgPermissions(done) {
   // Finds permissions on the org created in the previous createOrg() test
-  Org.findOne({ id: testData.orgs[0].id })
+  Org.findOne({ _id: testData.orgs[0].id })
   .then((org) => {
     // Confirming user permissions are in organization
     chai.expect(org.permissions.write[0].toString()).to.equal(userAdmin._id.toString());
@@ -175,23 +176,23 @@ function findOrgPermissions(done) {
 }
 
 /**
- * @description Soft-deletes the organization previously created in createOrg().
+ * @description Archives the organization previously created in createOrg().
  */
-function softDeleteOrg(done) {
+function archiveOrg(done) {
   // Find the previously created organization from createOrg.
-  Org.findOne({ id: testData.orgs[0].id })
+  Org.findOne({ _id: testData.orgs[0].id })
   .then((org) => {
-    // Set the deleted field of the organization to true
-    org.deleted = true;
+    // Set the archived field of the organization to true
+    org.archived = true;
     // Save the updated organization object to the database
     return org.save();
   })
   // Find the previously updated organization
-  .then((org) => Org.findOne({ id: org.id }))
+  .then((org) => Org.findOne({ _id: org.id }))
   .then((org) => {
-    // Verify the organization has been soft deleted.
-    chai.expect(org.deletedOn).to.not.equal(null);
-    chai.expect(org.deleted).to.equal(true);
+    // Verify the organization has been archived.
+    chai.expect(org.archivedOn).to.not.equal(null);
+    chai.expect(org.archived).to.equal(true);
     done();
   })
   .catch((error) => {
@@ -203,11 +204,11 @@ function softDeleteOrg(done) {
 }
 
 /**
- * @description hard deletes the previously created organization from createOrg.
+ * @description Deletes the previously created organization from createOrg.
  */
 function deleteOrg(done) {
   // find and remove the organization
-  Org.findOneAndRemove({ id: testData.orgs[0].id })
+  Org.findOneAndRemove({ _id: testData.orgs[0].id })
   .then(() => done())
   .catch((error) => {
     M.log.error(error);
