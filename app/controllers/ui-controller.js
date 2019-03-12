@@ -1,7 +1,7 @@
 /**
  * Classification: UNCLASSIFIED
  *
- * @module  controllers.ui-controller
+ * @module controllers.ui-controller
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
@@ -17,6 +17,10 @@
 // circular references between controllers.
 module.exports = {
   home,
+  flightManual,
+  organizations,
+  projects,
+  whoami,
   swaggerDoc,
   showAboutPage,
   showLoginPage,
@@ -25,6 +29,7 @@ module.exports = {
 };
 
 // Node modules
+const fs = require('fs');
 const path = require('path');
 const swaggerJSDoc = require('swagger-jsdoc');
 
@@ -44,6 +49,83 @@ function home(req, res) {
   }
   // Render the MBEE home screen
   return utils.render(req, res, 'home', {
+    title: 'MBEE | Model-Based Engineering Environment'
+  });
+}
+
+/**
+ * @description Renders the flight manual.
+ */
+function flightManual(req, res) {
+  // Read the flight manual sections from the doc directory
+  fs.readdir(`${M.root}/build/fm`, (err, files) => {
+    if (err) {
+      M.log.error(err);
+      return res.status(500).send('Internal Server Error.');
+    }
+
+    // Turn the file names into section IDs and titles
+    const sections = [];
+    files.filter(fname => fname.endsWith('.html')).forEach(section => {
+      const sectionID = section.replace('.html', '');
+      const sectionTitle = sectionID.replace(/-/g, ' ');
+      sections.push({
+        id: sectionID.replace(/\./g, '-').replace(':', ''),
+        title: utils.toTitleCase(sectionTitle, true),
+        content: fs.readFileSync(`${M.root}/build/fm/${section}`)
+      });
+    });
+    // Render the flight manual
+    return utils.render(req, res, 'flight-manual', {
+      sections: sections
+    });
+  });
+}
+
+/**
+ * @description Renders an organization page.
+ */
+function organizations(req, res) {
+  // Sanity check: confirm req.user exists
+  if (!req.user) {
+    M.log.critical(new M.CustomError('/:orgid executed with invalid req.user object'));
+    // redirect to the login screen
+    res.redirect('/login');
+  }
+  utils.render(req, res, 'organizations', {
+    name: 'organizations',
+    title: 'MBEE | Model-Based Engineering Environment'
+  });
+}
+
+/**
+ * @description Renders the project list page.
+ */
+function projects(req, res) {
+  // Sanity check: confirm req.user exists
+  if (!req.user) {
+    M.log.critical(new M.CustomError('/:orgid/:projectid executed with invalid req.user object'));
+    // redirect to the login screen
+    res.redirect('/login');
+  }
+  utils.render(req, res, 'projects', {
+    name: 'projects',
+    title: 'MBEE | Model-Based Engineering Environment'
+  });
+}
+
+/**
+ * @description Renders the current user's page.
+ */
+function whoami(req, res) {
+  // Sanity check: confirm req.user exists
+  if (!req.user) {
+    M.log.critical(new M.CustomError('/whoami executed with invalid req.user object'));
+    // redirect to the login screen
+    res.redirect('/login');
+  }
+  utils.render(req, res, 'user', {
+    name: 'user',
     title: 'MBEE | Model-Based Engineering Environment'
   });
 }
@@ -86,7 +168,7 @@ function swaggerDoc(req, res) {
 function showAboutPage(req, res) {
   return utils.render(req, res, 'about', {
     info: {
-      version: M.version4
+      version: M.version
     },
     title: 'About | Model-Based Engineering Environment'
   });

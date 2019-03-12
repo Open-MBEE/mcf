@@ -34,7 +34,7 @@ const Middleware = M.require('lib.middleware');
  *        connection can be established.
  *     responses:
  *       200:
- *         description: OK, Succeeded to test the API is up.
+ *         description: OK, the API is up.
  */
 api.get('/test', Middleware.logRoute, APIController.test);
 
@@ -61,34 +61,19 @@ api.get('/doc/swagger.json', Middleware.logRoute, APIController.swaggerJSON);
  *     tags:
  *       - general
  *     description: Logs the user into the application.
- *     parameters:
- *       - name: Content
- *         description: The object containing username and password
- *         in: body
- *         required: true
- *         schema:
- *           type: object
- *           required:
- *             - username
- *             - password
- *           properties:
- *             username:
- *               type: string
- *             password:
- *               type: string
  *     produces:
- *       - application/json
- *     consumes:
  *       - application/json
  *     responses:
  *       200:
- *         description: OK, Succeeded to login returns session token data.
+ *         description: OK, Succeeded to login user, returns session token data.
  *       400:
  *         description: Bad Request, Failed to login due to invalid credentials.
  *       401:
- *         description: Unauthorized, Failed to login due to not having permissions.
+ *         description: Unauthorized, Failed to login due to not having
+ *                      permissions.
  *       500:
- *         description: Internal Server Error, Failed to login due to a server side issue.
+ *         description: Internal Server Error, Failed to login due to a server
+ *                      side issue.
  */
 api.route('/login')
 .post(
@@ -110,11 +95,13 @@ api.route('/login')
  *       - application/json
  *     responses:
  *       200:
- *         description: OK, Succeeded to get version returns version.
+ *         description: OK, Succeeded to get version.
  *       401:
- *         description: Unauthorized, Failed to get version due to not having permissions.
+ *         description: Unauthorized, Failed to get version due to not being
+ *                      logged in.
  *       500:
- *         description: Internal Server Error, Failed to get version due to a server side issue.
+ *         description: Internal Server Error, Failed to get version due to
+ *                      server side issue.
  */
 api.route('/version')
 .get(
@@ -123,131 +110,197 @@ api.route('/version')
   APIController.version
 );
 
+
 /**
  * @swagger
  * /api/orgs:
  *   get:
  *     tags:
  *       - organizations
- *     description: Returns an array of organizations that the requesting user is a member of.
- *         If the user is not a member of any organizations, an empty array is returned.
+ *     description: Returns an array of organizations the requesting user has
+ *                  read access to. By default, returns all organizations the
+ *                  user has read access to. Optionally, an array of IDs can be
+ *                  provided in the request body or a comma separated list in
+ *                  the request parameters to find multiple, specific orgs.
  *     produces:
  *       - application/json
+ *     parameters:
+ *       - in: body
+ *         schema:
+ *           type: array
+ *           items:
+ *             type: string
+ *         description: An array of object IDs to search for. If both query
+ *                      parameter and body are not provided, all objects the
+ *                      user has access to are found.
+ *       - name: ids
+ *         description: Comma separated list of IDs to search for. If both the
+ *                      query parameter and body are not provided, all objects
+ *                      the user has access to are found.
+ *         in: query
+ *         type: string
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object.
+ *         in: query
+ *         type: string
+ *       - name: archived
+ *         description: If true, archived objects will be also be searched
+ *                      through.
+ *         in: query
+ *         type: boolean
  *     responses:
  *       200:
- *         description: OK, Succeeded to GET orgs returns orgs' data.
+ *         description: OK, Succeeded to GET orgs, returns public org data.
  *       400:
- *         description: Bad Request, Failed to GET orgs due to invalid data.
+ *         description: Bad Request, Failed to GET orgs due to invalid request
+ *                      format.
  *       401:
- *         description: Unauthorized, Failed to GET orgs due to not being logged in.
+ *         description: Unauthorized, Failed to GET orgs due to not being logged
+ *                      in.
  *       404:
  *         description: Not Found, Failed to GET orgs due to orgs not existing.
  *       500:
- *         description: Internal Server Error, Failed to GET orgs due to a server side issue.
+ *         description: Internal Server Error, Failed to GET orgs due to a
+ *                      server side issue.
  *   post:
  *     tags:
  *       - organizations
  *     description: Creates multiple organizations from the data provided in the
- *                  request body.
+ *                  request body. Returns the created organization's public
+ *                  data. This endpoint is reserved for system-wide admins ONLY.
  *     produces:
  *       - application/json
  *     parameters:
- *       - name: content
- *         description: The object containing the organization data.
- *         in: body
- *         required: true
+ *       - in: body
+ *         name: orgs
  *         schema:
- *           type: object
- *           required:
- *             - orgs
- *           properties:
- *             orgs:
- *               type: object
- *               description: An array of objects containing organization data.
+ *           type: array
+ *           items:
+ *             type: object
+ *             required:
+ *               - id
+ *               - name
+ *             properties:
+ *               id:
+ *                 type: string
+ *               name:
+ *                 type: string
+ *               custom:
+ *                 type: object
+ *               permissions:
+ *                 type: object
+ *                 description: Any preset permissions. Keys are the users
+ *                              usernames, and values are the permission.
+ *         description: An array of objects containing organization data.
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object.
+ *         in: query
+ *         type: string
  *     responses:
  *       200:
- *         description: OK, Succeeded to POST orgs returns orgs' data.
+ *         description: OK, Succeeded to POST orgs, returns orgs' public data.
  *       400:
- *         description: Bad Request, Failed to POST orgs due to invalid field in orgs' data.
+ *         description: Bad Request, Failed to POST orgs due to invalid field in
+ *                      request body.
  *       401:
- *         description: Unauthorized, Failed to POST orgs due to not being logged in.
+ *         description: Unauthorized, Failed to POST orgs due to not being
+ *                      logged in.
  *       403:
- *         description: Forbidden, Failed to POST orgs due to an already existing orgs with same id.
+ *         description: Forbidden, Failed to POST orgs due to already existing
+ *                      orgs with same id.
  *       500:
- *         description: Internal Server Error, Failed to POST orgs due to a server side issue.
+ *         description: Internal Server Error, Failed to POST orgs due to a
+ *                      server side issue.
  *   patch:
  *     tags:
  *       - organizations
  *     description: Updates multiple organizations from the data provided in the
- *                  request body.
+ *                  request body. Orgs that are currently archived must first be
+ *                  unarchived before making any other updates. The following
+ *                  fields can be updated [name, custom, archived, permissions].
+ *                  NOTE, the id is required in the request body, but CANNOT be
+ *                  updated.
  *     produces:
  *       - application/json
  *     parameters:
- *       - name: content
- *         description: The object containing the organization data.
- *         in: body
- *         required: true
+ *       - in: body
+ *         name: orgs
+ *         description: An array of objects containing updates to multiple orgs.
  *         schema:
- *           type: object
- *           required:
- *             - orgs
- *           properties:
- *             orgs:
- *               type: object
- *               description: An array of orgs to update. Can either be the
- *                            org objects or the ids of the orgs.
- *             update:
- *               type: object
- *               description: An object containing fields to update in the orgs
- *                            and their corresponding values.
+ *           type: array
+ *           items:
+ *             type: object
+ *             required:
+ *               - id
+ *             properties:
+ *               id:
+ *                 type: string
+ *                 description: The current ID of the org, cannot be updated.
+ *               name:
+ *                 type: string
+ *               custom:
+ *                 type: object
+ *               archived:
+ *                 type: boolean
+ *               permissions:
+ *                 type: object
+ *                 description: An object where keys are usernames and values
+ *                              are the new role the user has. To remove a user,
+ *                              the role should be REMOVE_ALL.
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object.
+ *         in: query
+ *         type: string
  *     responses:
  *       200:
- *         description: OK, Succeeded to PATCH orgs returns orgs' data.
+ *         description: OK, Succeeded to PATCH orgs, returns orgs' public data.
  *       400:
  *         description: Bad Request, Failed to PATCH orgs due to invalid data.
  *       401:
- *         description: Unauthorized, Failed to PATCH orgs due to not being logged in.
+ *         description: Unauthorized, Failed to PATCH orgs due to not being
+ *                      logged in.
  *       403:
- *         description: Forbidden, Failed to PATCH orgs due to an already existing org with same id.
+ *         description: Forbidden, Failed to PATCH orgs due to org already being
+ *                      archived.
  *       500:
- *         description: Internal Server Error, Failed to PATCH orgs due to a server side issue.
+ *         description: Internal Server Error, Failed to PATCH orgs due to a
+ *                      server side issue.
  *   delete:
  *     tags:
  *       - organizations
- *     description: Deletes multiple organizations from the data provided in the
- *                  request body.
+ *     description: Deletes multiple organizations and any projects and elements
+ *                  name-spaced under the specified orgs. NOTE this endpoint can
+ *                  be used by system-admins ONLY.
  *     produces:
  *       - application/json
  *     parameters:
- *       - name: content
- *         description: The object containing the organization data.
+ *       - name: orgIDs
+ *         description: An array of organization IDs to delete. Can optionally
+ *                      be an array of objects containing id key/value pairs.
  *         in: body
  *         required: true
  *         schema:
- *           type: object
- *           required:
- *             - orgs
- *           properties:
- *             orgs:
- *               type: object
- *               description: An array of orgs to delete. Can either be the
- *                            org objects or the ids of the orgs.
- *             hardDelete:
- *               type: boolean
- *               description: The boolean indicating if the org should be hard
- *                            deleted or not. The user must be a global admin
- *                            to hard delete. Defaults to false.
+ *           type: array
+ *           items:
+ *             type: string
  *     responses:
  *       200:
- *         description: OK, Succeeded to DELETE orgs returns deleted orgs' data.
+ *         description: OK, Succeeded to DELETE orgs, returns deleted orgs' ids.
  *       400:
- *         description: Bad Request, Failed to DELETE orgs due to invalid orgs' data.
+ *         description: Bad Request, Failed to DELETE orgs due to invalid data
+ *                      in the request body.
  *       401:
- *         description: Unauthorized, Failed to DELETE orgs due to not being logged in.
+ *         description: Unauthorized, Failed to DELETE orgs due to not being
+ *                      logged in.
  *       403:
- *         description: Forbidden, Failed to DELETE orgs due to not having permissions.
+ *         description: Forbidden, Failed to DELETE orgs due to not having
+ *                      correct permissions.
  *       500:
- *         description: Internal Server Error, Failed to DELETE org due to a server side issue.
+ *         description: Internal Server Error, Failed to PATCH org due to a
+ *                      server side issue.
  */
 api.route('/orgs')
 .get(
@@ -274,46 +327,59 @@ api.route('/orgs')
 
 /**
  * @swagger
- * /api/orgs/:orgid:
+ * /api/orgs/{orgid}:
  *   get:
  *     tags:
  *       - organizations
- *     description: Returns an organization's public data.
+ *     description: Finds and returns an organizations public data if the user
+ *                  has read permissions on that org.
  *     produces:
  *       - application/json
  *     parameters:
  *       - name: orgid
- *         description: The ID of the organization to get
- *         in: URI
+ *         description: The ID of the organization to find.
+ *         in: path
  *         required: true
  *         type: string
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object.
+ *         in: query
+ *         type: string
+ *         required: false
+ *       - name: archived
+ *         description: If true, archived objects will be also be searched
+ *                      through.
+ *         in: query
+ *         type: boolean
  *     responses:
  *       200:
- *         description: OK, Succeeded to GET org returns org data.
+ *         description: OK, Succeeded to GET org, returns org public data.
  *       400:
  *         description: Bad Request, Failed to GET org due to invalid data.
  *       401:
- *         description: Unauthorized, Failed to GET org due to not being logged in.
+ *         description: Unauthorized, Failed to GET org due to not being logged
+ *                      in.
  *       404:
  *         description: Not Found, Failed to GET org due to org not existing.
  *       500:
- *         description: Internal Server Error, Failed to GET org due to a server side issue.
+ *         description: Internal Server Error, Failed to GET org due to a server
+ *                      side issue.
  *   post:
  *     tags:
  *       - organizations
- *     description: Create a new organization.
+ *     description: Create a new organization from the given data in the request
+ *                  body. This endpoint is reserved for system-admins ONLY.
  *     produces:
  *       - application/json
  *     parameters:
  *       - name: orgid
- *         description: The ID of the organization to create. A valid orgid must
- *                      only contain lowercase letters, numbers, and dashes
- *                      ("-") and must begin with a letter.
- *         in: URI
+ *         description: The ID of the organization to create.
+ *         in: path
  *         required: true
  *         type: string
- *       - name: content
- *         description: The object containing the organization data.
+ *       - name: org
+ *         description: The object containing the new organization data.
  *         in: body
  *         required: true
  *         schema:
@@ -321,44 +387,54 @@ api.route('/orgs')
  *           required:
  *             - name
  *           properties:
- *             name:
- *               type: string
- *               description: The name of the organization. A valid organization name
- *                            can only contain letters, numbers, dashes ("-"), and
- *                            spaces.
  *             id:
  *               type: string
- *               description: The ID of the organization to create. A valid id must
- *                            only contain lowercase letters, numbers, and dashes
- *                            ("-") and must begin with a letter.
+ *               description: Must match the id in the request parameters.
+ *             name:
+ *               type: string
  *             custom:
- *               type: JSON Object
- *               description: Custom JSON data that can be added to an organization
+ *               type: object
+ *             permissions:
+ *               type: object
+ *               description: Any preset permissions. Keys are the users
+ *                            usernames, and values are the permission.
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object.
+ *         in: query
+ *         type: string
+ *         required: false
  *     responses:
  *       200:
- *         description: OK, Succeeded to POST org returns org data.
+ *         description: OK, Succeeded to POST org, returns org public data.
  *       400:
- *         description: Bad Request, Failed to POST org due to invalid field in data.
+ *         description: Bad Request, Failed to POST org due to invalid field in
+ *                      request data.
  *       401:
- *         description: Unauthorized, Failed to POST org due to not being logged in.
+ *         description: Unauthorized, Failed to POST org due to not being
+ *                      logged in.
  *       403:
- *         description: Forbidden, Failed to POST org due to an existing org with same id.
+ *         description: Forbidden, Failed to POST org due to an existing org
+ *                      with same id.
  *       500:
- *         description: Internal Server Error, Failed to POST org due to a server side issue.
- *
+ *         description: Internal Server Error, Failed to POST org due to a
+ *                      server side issue.
  *   patch:
  *     tags:
  *       - organizations
- *     description: Updates an existing organization.
+ *     description: Updates an existing organization. The following fields can
+ *                  be updated [name, custom, archived, permissions]. Orgs that
+ *                  are currently archived must first be unarchived before
+ *                  making any other updates.
  *     produces:
  *       - application/json
  *     parameters:
  *       - name: orgid
- *         description: The ID of the existing organization to update.
- *         in: URI
+ *         description: The ID of the organization to update.
+ *         in: path
  *         required: true
  *         type: string
- *       - name: content
+ *       - name: update
  *         description: The object containing the updated organization data.
  *         in: body
  *         required: true
@@ -367,61 +443,68 @@ api.route('/orgs')
  *           properties:
  *             name:
  *               type: string
- *               description: The updated name of the organization.
  *             custom:
- *               type: JSON Object
- *               description: The updated custom JSON data of the organization.
+ *               type: object
+ *             archived:
+ *               type: boolean
+ *             permissions:
+ *                 type: object
+ *                 description: An object where keys are usernames and values
+ *                              are the new role the user has. To remove a user,
+ *                              the role should be REMOVE_ALL.
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object.
+ *         in: query
+ *         type: string
  *     responses:
  *       200:
- *         description: OK, Succeeded to PATCH org returns updated org data.
+ *         description: OK, Succeeded to PATCH org, returns updated org public
+ *                      data.
  *       400:
- *         description: Bad Request, FAILED to PATCH org due to invalid update data.
+ *         description: Bad Request, FAILED to PATCH org due to invalid
+ *                      update request data.
  *       401:
- *         description: Unauthorized, FAILED to PATCH org due to not being logged in.
+ *         description: Unauthorized, FAILED to PATCH org due to not being
+ *                      logged in.
  *       403:
- *         description: Forbidden, FAILED to PATCH org due to updating an immutable field.
+ *         description: Forbidden, FAILED to PATCH org due to updating an
+ *                      immutable field.
  *       404:
  *         description: Not Found, FAILED to PATCH org due to not finding org.
  *       500:
- *         description: Internal Server Error, Failed to PATCH org due to a server side issue.
- *
+ *         description: Internal Server Error, Failed to PATCH org due to a
+ *                      server side issue.
  *   delete:
  *     tags:
  *       - organizations
- *     description: Deletes the organization.
+ *     description: Deletes the specified organization and any projects and
+ *                  elements name-spaced under the org. NOTE this endpoint is
+ *                  reserved for system-wide admins ONLY.
  *     produces:
  *       - application/json
  *     parameters:
  *       - name: orgid
  *         description: The ID of the organization to delete.
- *         in: URI
+ *         in: path
  *         required: true
  *         type: string
- *       - name: content
- *         description: The object containing delete options.
- *         in: body
- *         required: false
- *         schema:
- *           type: object
- *           properties:
- *             hardDelete:
- *               type: boolean
- *               description: The boolean indicating if the organization should be hard deleted or
- *                            not. The user must be a global admin to hard delete. Defaults to
- *                            false.
  *     responses:
  *       200:
- *         description: OK, Succeeded to DELETE org return deleted org data.
+ *         description: OK, Succeeded to DELETE org, return deleted org ID.
  *       400:
  *         description: Bad Request, Failed to DELETE org due to invalid data.
  *       401:
- *         description: Unauthorized, Failed to DELETE org due to not being logged in.
+ *         description: Unauthorized, Failed to DELETE org due to not being
+ *                      logged in.
  *       403:
- *         description: Forbidden, Failed to DELETE org due to not having permissions.
+ *         description: Forbidden, Failed to DELETE org due to not having
+ *                      permissions.
  *       404:
  *         description: Not Found, Failed to DELETE org due to not finding org.
  *       500:
- *         description: Internal Server Error, Failed to DELETE org due to a server side issue.
+ *         description: Internal Server Error, Failed to DELETE org due to a
+ *                      server side issue.
  */
 api.route('/orgs/:orgid')
 .get(
@@ -445,137 +528,282 @@ api.route('/orgs/:orgid')
   APIController.deleteOrg
 );
 
+
 /**
  * @swagger
- * /api/orgs/:orgid/projects:
+ * /api/projects:
  *   get:
  *     tags:
  *       - projects
- *     description: Returns a list of all projects and their public data that the requesting
- *                  user has access to within an organization.
+ *     description: Returns a list of all projects and their public data that
+ *                  the requesting user has access to.
  *     produces:
  *       - application/json
  *     parameters:
- *       - name: orgid
- *         description: The ID of the organization whose projects to get.
- *         in: URI
- *         required: true
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object.
+ *         in: query
  *         type: string
- *       - name: content
- *         description: The object containing get project options.
- *         in: body
  *         required: false
- *         schema:
- *           type: object
- *           properties:
- *             softDeleted:
- *               type: boolean
- *               description: The boolean indicating if soft deleted projects are returned. The user
- *                            must be a global admin or an admin on the organization to find soft
- *                            deleted projects.
+ *       - name: archived
+ *         description: If true, archived objects will be also be searched
+ *                      through.
+ *         in: query
+ *         type: boolean
  *     responses:
  *       200:
- *         description: OK, Succeeded to GET projects returns org data.
+ *         description: OK, Succeeded to GET projects, returns project public
+ *                      data.
  *       400:
  *         description: Bad Request, Failed to GET projects due to invalid data.
  *       401:
- *         description: Unauthorized, Failed to GET projects due to not being logged in.
+ *         description: Unauthorized, Failed to GET projects due to not being
+ *                      logged in.
  *       403:
- *         description: Forbidden, Failed to GET projects due to not having permissions.
+ *         description: Forbidden, Failed to GET projects due to not having
+ *                      permissions.
  *       404:
- *         description: Not Found, Failed to GET projects due to projects not existing.
+ *         description: Not Found, Failed to GET projects due to projects not
+ *                      existing.
  *       500:
- *         description: Internal Server Error, Failed to GET projects due to a server side issue.
- *
- *   post:
+ *         description: Internal Server Error, Failed to GET projects due to a
+ *                      server side issue.
+ */
+api.route('/projects')
+.get(
+  AuthController.authenticate,
+  Middleware.logRoute,
+  APIController.getAllProjects
+);
+
+/**
+ * @swagger
+ * /api/orgs/{orgid}/projects:
+ *   get:
  *     tags:
  *       - projects
- *     description: Creates multiple projects from the supplied data in the body.
+ *     description: Returns an array of projects the requesting user has read
+ *                  access to on a specified org. By default, returns all
+ *                  projects on the specified org that the user has read access
+ *                  to. Optionally, an array of IDs can be provided in the
+ *                  request body or a comma separated list in the request
+ *                  parameters to find multiple, specific projects.
  *     produces:
  *       - application/json
  *     parameters:
  *       - name: orgid
- *         description: The ID of the organization whose projects to get.
- *         in: URI
+ *         description: The ID of the organization which contains the searched
+ *                      projects.
+ *         in: path
  *         required: true
  *         type: string
- *       - name: content
- *         description: The object containing project objects to be created.
- *         in: body
- *         required: true
+ *       - in: body
  *         schema:
- *           type: object
- *           description: An array of projects to create. Each project must
- *                        contain the name and id of that project.
+ *           type: array
+ *           items:
+ *             type: string
+ *         description: An array of object IDs to search for. If both query
+ *                      parameter and body are not provided, all objects the
+ *                      user has access to (under the specified org) are found.
+ *       - name: ids
+ *         description: Comma separated list of IDs to search for. If both query
+ *                      parameter and body are not provided, all objects the
+ *                      user has access to (under the specified org) are found.
+ *         in: query
+ *         type: string
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object.
+ *         in: query
+ *         type: string
+ *       - name: archived
+ *         description: If true, archived objects will be also be searched
+ *                      through.
+ *         in: query
+ *         type: boolean
  *     responses:
  *       200:
- *         description: OK, Succeeded to POST projects returns project data
+ *         description: OK, Succeeded to GET projects, returns project public
+ *                      data.
  *       400:
- *         description: Bad Request, Failed to POST projects due to invalid project data.
+ *         description: Bad Request, Failed to GET projects due to invalid data.
  *       401:
- *         description: Unauthorized, Failed to POST projects due to not being logged in.
+ *         description: Unauthorized, Failed to GET projects due to not being
+ *                      logged in.
  *       403:
- *         description: Forbidden, Failed to POST projects due to project ids already existing.
+ *         description: Forbidden, Failed to GET projects due to not having
+ *                      permissions.
+ *       404:
+ *         description: Not Found, Failed to GET projects due to projects not
+ *                      existing.
  *       500:
- *         description: Internal Server Error, Failed to POST projects due to a server side issue.
+ *         description: Internal Server Error, Failed to GET projects due to a
+ *                      server side issue.
+ *   post:
+ *     tags:
+ *       - projects
+ *     description: Creates multiple projects from the supplied data in the
+ *                  request body. Returns the created projects' public data.
+ *     produces:
+ *       - application/json
+ *     parameters:
+ *       - name: orgid
+ *         description: The ID of the organization whose projects to create.
+ *         in: path
+ *         required: true
+ *         type: string
+ *       - name: projects
+ *         in: body
+ *         description: An array of objects containing new project data.
+ *         schema:
+ *           type: array
+ *           items:
+ *             type: object
+ *             required:
+ *               - id
+ *               - name
+ *             properties:
+ *               id:
+ *                 type: string
+ *               name:
+ *                 type: string
+ *               custom:
+ *                 type: object
+ *               visibility:
+ *                 type: string
+ *                 default: private
+ *                 enum: [internal, private]
+ *               permissions:
+ *                 type: object
+ *                 description: Any preset permissions. Keys are the users
+ *                              usernames, and values are the permission.
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object.
+ *         in: query
+ *         type: string
+ *         required: false
+ *     responses:
+ *       200:
+ *         description: OK, Succeeded to POST projects, returns project public
+ *                      data.
+ *       400:
+ *         description: Bad Request, Failed to POST projects due to invalid
+ *                      project data.
+ *       401:
+ *         description: Unauthorized, Failed to POST projects due to not being
+ *                      logged in.
+ *       403:
+ *         description: Forbidden, Failed to POST projects due to project ids
+ *                      already existing.
+ *       500:
+ *         description: Internal Server Error, Failed to POST projects due to a
+ *                      server side issue.
  *   patch:
  *     tags:
  *       - projects
  *     description: Updates multiple projects from the data provided in the
- *                  request body.
- *     produces:
- *       - application/json
- *     parameters:
- *       - name: content
- *         description: The object containing the project data.
- *         in: body
- *         required: true
- *         schema:
- *           type: object
- *           description: An array of updated project objects.
- *
- *     responses:
- *       200:
- *         description: OK, Succeeded to PATCH project returns project data.
- *       400:
- *         description: Bad Request, Failed to PATCH project due to invalid data.
- *       401:
- *         description: Unauthorized, Failed to PATCH project due to not being logged in.
- *       403:
- *         description: Forbidden, Failed to PATCH project due to updating an immutable field.
- *       500:
- *         description: Internal Server Error, Failed to PATCH project due to server side issue.
- *   delete:
- *     tags:
- *       - projects
- *     description: Deletes multiple projects either by the organization or by
- *                  a supplied list in the body of the request.
+ *                  request body. Projects that are currently archived must
+ *                  first be unarchived before making any other updates. The
+ *                  following fields can be updated [name, custom, archived,
+ *                  permissions]. NOTE, the id is required in the request body,
+ *                  but CANNOT be updated.
  *     produces:
  *       - application/json
  *     parameters:
  *       - name: orgid
- *         description: The ID of the organization whose projects to get.
- *         in: URI
+ *         description: The ID of the organization whose projects to update.
+ *         in: path
  *         required: true
  *         type: string
- *       - name: content
- *         description: The object containing delete projects options.
+ *       - in: body
+ *         name: projects
+ *         description: An array of objects containing updates to multiple
+ *                      projects.
+ *         schema:
+ *           type: array
+ *           items:
+ *             type: object
+ *             required:
+ *               - id
+ *             properties:
+ *               id:
+ *                 type: string
+ *                 description: The current ID of the project, cannot be
+ *                              updated.
+ *               name:
+ *                 type: string
+ *               custom:
+ *                 type: object
+ *               archived:
+ *                 type: boolean
+ *               permissions:
+ *                 type: object
+ *                 description: An object where keys are usernames and values
+ *                              are the new role the user has. To remove a user,
+ *                              the role should be REMOVE_ALL.
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object.
+ *         in: query
+ *         type: string
+ *     responses:
+ *       200:
+ *         description: OK, Succeeded to PATCH project, returns project public
+ *                      data.
+ *       400:
+ *         description: Bad Request, Failed to PATCH project due to invalid
+ *                      request data.
+ *       401:
+ *         description: Unauthorized, Failed to PATCH project due to not being
+ *                      logged in.
+ *       403:
+ *         description: Forbidden, Failed to PATCH project due to updating an
+ *                      immutable field.
+ *       500:
+ *         description: Internal Server Error, Failed to PATCH project due to
+ *                      server side issue.
+ *   delete:
+ *     tags:
+ *       - projects
+ *     description: Deletes multiple projects and any elements name-spaced under
+ *                  the specified project. NOTE this endpoint can be used by
+ *                  system-admins ONLY.
+ *     produces:
+ *       - application/json
+ *     parameters:
+ *       - name: orgid
+ *         description: The ID of the organization whose projects are to be
+ *                      deleted.
+ *         in: path
+ *         required: true
+ *         type: string
+ *       - name: projectIDs
+ *         description: An array of project IDs to delete. Can optionally be an
+ *                      array of objects containing id key/value pairs.
  *         in: body
  *         required: false
  *         schema:
- *           type: object
- *           description: An array of projects to delete.
+ *           type: array
+ *           items:
+ *             type: string
  *     responses:
  *       200:
- *         description: OK, Succeeded to DELETE projects return deleted project data.
+ *         description: OK, Succeeded to DELETE projects, return deleted
+ *                      projects' ids.
  *       400:
- *         description: Bad Request, Failed to DELETE project due to invalid data.
+ *         description: Bad Request, Failed to DELETE project due to invalid
+ *                      data.
  *       401:
- *         description: Unauthorized, Failed to DELETE project due to not being logged in.
+ *         description: Unauthorized, Failed to DELETE project due to not being
+ *                      logged in.
  *       403:
- *         description: Forbidden, Failed to DELETE project due to not having permissions on org.
+ *         description: Forbidden, Failed to DELETE project due to not having
+ *                      permissions.
  *       500:
- *         description: Internal Server Error, Failed to DELETE org due to a server side issue.
+ *         description: Internal Server Error, Failed to DELETE org due to a
+ *                      server side issue.
  */
 api.route('/orgs/:orgid/projects')
 .get(
@@ -599,138 +827,146 @@ api.route('/orgs/:orgid/projects')
   APIController.deleteProjects
 );
 
+
 /**
  * @swagger
- * /api/orgs/:orgid/projects/:projectid:
+ * /api/orgs/{orgid}/projects/{projectid}:
  *   get:
  *     tags:
  *       - projects
- *     description: Returns a project's public data.
+ *     description: Finds and returns a projects public data if the user has
+ *                  read permissions on that project.
  *     produces:
  *       - application/json
  *     parameters:
  *       - name: orgid
- *         description: The ID of the organization the project is in.
- *         in: URI
+ *         description: The ID of the organization the project is a part of.
+ *         in: path
  *         required: true
  *         type: string
  *       - name: projectid
- *         description: The project ID to get.
- *         in: URI
+ *         description: The ID of the project to find.
+ *         in: path
  *         required: true
  *         type: string
- *       - name: content
- *         description: The object containing get project options.
- *         in: body
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object.
+ *         in: query
+ *         type: string
  *         required: false
- *         schema:
- *           type: object
- *           properties:
- *             softDeleted:
- *               type: boolean
- *               description: The boolean indicating if a soft deleted project is returned. The user
- *                            must be a global admin or an admin on the organization to find a soft
- *                            deleted project.
+ *       - name: archived
+ *         description: If true, archived objects will be also be searched
+ *                      through.
+ *         in: query
+ *         type: boolean
  *     responses:
  *       200:
- *         description: OK, Succeeded to GET project returns project data.
+ *         description: OK, Succeeded to GET project, returns project public
+ *                      data.
  *       400:
- *         description: Bad Request, Failed to GET project due to invalid id field.
+ *         description: Bad Request, Failed to GET project due to invalid data.
  *       401:
- *         description: Unauthorized, Failed to GET project due to not not being logged in.
+ *         description: Unauthorized, Failed to GET project due to not not being
+ *                      logged in.
  *       403:
- *         description: Forbidden, Failed to GET project due to not having permissions.
+ *         description: Forbidden, Failed to GET project due to not having
+ *                      permissions.
  *       404:
- *         description: Not Found, Failed to GET project due to project with given id not existing.
+ *         description: Not Found, Failed to GET project due to project with
+ *                      specified id not existing.
  *       500:
- *         description: Internal Server Error, Failed to GET project due to a server side issue.
- *
+ *         description: Internal Server Error, Failed to GET project due to a
+ *                      server side issue.
  *   post:
  *     tags:
  *       - projects
- *     description: Creates a new project.
+ *     description: Creates a new project from the given data in the request
+ *                  body.
  *     produces:
  *       - application/json
  *     parameters:
  *       - name: orgid
  *         description: The ID of the organization containing the new project.
- *         in: URI
+ *         in: path
  *         required: true
  *         type: string
  *       - name: projectid
- *         description: The ID of the new project. A valid project ID must consist
- *                      of only lowercase letters, numbers, and dashes (e.g.
- *                      "-") and must begin with a letter.
- *         in: URI
+ *         description: The ID of the project to create.
+ *         in: path
  *         required: true
  *         type: string
- *       - name: content
+ *       - name: project
  *         description: The object containing the new project data.
  *         in: body
  *         required: true
  *         schema:
  *           type: object
  *           required:
- *             - id
  *             - name
  *           properties:
  *             id:
  *               type: string
- *               description: The project ID. If this is provided, it must
- *                      match the project ID provided in the URI. A valid
- *                      project ID must consist of only lowercase letters,
- *                      numbers, and dashes (e.g. "-") and must begin with a
- *                      letter.
+ *               description: Must match the id in the request parameters.
  *             name:
  *               type: string
- *               description: The name of the new project. A valid project name can
- *                      only consist of only letters, numbers, and dashes
- *                      (e.g. "-").
- *             orgid:
- *               type: string
- *               description: The ID of the organization containing project. If this
- *                      is provided, it must match the organization ID provided
- *                      in the URI.
  *             custom:
- *               type: JSON Object
- *               description: Custom JSON data that can be added to a project.
+ *               type: object
  *             visibility:
  *               type: string
- *               description: Indicates the visibility of the project. Can be either
- *                            private or internal. Defaults to private if not included.
+ *               default: private
+ *               enum: [internal, private]
+ *             permissions:
+ *               type: object
+ *               description: Any preset permissions. Keys are the users
+ *                            usernames, and values are the permission.
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object.
+ *         in: query
+ *         type: string
+ *         required: false
  *     responses:
  *       200:
- *         description: OK, Succeeded to POST project return project data.
+ *         description: OK, Succeeded to POST project, return project public
+ *                      data.
  *       400:
- *         description: Bad Request, Failed to POST project due to invalid project data.
+ *         description: Bad Request, Failed to POST project due to invalid
+ *                      project data.
  *       401:
- *         description: Unauthorized, Failed to POST project due to not being logged in.
+ *         description: Unauthorized, Failed to POST project due to not being
+ *                      logged in.
  *       403:
- *         description: Forbidden, Failed to POST project due posting with an already existing id.
+ *         description: Forbidden, Failed to POST project due posting with an
+ *                      already existing id.
  *       404:
- *         description: Not Found, Failed to POST project due to org not being found.
+ *         description: Not Found, Failed to POST project due to org not being
+ *                      found.
  *       500:
- *         description: Internal Server Error, Failed to POST project due to a server side issue.
- *
+ *         description: Internal Server Error, Failed to POST project due to a
+ *                      server side issue.
  *   patch:
  *     tags:
  *       - projects
- *     description: Updates an existing project.
+ *     description: Updates an existing project. The following fields can be
+ *                  updated [name, custom, archived, permissions]. Projects that
+ *                  are currently archived must first be unarchived before
+ *                  making any other updates.
  *     produces:
  *       - application/json
  *     parameters:
  *       - name: orgid
- *         description: The ID of the organization to update.
- *         in: URI
+ *         description: The ID of the organization containing the project.
+ *         in: path
  *         required: true
  *         type: string
  *       - name: projectid
- *         description: The project ID to update.
- *         in: URI
+ *         description: The ID of the project to update.
+ *         in: path
  *         required: true
  *         type: string
- *       - name: content
- *         description:
+ *       - name: update
+ *         description: The object containing the updated project data.
  *         in: body
  *         required: true
  *         schema:
@@ -738,66 +974,78 @@ api.route('/orgs/:orgid/projects')
  *           properties:
  *             name:
  *               type: string
- *               description: The updated name for the project.
  *             custom:
- *               type: JSON Object
- *               description: The updated custom data for the project.
+ *               type: object
+ *             archived:
+ *               type: boolean
+ *             permissions:
+ *                 type: object
+ *                 description: An object where keys are usernames and values
+ *                              are the new role the user has. To remove a user,
+ *                              the role should be REMOVE_ALL.
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object.
+ *         in: query
+ *         type: string
  *     responses:
  *       200:
- *         description: OK, Succeeded to PATCH project returns updated project data.
+ *         description: OK, Succeeded to PATCH project, return updated project
+ *                      public data.
  *       400:
- *         description: Bad Request, Failed to PATCH project due to invalid update data.
+ *         description: Bad Request, Failed to PATCH project due to invalid
+ *                      update request data.
  *       401:
- *         description: Unauthorized, Failed to PATCH project due to not being logged in.
+ *         description: Unauthorized, Failed to PATCH project due to not being
+ *                      logged in.
  *       403:
- *         description: Forbidden, Failed to PATCH project due to updating an immutable field.
+ *         description: Forbidden, Failed to PATCH project due to updating an
+ *                      immutable field.
  *       404:
- *         description: Not Found, Failed to PATCH project due to not finding project.
+ *         description: Not Found, Failed to PATCH project due to not finding
+ *                      project.
  *       500:
- *         description: Internal Server Error, Failed to PATCH project due to a server side issue.
- *
+ *         description: Internal Server Error, Failed to PATCH project due to a
+ *                      server side issue.
  *   delete:
  *     tags:
  *       - projects
- *     description: Deletes a project.
+ *     description: Deletes the specified project and any elements name-spaced
+ *                  under the project. NOTE this endpoint is reserved for
+ *                  system-wide admins ONLY.
  *     produces:
  *       - application/json
  *     parameters:
  *       - name: orgid
- *         description: The ID of the organization to be deleted.
- *         in: URI
+ *         description: The ID of the organization containing the project
+ *                      to be deleted.
+ *         in: path
  *         required: true
  *         type: string
  *       - name: projectid
- *         description: The project ID to delete.
- *         in: URI
+ *         description: The ID of the project to delete.
+ *         in: path
  *         required: true
  *         type: string
- *       - name: content
- *         description: The object containing delete options.
- *         in: body
- *         required: false
- *         schema:
- *           type: object
- *           properties:
- *             hardDelete:
- *               type: boolean
- *               description: The boolean indicating if the project should be hard deleted or
- *                            not. The user must be a global admin to hard delete.
- *                            Defaults to false.
  *     responses:
  *       200:
- *         description: OK, Succeeded to DELETE project return deleted project data.
+ *         description: OK, Succeeded to DELETE project, return deleted project
+ *                      ID.
  *       400:
- *         description: Bad Request, Failed to DELETE project due to invalid project data.
+ *         description: Bad Request, Failed to DELETE project due to invalid
+ *                      project data.
  *       401:
- *         description: Unauthorized, Failed to DELETE project due to not being logged in.
+ *         description: Unauthorized, Failed to DELETE project due to not being
+ *                      logged in.
  *       403:
- *         description: Forbidden, Failed to DELETE project due to not having permissions on org.
+ *         description: Forbidden, Failed to DELETE project due to not having
+ *                      permissions on org.
  *       404:
- *         description: Not Found, Failed to DELETE project due to not finding project.
+ *         description: Not Found, Failed to DELETE project due to not finding
+ *                      project.
  *       500:
- *         description: Internal Server Error, Failed to DELETE project due to server side issue.
+ *         description: Internal Server Error, Failed to DELETE project due to
+ *                      server side issue.
  */
 api.route('/orgs/:orgid/projects/:projectid')
 .get(
@@ -824,614 +1072,279 @@ api.route('/orgs/:orgid/projects/:projectid')
 
 /**
  * @swagger
- * /api/orgs/:orgid/members:
- *   get:
- *     tags:
- *       - organizations
- *     description: Returns a list of user permissions who are members of an organization.
- *     produces:
- *       - application/json
- *     parameters:
- *       - name: orgid
- *         description: The ID of the organization to get members permissions from.
- *         in: URI
- *         required: true
- *         type: string
- *     responses:
- *       200:
- *         description: OK, Succeeded to GET members from org returns list of members.
- *       400:
- *         description: Bad Request, Failed to GET members due to invalid org data.
- *       401:
- *         description: Unauthorized, Failed to GET members due to not being logged in.
- *       403:
- *         description: Forbidden, Failed to GET members due to not having permissions on org.
- *       404:
- *         description: Not Found, Failed to GET members from org due to org not existing.
- *       500:
- *         description: Internal Server Error, Failed to GET members due to a server side issue.
- */
-api.route('/orgs/:orgid/members')
-.get(
-  AuthController.authenticate,
-  Middleware.logRoute,
-  APIController.getAllOrgMemRoles
-);
-
-/**
- * @swagger
- * /api/orgs/:orgid/members/:username:
- *   get:
- *     tags:
- *       - organizations
- *     description: Returns the permissions a user has on an organization.
- *     produces:
- *       - application/json
- *     parameters:
- *       - name: orgid
- *         description: The ID of the organization to get a users permissions on.
- *         in: URI
- *         required: true
- *         type: string
- *       - name: username
- *         description: The username of the user to return permissions on.
- *         in: URI
- *         required: true
- *         type: string
- *     responses:
- *       200:
- *         description: OK, Succeeded to GET user from org returns public user data.
- *       400:
- *         description: Bad Request, Failed to GET user from org due to invalid data.
- *       401:
- *         description: Unauthorized, Failed to GET user due to not being logged in.
- *       403:
- *         description: Forbidden, Failed to GET user due to not having permissions
- *       404:
- *         description: Not Found, Failed to GET user due to not finding user or org.
- *       500:
- *         description: Internal Server Error, Failed to GET user due to server side issue.
- *
- *   post:
- *     tags:
- *       - organizations
- *     description: Sets or updates a users permissions on an organization.
- *     produces:
- *       - application/json
- *     parameters:
- *       - name: orgid
- *         description: The ID of the organization to set or update user permission on.
- *         in: URI
- *         required: true
- *         type: string
- *       - name: username
- *         description: The username of the user to set up update permissions on.
- *         in: URI
- *         required: true
- *         type: string
- *       - name: content
- *         description: The object containing the permissions level to set.
- *         in: body
- *         required: true
- *         schema:
- *           type: object
- *           required:
- *             - role
- *           properties:
- *             role:
- *               type: string
- *               description: The role the user will be set to on the organization.
- *     responses:
- *       200:
- *         description: OK, Succeeded to POST org user role returns org data.
- *       400:
- *         description: Bad Request, Failed to POST org user role due to invalid data.
- *       401:
- *         description: Unauthorized, Failed to POST org user role due to not being logged in.
- *       403:
- *         description: Forbidden, Failed to POST org user role due to not having permissions.
- *       404:
- *         description: Not Found, Failed to POST org user role due to not finding org.
- *       500:
- *         description: Internal Server Error, Failed to POST user role due to server side issue.
- *
- *   patch:
- *     tags:
- *       - organizations
- *     description: Sets or updates a users permissions on an organization.
- *     produces:
- *       - application/json
- *     parameters:
- *       - name: orgid
- *         description: The ID of the organization to set or update user permission on.
- *         in: URI
- *         required: true
- *         type: string
- *       - name: username
- *         description: The username of the user to set up update permissions on.
- *         in: URI
- *         required: true
- *         type: string
- *       - name: content
- *         description: The object containing the permissions level to set.
- *         in: body
- *         required: true
- *         schema:
- *           type: object
- *           required:
- *             - role
- *           properties:
- *             role:
- *               type: string
- *               description: The role the user will be set to on the organization.
- *     responses:
- *       200:
- *         description: OK, Succeeded to PATCH org user role returns org data.
- *       400:
- *         description: Bad Request, Failed to PATCH org user role due to invalid data.
- *       401:
- *         description: Unauthorized, Failed to PATCH org user role due to not being logged in.
- *       403:
- *         description: Forbidden, Failed to PATCH org user role due to not having permissions.
- *       404:
- *         description: Not Found, Failed to PATCH org user role due to org not existing.
- *       500:
- *         description: Internal Server Error, Failed to PATCH user role due to server side issue.
- *
- *   delete:
- *     tags:
- *       - organizations
- *     description: Removes all users permissions from an organization.
- *     produces:
- *       - application/json
- *     parameters:
- *       - name: orgid
- *         description: The ID of the organization to remove the user from.
- *         in: URI
- *         required: true
- *         type: string
- *       - name: username
- *         description: The username of the user to remove from the organization.
- *         in: URI
- *         required: true
- *         type: string
- *     responses:
- *       200:
- *         description: OK, Succeeded to DELETE user role returns org data.
- *       400:
- *         description: Bad Request, Failed to DELETE user role due to invalid data.
- *       401:
- *         description: Unauthorized, Failed to DELETE user role due to not being logged in.
- *       403:
- *         description: Forbidden, Failed to DELETE user role due to not having permissions.
- *       404:
- *         description: Not Found, Failed to DELETE user role due to org not existing.
- *       500:
- *         description: Internal Server Error, Failed to DELETE user role due to server side issue.
- */
-api.route('/orgs/:orgid/members/:username')
-.get(
-  AuthController.authenticate,
-  Middleware.logRoute,
-  APIController.getOrgRole
-)
-// NOTE: POST and PATCH have the same functionality in this case,
-// thus they map to the same route.
-.post(
-  AuthController.authenticate,
-  Middleware.logRoute,
-  APIController.postOrgRole
-)
-.patch(
-  AuthController.authenticate,
-  Middleware.logRoute,
-  APIController.postOrgRole
-)
-.delete(
-  AuthController.authenticate,
-  Middleware.logRoute,
-  APIController.deleteOrgRole
-);
-
-/**
- * @swagger
- * /api/orgs/:orgid/projects/:projectid/members:
- *   get:
- *     tags:
- *       - projects
- *     description: Returns a list of members and their permissions for a project.
- *     produces:
- *       - application/json
- *     parameters:
- *       - name: orgid
- *         description: The ID of the organization.
- *         in: URI
- *         required: true
- *         type: string
- *       - name: projectid
- *         description: The project ID to get members permissions from.
- *         in: URI
- *         required: true
- *         type: string
- *     responses:
- *       200:
- *         description: OK, Succeeded to GET project members returns list of members.
- *       400:
- *         description: Bad Request, Failed to GET project members due to invalid project data.
- *       401:
- *         description: Unauthorized, Failed to GET project members due to not being logged in.
- *       403:
- *         description: Forbidden, Failed to GET project members due to not having permissions.
- *       404:
- *         description: Not Found, Failed to GET project members due to org not existing.
- *       500:
- *         description: Internal Server Error, Failed to GET members due to server side issue.
- */
-api.route('/orgs/:orgid/projects/:projectid/members')
-.get(
-  AuthController.authenticate,
-  Middleware.logRoute,
-  APIController.getAllProjMemRoles
-);
-
-/**
- * @swagger
- * /api/orgs/:orgid/projects/:projectid/members/:username:
- *   get:
- *     tags:
- *       - projects
- *     description: Returns the permissions a user has on a project.
- *     produces:
- *       - application/json
- *     parameters:
- *       - name: orgid
- *         description: The ID of the organization.
- *         in: URI
- *         required: true
- *         type: string
- *       - name: projectid
- *         description: The project ID to get a users permissions on.
- *         in: URI
- *         required: true
- *         type: string
- *       - name: username
- *         description: The username of the user to return permissions for.
- *         in: URI
- *         required: true
- *         type: string
- *     responses:
- *       200:
- *         description: OK, Succeeded to GET user from project returns user public data.
- *       400:
- *         description: Bad Request, Failed to GET user from project due to invalid data.
- *       401:
- *         description: Unauthorized, Failed to GET user from project due to not being logged in.
- *       403:
- *         description: Forbidden, Failed to GET user from project due to not having permissions.
- *       404:
- *         description: Not Found, Failed to GET user from project due to org not existing.
- *       500:
- *         description: Internal Server Error, Failed to GET user due to server side issue.
- *
- *   post:
- *     tags:
- *       - projects
- *     description: Sets or updates a users permissions on a project.
- *     produces:
- *       - application/json
- *     parameters:
- *       - name: orgid
- *         description: The ID of the organization.
- *         in: URI
- *         required: true
- *         type: string
- *       - name: projectid
- *         description: The project ID to set or update a user's permissions on.
- *         in: URI
- *         required: true
- *         type: string
- *       - name: username
- *         description: The username of the user to set permissions for.
- *         in: URI
- *         required: true
- *         type: string
- *       - name: content
- *         description: The object containing the permissions level to set.
- *         in: body
- *         required: true
- *         schema:
- *           type: object
- *           required:
- *             - role
- *           properties:
- *             role:
- *               type: string
- *               description: The role the user will be set to on the project.
- *     responses:
- *       200:
- *         description: OK, Succeeded to POST project user role returns project data.
- *       400:
- *         description: Bad Request, Failed to POST project user role due to invalid data.
- *       401:
- *         description: Unauthorized, Failed to POST project user role due to not being logged in.
- *       403:
- *         description: Forbidden, Failed to POST project user role due to not having permissions.
- *       404:
- *         description: Not Found, Failed to POST project user role due to project not existing.
- *       500:
- *         description: Internal Server Error, Failed to POST user role due to server side issue.
- *
- *   patch:
- *     tags:
- *       - projects
- *     description: Sets or updates a users permissions on a project.
- *     produces:
- *       - application/json
- *     parameters:
- *       - name: orgid
- *         description: The ID of the organization.
- *         in: URI
- *         required: true
- *         type: string
- *       - name: projectid
- *         description: The project ID to set or update a user's permissions on.
- *         in: URI
- *         required: true
- *         type: string
- *       - name: username
- *         description: The username of the user to set permissions for.
- *         in: URI
- *         required: true
- *         type: string
- *       - name: content
- *         description: The object containing the permissions level to set.
- *         in: body
- *         required: true
- *         schema:
- *           type: object
- *           required:
- *             - role
- *           properties:
- *             role:
- *               type: string
- *               description: The role the user will be set to on the project.
- *     responses:
- *       200:
- *         description: OK, Succeeded to PATCH project user role returns project data.
- *       400:
- *         description: Bad Request, Failed to PATCH project user role due to invalid data.
- *       401:
- *         description: Unauthorized, Failed to PATCH project user role due to not being logged in.
- *       403:
- *         description: Forbidden, Failed to PATCH project user role due to not having permissions.
- *       404:
- *         description: Not Found, Failed to PATCH project user role due to project not existing.
- *       500:
- *         description: Internal Server Error, Failed to PATCH user role due to server side issue.
- *
- *   delete:
- *     tags:
- *       - projects
- *     description: Removes all users permissions from a project.
- *     produces:
- *       - application/json
- *     parameters:
- *       - name: orgid
- *         description: The ID of the organization.
- *         in: URI
- *         required: true
- *         type: string
- *       - name: projectid
- *         description: The project ID to remove the user from.
- *         in: URI
- *         required: true
- *         type: string
- *       - name: username
- *         description: The username of the user to remove from the project.
- *         in: URI
- *         required: true
- *         type: string
- *     responses:
- *       200:
- *         description: OK, Succeeded to DELETE project user role returns org data.
- *       400:
- *         description: Bad Request, Failed to DELETE project user role due to invalid data.
- *       401:
- *         description: Unauthorized, Failed to DELETE project user role due to not being logged in.
- *       403:
- *         description: Forbidden, Failed to DELETE project user role due to not having permissions.
- *       404:
- *         description: Not Found, Failed to DELETE project user role due to project not existing.
- *       500:
- *         description: Internal Server Error, Failed to DELETE user role due to server side issue.
- */
-api.route('/orgs/:orgid/projects/:projectid/members/:username')
-.get(
-  AuthController.authenticate,
-  Middleware.logRoute,
-  APIController.getProjMemRole
-)
-// NOTE: POST and PATCH have the same functionality in this case,
-// thus they map to the same route.
-.post(
-  AuthController.authenticate,
-  Middleware.logRoute,
-  APIController.postProjectRole
-)
-.patch(
-  AuthController.authenticate,
-  Middleware.logRoute,
-  APIController.postProjectRole
-)
-.delete(
-  AuthController.authenticate,
-  Middleware.logRoute,
-  APIController.deleteProjectRole
-);
-
-/**
- * @swagger
- * /api/orgs/:orgid/projects/:projectid/elements:
+ * /api/orgs/{orgid}/projects/{projectid}/branches/{branchid}/elements:
  *   get:
  *     tags:
  *       - elements
- *     description: Returns an array of all elements of a project.
+ *     description: Returns an array of elements on a specified branch. By
+ *                  default, returns all elements on the specified branch.
+ *                  Optionally, an array of IDs can be provided in the request
+ *                  body or a comma separated list in the request parameters to
+ *                  find multiple, specific elements.
  *     produces:
  *       - application/json
  *     parameters:
  *       - name: orgid
- *         description: The ID of the organization.
- *         in: URI
+ *         description: The ID of the organization containing the specified
+ *                      project.
+ *         in: path
  *         required: true
  *         type: string
  *       - name: projectid
- *         description: The project ID containing the element.
- *         in: URI
+ *         description: The ID of the project containing the specified branch.
+ *         in: path
  *         required: true
  *         type: string
- *       - name: content
- *         description: The object containing elements options.
- *         in: body
- *         required: false
+ *       - name: branchid
+ *         description: The ID of the branch containing the searched elements.
+ *         in: path
+ *         required: true
+ *         type: string
+ *       - in: body
  *         schema:
- *           type: object
- *           properties:
- *             softDeleted:
- *               type: boolean
- *               description: The boolean indicating if a soft deleted element is returned. The user
- *                            must be a global admin or an admin on the project to find a soft
- *                            deleted elements.
+ *           type: array
+ *           items:
+ *             type: string
+ *         description: An array of object IDs to search for. If both query
+ *                      parameter and body are not provided, all objects the
+ *                      user has access to (under the specified branch) are
+ *                      found.
+ *       - name: ids
+ *         description: Comma separated list of IDs to search for. If both query
+ *                      parameter and body are not provided, all objects the
+ *                      user has access to (under the specified branch) are
+ *                      found.
+ *         in: query
+ *         type: string
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object.
+ *         in: query
+ *         type: string
+ *         required: false
+ *       - name: archived
+ *         description: If true, archived objects will be also be searched
+ *                      through.
+ *         in: query
+ *         type: boolean
+ *       - name: subtree
+ *         description: If true, returns all searched elements as well as the
+ *                      elements in the searched element's subtree.
+ *         in: query
+ *         type: boolean
  *     responses:
  *       200:
- *         description: OK, Succeeded to GET elements returns elements data
+ *         description: OK, Succeeded to GET elements, returns elements public
+ *                      data.
  *       400:
  *         description: Bad Request, Failed to GET elements due to invalid data.
  *       401:
- *         description: Unauthorized, Failed to GET elements due to not being logged in.
+ *         description: Unauthorized, Failed to GET elements due to not being
+ *                      logged in.
  *       403:
- *         description: Forbidden, Failed to GET elements due to not having permissions.
+ *         description: Forbidden, Failed to GET elements due to not having
+ *                      permissions.
  *       404:
- *         description: Not Found, Failed to GET elements due to a non existing project or org.
+ *         description: Not Found, Failed to GET elements due to a non-existent
+ *                      org, project or branch.
  *       500:
- *         description: Internal Server Error, Failed to GET elements due to server side issue.
- *
+ *         description: Internal Server Error, Failed to GET elements due to
+ *                      server side issue.
  *   post:
  *     tags:
  *       - elements
- *     description: Creates multiple elements from the data provided in the
- *                  request body.
+ *     description: Creates multiple elements from the supplied data in the
+ *                  request body. Returns the created element' public data.
  *     produces:
  *       - application/json
  *     parameters:
  *       - name: orgid
- *         description: The ID of the organization.
- *         in: URI
+ *         description: The ID of the organization containing the specified
+ *                      project.
+ *         in: path
  *         required: true
  *         type: string
  *       - name: projectid
- *         description: The project ID containing the elements.
- *         in: URI
+ *         description: The ID of the project containing the specified branch.
+ *         in: path
  *         required: true
  *         type: string
- *       - name: content
- *         description: The object containing the element data.
- *         in: body
+ *       - name: branchid
+ *         description: The ID of the branch whose elements are being created.
+ *         in: path
  *         required: true
+ *         type: string
+ *       - name: body
+ *         in: body
+ *         description: An array of objects containing new element data.
  *         schema:
- *           type: object
- *           description: An array of element objects to create.
+ *           type: array
+ *           items:
+ *             type: object
+ *             required:
+ *               - id
+ *             properties:
+ *               id:
+ *                 type: string
+ *               name:
+ *                 type: string
+ *               parent:
+ *                 type: string
+ *                 default: 'model'
+ *               source:
+ *                 type: string
+ *                 description: Required if target is provided.
+ *               target:
+ *                 type: string
+ *                 description: Required if source is provided.
+ *               documentation:
+ *                 type: string
+ *                 default: ''
+ *                 description: An optional field to provided notes or
+ *                              description about an element.
+ *               type:
+ *                 type: string
+ *                 default: ''
+ *               custom:
+ *                 type: object
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object.
+ *         in: query
+ *         type: string
+ *         required: false
  *     responses:
  *       200:
- *         description: OK, Succeeded to POST element, return element data.
+ *         description: OK, Succeeded to POST elements, return element public
+ *                      data.
  *       400:
- *         description: Bad Request, Failed to POST elements due to invalid element data.
+ *         description: Bad Request, Failed to POST elements due to invalid
+ *                      element data.
  *       401:
- *         description: Unauthorized, Failed to POST elements due to not being logged in.
+ *         description: Unauthorized, Failed to POST elements due to not being
+ *                      logged in.
  *       403:
- *         description: Forbidden, Failed to POST elements due to permissions or already
- *                      existing elements.
+ *         description: Forbidden, Failed to POST elements due to permissions
+ *                      or already existing elements with matching ids.
  *       404:
- *         description: Not Found, Failed to GET project or organization.
+ *         description: Not Found, Failed to GET branch, project or org.
  *       500:
- *         description: Internal Server Error, Failed to POST elements due to a server side issue.
+ *         description: Internal Server Error, Failed to POST elements due to a
+ *                      server side issue.
  *   patch:
  *     tags:
  *       - elements
  *     description: Updates multiple elements from the data provided in the
- *                  request body.
- *     produces:
- *       - application/json
- *     parameters:
- *       - name: content
- *         description: The object containing the element data.
- *         in: body
- *         required: true
- *         schema:
- *           type: object
- *           required:
- *             - elements
- *             - update
- *           properties:
- *             elements:
- *               type: object
- *               description: An array of elements to update. Can either be the
- *                            element objects or the ids of the elements.
- *             update:
- *               type: object
- *               description: An object containing fields to update in the
- *                            elements and their corresponding values.
- *     responses:
- *       200:
- *         description: OK, Succeeded to PATCH elements, returns elements data
- *       400:
- *         description: Bad Request, Failed to PATCH elements due to invalid
- *                      data.
- *       401:
- *         description: Unauthorized, Failed to PATCH element due to not being logged in.
- *       403:
- *         description: Forbidden, Failed to PATCH elements due to not having
- *                      permissions.
- *       500:
- *         description: Internal Server Error, Failed to PATCH elements due to server side issue.
- *   delete:
- *     tags:
- *       - elements
- *     description: Deletes multiple elements either by the org and project or by
- *                  a supplied list in the body of the request.
+ *                  request body. Elements that are currently archived must
+ *                  first be unarchived before making any other updates. The
+ *                  following fields can be updated [name, custom, archived,
+ *                  parent, type, documentation]. NOTE, the id is required in
+ *                  the request body, but CANNOT be updated.
  *     produces:
  *       - application/json
  *     parameters:
  *       - name: orgid
- *         description: The ID of the organization whose projects to get.
- *         in: URI
+ *         description: The ID of the organization containing the specified
+ *                      project.
+ *         in: path
  *         required: true
  *         type: string
  *       - name: projectid
- *         description: The project ID whose elements to delete.
- *         in: URI
+ *         description: The ID of the project containing the specified branch.
+ *         in: path
  *         required: true
  *         type: string
- *       - name: content
- *         description: The object containing delete elements options.
- *         in: body
- *         required: false
+ *       - name: branchid
+ *         description: The ID of the branch whose elements are to be updated.
+ *         in: path
+ *         required: true
+ *         type: string
+ *       - in: body
+ *         name: elements
+ *         description: An array of objects containing updates to multiple
+ *                      elements.
  *         schema:
- *           type: object
- *           properties:
- *             projects:
- *               type: object
- *               description: An array of elements to delete. Can either be the
- *                            element objects or the ids of the elements. If the
- *                            list is not provided, all elements under the
- *                            project will be deleted.
- *             hardDelete:
- *               type: boolean
- *               description: The boolean indicating if the element should be
- *                            hard deleted or not. The user must be a global
- *                            admin to hard delete. Defaults to false.
+ *           type: array
+ *           items:
+ *             type: object
+ *             required:
+ *               - id
+ *             properties:
+ *               id:
+ *                 type: string
+ *                 description: The current ID of the element, cannot be
+ *                              updated.
+ *               name:
+ *                 type: string
+ *               parent:
+ *                 type: string
+ *               documentation:
+ *                 type: string
+ *               type:
+ *                 type: string
+ *               custom:
+ *                 type: object
+ *               archived:
+ *                 type: boolean
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object.
+ *         in: query
+ *         type: string
+ *         required: false
  *     responses:
  *       200:
- *         description: OK, Succeeded to DELETE elements, returns elements data
+ *         description: OK, Succeeded to PATCH elements, returns element public
+ *                      data.
+ *       400:
+ *         description: Bad Request, Failed to PATCH elements due to invalid
+ *                      data.
+ *       401:
+ *         description: Unauthorized, Failed to PATCH element due to not being
+ *                      logged in.
+ *       403:
+ *         description: Forbidden, Failed to PATCH elements due to not having
+ *                      permissions.
+ *       500:
+ *         description: Internal Server Error, Failed to PATCH elements due to
+ *                      server side issue.
+ *   delete:
+ *     tags:
+ *       - elements
+ *     description: Deletes multiple elements. NOTE this endpoint can be used by
+ *                  system-admins ONLY.
+ *     produces:
+ *       - application/json
+ *     parameters:
+ *       - name: orgid
+ *         description: The ID of the organization containing the specified
+ *                      project
+ *         in: path
+ *         required: true
+ *         type: string
+ *       - name: projectid
+ *         description: The ID of the project containing the specified branch.
+ *         in: path
+ *         required: true
+ *         type: string
+ *       - name: branchid
+ *         description: The ID of the branch whose elements are to be deleted.
+ *         in: path
+ *         required: true
+ *         type: string
+ *       - name: elementIDs
+ *         description: An array of element IDs to delete. Can optionally be an
+ *                      array of objects containing id key/value pairs.
+ *         in: body
+ *         required: true
+ *         schema:
+ *           type: array
+ *           items:
+ *             type: string
+ *     responses:
+ *       200:
+ *         description: OK, Succeeded to DELETE elements, return deleted
+ *                      elements' ids.
  *       400:
  *         description: Bad Request, Failed to DELETE elements due to invalid
  *                      data.
@@ -1445,7 +1358,7 @@ api.route('/orgs/:orgid/projects/:projectid/members/:username')
  *         description: Internal Server Error, Failed to DELETE elements due to
  *                      server side issue.
  */
-api.route('/orgs/:orgid/projects/:projectid/elements')
+api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements')
 .get(
   AuthController.authenticate,
   Middleware.logRoute,
@@ -1469,215 +1382,284 @@ api.route('/orgs/:orgid/projects/:projectid/elements')
 
 /**
  * @swagger
- * /api/orgs/:orgid/projects/:projectid/elements/:elementid:
+ * /api/orgs/{orgid}/projects/{projectid}/branches/{branchid}/elements/{elementid}:
  *   get:
  *     tags:
  *       - elements
- *     description: Returns an element.
+ *     description: Returns an elements public data on a specified branch.
  *     produces:
  *       - application/json
  *     parameters:
  *       - name: orgid
- *         description: The ID of the organization.
- *         in: URI
+ *         description: The ID of the organization containing the specified
+ *                      project.
+ *         in: path
  *         required: true
  *         type: string
  *       - name: projectid
- *         description: The project ID containing the element.
- *         in: URI
+ *         description: The ID of the project containing the specified branch.
+ *         in: path
+ *         required: true
+ *         type: string
+ *       - name: branchid
+ *         description: The ID of the branch containing the searched element.
+ *         in: path
  *         required: true
  *         type: string
  *       - name: elementid
- *         description: The ID of the element to return.
- *         in: URI
+ *         description: The ID of the element to find.
+ *         in: path
  *         required: true
  *         type: string
- *       - name: content
- *         description: The object containing get element options.
- *         in: body
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object.
+ *         in: query
+ *         type: string
  *         required: false
- *         schema:
- *           type: object
- *           properties:
- *             softDeleted:
- *               type: boolean
- *               description: The boolean indicating if the soft deleted element is returned. The
- *                            user must be a global admin or an admin on the project to
- *                            find a soft deleted element.
+ *       - name: archived
+ *         description: If true, archived objects will be also be searched
+ *                      through.
+ *         in: query
+ *         type: boolean
+ *       - name: subtree
+ *         description: If true, returns all elements in the search elements
+ *                      subtree. If true, returns an array of elements rather
+ *                      than a single object.
+ *         in: query
+ *         type: boolean
  *     responses:
  *       200:
- *         description: OK, Succeeded to GET element returns element data.
+ *         description: OK, Succeeded to GET element, returns element public
+ *                      data.
  *       400:
  *         description: Bad Request, Failed to GET element due to invalid data.
  *       401:
- *         description: Unauthorized, Failed to GET element due to not being logged in.
+ *         description: Unauthorized, Failed to GET element due to not being
+ *                      logged in.
  *       403:
- *         description: Forbidden, Failed to GET element due to not having permissions.
+ *         description: Forbidden, Failed to GET element due to not having
+ *                      permissions.
  *       404:
- *         description: Not Found, Failed to GET element due to element not existing.
+ *         description: Not Found, Failed to GET element due to element not
+ *                      existing.
  *       500:
- *         description: Internal Server Error, Failed to GET element due to server side issue.
- *
+ *         description: Internal Server Error, Failed to GET element due to
+ *                      server side issue.
  *   post:
  *     tags:
  *       - elements
- *     description: Creates a new element.
+ *     description: Creates a new element from given data in the request body.
  *     produces:
  *       - application/json
  *     parameters:
  *       - name: orgid
- *         description: The ID of the organization.
- *         in: URI
+ *         description: The ID of the organization containing the specified
+ *                      project.
+ *         in: path
  *         required: true
  *         type: string
  *       - name: projectid
- *         description: The project ID containing the element.
- *         in: URI
+ *         description: The ID of the project containing the specified branch.
+ *         in: path
+ *         required: true
+ *         type: string
+ *       - name: branchid
+ *         description: The ID of the branch containing the new element.
+ *         in: path
  *         required: true
  *         type: string
  *       - name: elementid
- *         description: The ID of the element to be created.
- *         in: URI
+ *         description: The ID of the element to create.
+ *         in: path
  *         required: true
  *         type: string
- *       - name: content
+ *       - name: body
  *         description: The object containing the new element data.
  *         in: body
  *         required: false
  *         schema:
  *           type: object
- *           required:
- *             - id
- *             - name
  *           properties:
  *             id:
  *               type: string
- *               description: The ID of the element. If this is provided, it must
- *                      match the element ID provided in the URI.
+ *               description: The ID of the element. If provided, it must
+ *                      match the element ID provided in the path.
  *             name:
  *               type: string
- *               description: The name for the element.
+ *             parent:
+ *               type: string
+ *               default: 'model'
+ *               description: The ID of the parent of the new element.
+ *             source:
+ *               type: string
+ *               description: An optional field that stores the ID of a source
+ *                            element. If provided, target is required.
+ *             target:
+ *               type: string
+ *               description: An optional field that stores the ID of a target
+ *                            element. If provided, source is required.
  *             documentation:
  *               type: string
+ *               default: ''
  *               description: The documentation for the element.
+ *             type:
+ *               type: string
+ *               default: ''
  *             custom:
- *               type: JSON Object
- *               description: Custom JSON data to be added to the element.
+ *               type: object
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object.
+ *         in: query
+ *         type: string
+ *         required: false
  *     responses:
  *       200:
- *         description: OK, Succeeded to POST element returns element data.
+ *         description: OK, Succeeded to POST element, returns element public
+ *                      data.
  *       400:
  *         description: Bad Request, Failed to POST element due to invalid data.
  *       401:
- *         description: Unauthorized, Failed to POST element due to not being logged in.
+ *         description: Unauthorized, Failed to POST element due to not being
+ *                      logged in.
  *       403:
- *         description: Forbidden, Failed to POST element due to not having permissions.
+ *         description: Forbidden, Failed to POST element due to not having
+ *                      permissions.
  *       404:
- *         description: Not Found, Failed to POST element due to project/org not existing.
+ *         description: Not Found, Failed to POST element due to branch, project
+ *                      or org not existing.
  *       500:
- *         description: Internal Server Error, Failed to POST element due to server side issue.
- *
+ *         description: Internal Server Error, Failed to POST element due to
+ *                      server side issue.
  *   patch:
  *     tags:
  *       - elements
- *     description: Updates an existing element.
+ *     description: Updates an existing element. The following fields can be
+ *                  updated [name, custom, archived, parent, documentation,
+ *                  type]. Elements that are currently archived must first be
+ *                  unarchived before making any other updates.
  *     produces:
  *       - application/json
  *     parameters:
  *       - name: orgid
- *         description: The ID of the organization.
- *         in: URI
+ *         description: The ID of the organization containing the specified
+ *                      project.
+ *         in: path
  *         required: true
  *         type: string
  *       - name: projectid
- *         description: The project ID containing the element.
- *         in: URI
+ *         description: The ID of the project containing the specified branch.
+ *         in: path
+ *         required: true
+ *         type: string
+ *       - name: branchid
+ *         description: The ID of the branch containing the element to be
+ *                      updated.
+ *         in: path
  *         required: true
  *         type: string
  *       - name: elementid
- *         description: The ID of the element to be updated.
- *         in: URI
+ *         description: The ID of the element to update.
+ *         in: path
  *         required: true
  *         type: string
- *       - name: content
+ *       - name: update
  *         description: The object containing the updated element data.
  *         in: body
- *         required: false
+ *         required: true
  *         schema:
  *           type: object
  *           properties:
  *             name:
  *               type: string
- *               description: The updated name for the element.
+ *             parent:
+ *               type: string
  *             documentation:
  *               type: string
- *               description: The updated documentation for the element.
+ *             type:
+ *               type: string
  *             custom:
- *               type: JSON Object
- *               description: The updated custom JSON data for the element.
+ *               type: object
+ *             archived:
+ *               type: boolean
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object.
+ *         in: query
+ *         type: string
+ *         required: false
  *     responses:
  *       200:
- *         description: OK, Succeeded to PATCH element returns element data.
+ *         description: OK, Succeeded to PATCH element, returns element public
+ *                      data.
  *       400:
- *         description: Bad Request, Failed to PATCH element due to invalid data.
+ *         description: Bad Request, Failed to PATCH element due to invalid
+ *                      data.
  *       401:
- *         description: Unauthorized, Failed to PATCH element due to not being logged in.
+ *         description: Unauthorized, Failed to PATCH element due to not being
+ *                      logged in.
  *       403:
- *         description: Forbidden, Failed to PATCH element due to updating an immutable field.
+ *         description: Forbidden, Failed to PATCH element due to updating an
+ *                      immutable field.
  *       404:
- *         description: Not Found, Failed to PATCH element due to element not existing.
+ *         description: Not Found, Failed to PATCH element due to element not
+ *                      existing.
  *       500:
- *         description: Internal Server Error, Failed to PATCH element due to server side issue.
- *
+ *         description: Internal Server Error, Failed to PATCH element due to
+ *                      server side issue.
  *   delete:
  *     tags:
  *       -  elements
- *     description: Deletes an element.
+ *     description: Deletes the specified element and all elements in the
+ *                  specified elements subtree. NOTE this endpoint is reserved
+ *                  for system-wide admins ONLY.
  *     produces:
  *       - application/json
  *     parameters:
  *       - name: orgid
- *         description: The ID of the organization.
- *         in: URI
+ *         description: The ID of the organization containing the specified
+ *                      project.
+ *         in: path
  *         required: true
  *         type: string
  *       - name: projectid
- *         description: The project ID containing the element.
- *         in: URI
+ *         description: The ID of the project containing the specified branch.
+ *         in: path
+ *         required: true
+ *         type: string
+ *       - name: branchid
+ *         description: The ID of the branch containing the element to be
+ *                      deleted.
+ *         in: path
  *         required: true
  *         type: string
  *       - name: elementid
  *         description: The ID of the element to delete.
- *         in: URI
+ *         in: path
  *         required: true
  *         type: string
- *       - name: content
- *         description: The object containing delete options.
- *         in: body
- *         required: false
- *         schema:
- *           type: object
- *           properties:
- *             hardDelete:
- *               type: boolean
- *               description: The boolean indicating if the element should be hard deleted or
- *                            not. The user must be a global admin to hard delete.
- *                            Defaults to false.
  *     responses:
  *       200:
- *         description: OK, Succeeded to DELETE element returns element data.
+ *         description: OK, Succeeded to DELETE element, returns deleted
+ *                      element's id.
  *       400:
- *         description: Bad Request, Failed to DELETE element due to invalid data.
+ *         description: Bad Request, Failed to DELETE element due to invalid
+ *                      data.
  *       401:
- *         description: Unauthorized, Failed to DELETE element due to not being logged in.
+ *         description: Unauthorized, Failed to DELETE element due to not being
+ *                      logged in.
  *       403:
- *         description: Forbidden, Failed to DELETE element due to not having permissions.
+ *         description: Forbidden, Failed to DELETE element due to not having
+ *                      permissions.
  *       404:
- *         description: Not Found, Failed to DELETE element due to element not existing.
+ *         description: Not Found, Failed to DELETE element due to element not
+ *                      existing.
  *       500:
- *         description: Internal Server Error, Failed to DELETE element due to server side issue.
+ *         description: Internal Server Error, Failed to DELETE element due to
+ *                      server side issue.
  */
-api.route('/orgs/:orgid/projects/:projectid/elements/:elementid')
+api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements/:elementid')
 .get(
   AuthController.authenticate,
   Middleware.logRoute,
@@ -1705,79 +1687,167 @@ api.route('/orgs/:orgid/projects/:projectid/elements/:elementid')
  *   get:
  *     tags:
  *       - users
- *     description: Returns an array of all user's public data.
+ *     description: Returns an array of users. By default, returns all users.
+ *                  Optionally, an array of usernames can be provided in the
+ *                  request body or a comma separated list in the request
+ *                  parameters to find multiple, specific users.
  *     produces:
  *       - application/json
  *     parameters:
- *       - N/A
+ *       - in: body
+ *         schema:
+ *           type: array
+ *           items:
+ *             type: string
+ *         description: An array of usernames to search for. If both query
+ *                      parameter and body are not provided, all users are
+ *                      found.
+ *       - name: usernames
+ *         description: Comma separated list of usernames to search for. If both
+ *                      the query parameter and body are not provided, all
+ *                      users are found.
+ *         in: query
+ *         type: string
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object.
+ *         in: query
+ *         type: string
+ *         required: false
+ *       - name: archived
+ *         description: If true, archived users will be also be searched
+ *                      through.
+ *         in: query
+ *         type: boolean
  *     responses:
  *       200:
- *         description: OK, Succeeded to GET users returns public user data.
+ *         description: OK, Succeeded to GET users, returns user public data.
  *       400:
  *         description: Bad Request, Failed to GET users due to invalid data.
  *       401:
- *         description: Unauthorized, Failed to GET users due to not being logged in.
+ *         description: Unauthorized, Failed to GET users due to not being
+ *                      logged in.
  *       403:
- *         description: Forbidden, Failed to GET users due to not having permissions.
+ *         description: Forbidden, Failed to GET users due to not having
+ *                      permissions.
  *       404:
- *         description: Not Found, Failed to GET users due to not finding any users.
+ *         description: Not Found, Failed to GET users due to users not
+ *                      existing.
  *       500:
- *         description: Internal Server Error, Failed to GET users due to server side issue.
- *
+ *         description: Internal Server Error, Failed to GET users due to
+ *                      server side issue.
  *   post:
  *     tags:
  *       - users
- *     description: Creates multiple users from the supplied data in the body.
+ *     description: Creates multiple users from the data provided in the request
+ *                  body. Returns the created user's public data. NOTE This
+ *                  endpoint is reserved for system-wide admins ONLY.
  *     produces:
  *       - application/json
  *     parameters:
- *       - name: content
- *         description: The object containing user objects to be created.
- *         in: body
- *         required: true
+ *       - in: body
+ *         name: users
+ *         description: An array of objects containing new user data.
  *         schema:
- *           type: object
- *           properties:
- *             users:
- *               type: object
- *               description: An array of users to create. Each user must
- *                            contain the username of that user.
+ *           type: array
+ *           items:
+ *             type: object
+ *             required:
+ *               - username
+ *             properties:
+ *               username:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *                 description: Required unless running LDAP auth.
+ *               fname:
+ *                 type: string
+ *                 description: User's first name.
+ *               lname:
+ *                 type: string
+ *                 description: User's last name.
+ *               preferredName:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               provider:
+ *                 type: string
+ *                 default: 'local'
+ *               admin:
+ *                 type: boolean
+ *                 description: If true, user is system-wide admin.
+ *               custom:
+ *                 type: object
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object.
+ *         in: query
+ *         type: string
+ *         required: false
  *     responses:
  *       200:
  *         description: OK, Succeeded to POST users returns public users data.
  *       400:
  *         description: Bad Request, Failed to POST users due to invalid data.
  *       401:
- *         description: Unauthorized, Failed to POST users due to not being logged in.
+ *         description: Unauthorized, Failed to POST users due to not being
+ *                      logged in.
  *       403:
- *         description: Forbidden, Failed to POST users due to not having permissions.
+ *         description: Forbidden, Failed to POST users due to not having
+ *                      permissions.
  *       500:
- *         description: Internal Server Error, Failed to POST users due to server side issue.
+ *         description: Internal Server Error, Failed to POST users due to
+ *                      server side issue.
  *   patch:
  *     tags:
  *       - users
- *     description: Updates multiple users from the supplied list in the body.
+ *     description: Updates multiple users from the data provided in the request
+ *                  body. Users that are currently archived must first be
+ *                  unarchived before making any other updates. The following
+ *                  fields can be updated [custom, archived, fname, lname,
+ *                  preferredName, email]. NOTE, the username is required in the
+ *                  request body, but CANNOT be updated. This endpoint is
+ *                  reserved for admins only, unless user is updating self.
  *     produces:
  *       - application/json
  *     parameters:
- *       - name: content
- *         description: The object containing user objects to be updated.
- *         in: body
- *         required: true
+ *       - in: body
+ *         name: users
+ *         description: An array of objects containing updates to multiple
+ *                      users.
  *         schema:
- *           type: object
- *           properties:
- *             users:
- *               type: object
- *               description: An array of users to update. Can either be a list
- *                            of user objects or of usernames.
- *             update:
- *               type: object
- *               description: An object containing fields to update in the users
- *                            and their corresponding values.
+ *           type: array
+ *           items:
+ *             type: object
+ *             required:
+ *               - username
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 description: The current username of the user, cannot be
+ *                              updated.
+ *               fname:
+ *                 type: string
+ *               lname:
+ *                 type: string
+ *               preferredName:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               custom:
+ *                 type: object
+ *               archived:
+ *                 type: boolean
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object.
+ *         in: query
+ *         type: string
+ *         required: false
  *     responses:
  *       200:
- *         description: OK, Succeeded to PATCH users, returns public users data.
+ *         description: OK, Succeeded to PATCH users, returns user's public
+ *                      data.
  *       400:
  *         description: Bad Request, Failed to PATCH users due to invalid data.
  *       401:
@@ -1792,36 +1862,36 @@ api.route('/orgs/:orgid/projects/:projectid/elements/:elementid')
  *   delete:
  *     tags:
  *       - users
- *     description: Deletes multiple users from the supplied list in the body.
+ *     description: Deletes multiple users. Removes them from any orgs or
+ *                  projects which they have permissions on. NOTE this endpoint
+ *                  is reserved for system-wide admins ONLY.
  *     produces:
  *       - application/json
  *     parameters:
- *       - name: content
- *         description: The object containing user objects to be deleted.
+ *       - name: usernames
+ *         description: An array of usernames to delete. Can optionally be an
+ *                      array of objects containing id key/value pairs.
  *         in: body
  *         required: true
  *         schema:
- *           type: object
- *           properties:
- *             users:
- *               type: object
- *               description: An array of users to delete. Can either be a list
- *                            of user objects or of usernames.
- *             hardDelete:
- *               type: boolean
- *               description: The boolean indicating if the users should be hard
- *                            deleted or not. Defaults to false.
+ *           type: array
+ *           items:
+ *             type: string
  *     responses:
  *       200:
- *         description: OK, Succeeded to DELETE users return users data.
+ *         description: OK, Succeeded to DELETE users, return deleted user's
+ *                      usernames.
  *       400:
  *         description: Bad Request, Failed to DELETE users due to invalid data.
  *       401:
- *         description: Unauthorized, Failed to DELETE users due to not being logged in.
+ *         description: Unauthorized, Failed to DELETE users due to not being
+ *                      logged in.
  *       403:
- *         description: Forbidden, Failed to DELETE users due to not having permissions.
+ *         description: Forbidden, Failed to DELETE users due to not having
+ *                      permissions.
  *       500:
- *         description: Internal Server Error, Failed to DELETE users due to server side issue.
+ *         description: Internal Server Error, Failed to DELETE users due to
+ *                      server side issue.
  */
 api.route('/users')
 .get(
@@ -1855,20 +1925,25 @@ api.route('/users')
  *   get:
  *     tags:
  *       - users
- *     description: Returns the currently logged in user's public information
+ *     description: Returns the currently logged in user's public information.
+ *     produces:
+ *       - application/json
  *     responses:
  *       200:
- *         description: OK, Succeeded to GET current user information returns user public data.
- *       400:
- *         description: Bad Request, Failed to GET current user information due to invalid data.
+ *         description: OK, Succeeded to GET current user information returns
+ *                      user public data.
  *       401:
- *         description: Unauthorized, Failed to GET user information due to not being logged in.
+ *         description: Unauthorized, Failed to GET user information due to not
+ *                      being logged in.
  *       403:
- *         description: Forbidden, Failed to GET user information due to not having permissions.
+ *         description: Forbidden, Failed to GET user information due to not
+ *                      having permissions.
  *       404:
- *         description: Not Found, Failed to GET current user information due to not finding user.
+ *         description: Not Found, Failed to GET current user information due to
+ *                      not finding user.
  *       500:
- *         description: Internal Server Error, Failed to GET user info due to server side issue.
+ *         description: Internal Server Error, Failed to GET user info due to
+ *                      server side issue.
  */
 api.route('/users/whoami')
 .get(
@@ -1879,37 +1954,51 @@ api.route('/users/whoami')
 
 /**
  * @swagger
- * /api/users/:username:
+ * /api/users/{username}:
  *   get:
  *     tags:
  *       - users
- *     description: Returns a user's public information.
+ *     description: Finds and returns a users public data.
  *     produces:
  *       - application/json
  *     parameters:
  *       - name: username
- *         description: The username of the user to return
+ *         description: The username of the user to find.
  *         required: true
  *         type: string
- *         in: URI
+ *         in: path
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object.
+ *         in: query
+ *         type: string
+ *         required: false
+ *       - name: archived
+ *         description: If true, archived objects will be also be searched
+ *                      through.
+ *         in: query
+ *         type: boolean
  *     responses:
  *       200:
- *         description: OK, Succeeded to GET user returns user public data.
+ *         description: OK, Succeeded to GET user, returns user's public data.
  *       400:
  *         description: Bad Request, Failed to GET user due to invalid data.
  *       401:
- *         description: Unauthorized, Failed to GET user due to not being logged in.
+ *         description: Unauthorized, Failed to GET user due to not being logged
+ *                      in.
  *       403:
- *         description: Forbidden, Failed to GET user due to not having permissions.
+ *         description: Forbidden, Failed to GET user due to not having
+ *                      permissions.
  *       404:
  *         description: Not Found, Failed to GET user due to user not existing.
  *       500:
- *         description: Internal Server Error, Failed to GET user due to server side issue.
- *
+ *         description: Internal Server Error, Failed to GET user due to server
+ *                      side issue.
  *   post:
  *     tags:
  *       - users
- *     description: Creates a new user.
+ *     description: Create a new user from the given data in the request body.
+ *                  This endpoint is reserved for system-wide admins ONLY.
  *     produces:
  *       - application/json
  *     parameters:
@@ -1917,56 +2006,64 @@ api.route('/users/whoami')
  *         description: The username of the user to create.
  *         required: true
  *         type: string
- *         in: URI
- *       - name: content
+ *         in: path
+ *       - name: user
  *         description: The object containing the new user data.
  *         in: body
  *         required: true
  *         schema:
  *           type: object
- *           required:
- *             - username
- *             - password
  *           properties:
  *             username:
  *               type: string
- *               description: The username of the user to create. If provided, this
- *                            must match the username provided in the URI.
+ *               description: The username of the user to create. If provided,
+ *                            this must match the username provided in the path.
  *             password:
  *               type: string
  *               description: The password of the user being created. This field
  *                            is required unless LDAP authentication is used.
  *             fname:
  *               type: string
- *               description: The user's first name.
  *             lname:
  *               type: string
- *               description: The user's last name.
  *             preferredName:
  *               type: string
- *               description: The user's preferred first name.
  *             email:
  *               type: string
- *               description: The user's email address.
+ *             provider:
+ *               type: string
+ *               default: 'local'
+ *             admin:
+ *               type: boolean
  *             custom:
- *               type: JSON Object
- *               description: Custom JSON data that can be added to a user.
+ *               type: object
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object.
+ *         in: query
+ *         type: string
+ *         required: false
  *     responses:
  *       200:
- *         description: OK, Succeeded to POST user returns public user data.
+ *         description: OK, Succeeded to POST user, return user's public data.
  *       400:
- *         description: Bad Request, Failed to POST user due to invalid information.
+ *         description: Bad Request, Failed to POST user due to invalid data.
  *       401:
- *         description: Unauthorized, Failed to POST user due to not being logged in.
+ *         description: Unauthorized, Failed to POST user due to not being
+ *                      logged in.
  *       403:
- *         description: Forbidden, Failed to POST user due to using username that already exists.
+ *         description: Forbidden, Failed to POST user due to using username
+ *                      that already exists.
  *       500:
- *         description: Internal Server Error, Failed to POST user due to server side issue.
- *
+ *         description: Internal Server Error, Failed to POST user due to server
+ *                      side issue.
  *   patch:
  *     tags:
  *       - users
- *     description: Updates an existing user.
+ *     description: Updates an existing user. The following fields can be
+ *                  updated [fname, lname, preferredName, email, custom,
+ *                  archived]. Users that are currently archived must first be
+ *                  unarchived before making any other updates.
  *     produces:
  *       - application/json
  *     parameters:
@@ -1974,71 +2071,80 @@ api.route('/users/whoami')
  *         description: The username of the user to update.
  *         required: true
  *         type: string
- *         in: URI
- *       - name: content
+ *         in: path
+ *       - name: update
  *         description: The object containing the updated user data.
  *         in: body
  *         required: true
  *         schema:
  *           type: object
- *           required:
- *             - username
- *             - password
  *           properties:
  *             fname:
  *               type: string
- *               description: The user's updated first name.
  *             lname:
  *               type: string
- *               description: The user's updated last name.
  *             preferredName:
  *               type: string
- *               description: The user's updated preferred first name.
  *             email:
  *               type: string
- *               description: The user's updated email address.
  *             custom:
- *               type: JSON Object
- *               description: The updated custom JSON data for the user.
+ *               type: object
+ *             archived:
+ *               type: boolean
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object.
+ *         in: query
+ *         type: string
  *     responses:
  *       200:
- *         description: OK, Succeeded to PATCH user returns public user data.
+ *         description: OK, Succeeded to PATCH user, return user's public data.
  *       400:
  *         description: Bad Request, Failed to PATCH user due to invalid data.
  *       401:
- *         description: Unauthorized, Failed to PATCH user due to not being logged in.
+ *         description: Unauthorized, Failed to PATCH user due to not being
+ *                      logged in.
  *       403:
- *         description: Forbidden, Failed to PATCH user due updating an immutable field.
+ *         description: Forbidden, Failed to PATCH user due updating an
+ *                      immutable field.
  *       404:
- *         description: Not Found, Failed ot PATCH user due to user not existing.
+ *         description: Not Found, Failed ot PATCH user due to user not
+ *                      existing.
  *       500:
- *         description: Internal Server Error, Failed ot PATCH user due to server side issue.
- *
+ *         description: Internal Server Error, Failed ot PATCH user due to
+ *                      server side issue.
  *   delete:
  *     tags:
  *       - users
- *     description: Deletes a user.
+ *     description: Deletes the specified user. Removes them from any orgs or
+ *                  projects which they have permissions on. NOTE this endpoint
+ *                  is reserved for system-wide admins ONLY.
  *     produces:
  *       - application/json
  *     parameters:
  *       - name: username
  *         description: The username of the user to delete.
+ *         in: path
  *         required: true
  *         type: string
- *         in: URI
  *     responses:
  *       200:
- *         description: OK, Succeeded to DELETE user returns user public data.
+ *         description: OK, Succeeded to DELETE user, returns deleted user's
+ *                      username.
  *       400:
  *         description: Bad Request, Failed to DELETE user due to invalid data.
  *       401:
- *         description: Unauthorized, Failed to DELETE user due to not being logged in.
+ *         description: Unauthorized, Failed to DELETE user due to not being
+ *                      logged in.
  *       403:
- *         description: Forbidden, Failed to DELETE user due to not having permissions.
+ *         description: Forbidden, Failed to DELETE user due to not having
+ *                      permissions.
  *       404:
- *         description: Not Found, Failed to DELETE user due to user not existing.
+ *         description: Not Found, Failed to DELETE user due to user not
+ *                      existing.
  *       500:
- *         description: Internal Server Error, Failed to DELETE user due to server side issues.
+ *         description: Internal Server Error, Failed to DELETE user due to
+ *                      server side issues.
  */
 api.route('/users/:username')
 .get(
@@ -2064,6 +2170,66 @@ api.route('/users/:username')
   Middleware.logRoute,
   Middleware.disableUserAPI,
   APIController.deleteUser
+);
+
+/**
+ * @swagger
+ * /api/users/{username}/password:
+ *   patch:
+ *     tags:
+ *       - users
+ *     description: Updates an existing users password. Users can only update
+ *                  their own password.
+ *     produces:
+ *       - application/json
+ *     parameters:
+ *       - name: username
+ *         description: The username of the user to update.
+ *         required: true
+ *         type: string
+ *         in: path
+ *       - in: body
+ *         description: The object containing the updated user data.
+ *         name: passwordInfo
+ *         required: true
+ *         schema:
+ *           type: object
+ *           required:
+ *             - oldPassword
+ *             - password
+ *             - confirmPassword
+ *           properties:
+ *             oldPassword:
+ *               type: string
+ *               description: The user's old password.
+ *             password:
+ *               type: string
+ *               description: The user's new password.
+ *             confirmPassword:
+ *               type: string
+ *               description: The users new password a second time, to confirm
+ *                            they match.
+ *     responses:
+ *       200:
+ *         description: OK, Succeeded to PATCH user returns public user data.
+ *       400:
+ *         description: Bad Request, Failed to PATCH user due to invalid data.
+ *       401:
+ *         description: Unauthorized, Failed to PATCH user due to not being
+ *                      logged in.
+ *       403:
+ *         description: Forbidden, Failed to PATCH user due updating an
+ *                      immutable field.
+ *       500:
+ *         description: Internal Server Error, Failed to DELETE user due to
+ *                      server side issues.
+ */
+api.route('/users/:username/password')
+.patch(
+  AuthController.authenticate,
+  Middleware.logRoute,
+  Middleware.disableUserAPI,
+  APIController.patchPassword
 );
 
 // Catches any invalid api route not defined above.

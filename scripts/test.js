@@ -33,18 +33,6 @@ function test(_args) {
   M.log.verbose(`Mongo IP: ${M.config.db.url}:${M.config.db.port}`);
   M.log.verbose(`Mongo DB: ${M.config.db.name}`);
 
-  // Check if environment is production and NOT --force
-  if (M.env.toLowerCase() === 'production' && !_args.includes('--force')) {
-    // Environment is production and NOT --force, print warning and fail.
-    // eslint-disable-next-line no-console
-    console.log('\nWARNING! You are attempting to run tests on a production database.\n\n'
-      + 'This operation could ERASE PRODUCTION DATA PERMANENTLY.\n'
-      + 'If you would still like to perform this action, use the\n'
-      + 'optional parameter --force\n\n'
-      + 'node mbee test --grep "[^[1-8]]" --force\n');
-    process.exit(-1);
-  }
-
   // Remove --force from args
   if (_args.includes('--force')) {
     const removeInd = _args.indexOf('--force');
@@ -61,6 +49,12 @@ function test(_args) {
   if (!_args.includes('--slow')) {
     _args.push('--slow');
     _args.push('19');
+  }
+
+  // Add default grep command to define which tests to run
+  if (!_args.includes('--grep')) {
+    _args.push('--grep');
+    _args.push('^[1-5]');
   }
 
   // Allocate options variable for mocha
