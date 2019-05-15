@@ -179,6 +179,31 @@
       "documentation": "Element #6",
       "custom": {}
     }
+  ],
+  "jmi1": [
+    { "id": "1",
+      "parent": null,
+      "contains": ["3"]
+    },
+    {
+      "id": "2",
+      "parent": null,
+      "contains": ["4"]
+    },
+    { "id": "3",
+      "parent": "1",
+      "contains": []
+    },
+    {
+      "id": "4",
+      "parent": "2",
+      "contains": ["5"]
+    },
+    {
+      "id": "5",
+      "parent": "4",
+      "contains": []
+    }
   ]
 }
 

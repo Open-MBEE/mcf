@@ -35,9 +35,9 @@
 const mongoose = require('mongoose');
 
 // MBEE modules
-const utils = M.require('lib.utils');
 const validators = M.require('lib.validators');
 const extensions = M.require('models.plugin.extensions');
+const utils = M.require('lib.utils');
 
 
 /* ---------------------------( Element Schemas )---------------------------- */
@@ -49,7 +49,7 @@ const extensions = M.require('models.plugin.extensions');
  *
  * @property {string} _id - The elements non-unique element ID.
  * or taken from another source if imported.
- * @property {string} name - THe elements non-unique name.
+ * @property {string} name - The elements non-unique name.
  * @property {string} project - A reference to an element's project.
  * @property {string} parent - The parent element which contains the element
  * @property {string} source - A reference to the source element if the base
@@ -66,11 +66,21 @@ const ElementSchema = new mongoose.Schema({
     type: String,
     required: true,
     match: RegExp(validators.element.id),
-    maxlength: [110, 'Too many characters in ID'],
-    minlength: [8, 'Too few characters in ID']
+    maxlength: [255, 'Too many characters in ID'],
+    minlength: [8, 'Too few characters in ID'],
+    validate: {
+      validator: function(v) {
+        const elemID = utils.parseID(v).pop();
+        // If the ID is a reserved keyword, reject
+        return !validators.reserved.includes(elemID);
+      },
+      message: 'Element ID cannot include the following words: '
+      + `[${validators.reserved}].`
+    }
   },
   name: {
-    type: String
+    type: String,
+    default: ''
   },
   project: {
     type: String,
@@ -94,7 +104,8 @@ const ElementSchema = new mongoose.Schema({
   parent: {
     type: String,
     ref: 'Element',
-    default: null
+    default: null,
+    index: true
   },
   source: {
     type: String,
@@ -141,7 +152,8 @@ ElementSchema.plugin(extensions);
  * @memberOf ElementSchema
  */
 ElementSchema.methods.getValidUpdateFields = function() {
-  return ['name', 'documentation', 'custom', 'archived', 'parent', 'type'];
+  return ['name', 'documentation', 'custom', 'archived', 'parent', 'type',
+    'source', 'target'];
 };
 
 ElementSchema.statics.getValidUpdateFields = function() {
@@ -153,7 +165,8 @@ ElementSchema.statics.getValidUpdateFields = function() {
  * @memberOf ElementSchema
  */
 ElementSchema.methods.getValidBulkUpdateFields = function() {
-  return ['name', 'documentation', 'custom', 'archived', 'type'];
+  return ['name', 'documentation', 'custom', 'archived', 'type', 'source',
+    'target'];
 };
 
 ElementSchema.statics.getValidBulkUpdateFields = function() {
@@ -174,128 +187,22 @@ ElementSchema.statics.getValidPopulateFields = function() {
 };
 
 /**
- * @description Returns the element public data
+ * @description Returns a list of valid root elements
  * @memberOf ElementSchema
  */
-ElementSchema.methods.getPublicData = function() {
-  // Parse the element ID
-  const idParts = utils.parseID(this._id);
+ElementSchema.methods.getValidRootElements = function() {
+  return ['model', '__mbee__', 'holding_bin', 'undefined'];
+};
 
-  let createdBy;
-  let lastModifiedBy;
-  let archivedBy;
-  let parent;
-  let source;
-  let target;
-
-  // If this.createdBy is defined
-  if (this.createdBy) {
-    // If this.createdBy is populated
-    if (typeof this.createdBy === 'object') {
-      // Get the public data of createdBy
-      createdBy = this.createdBy.getPublicData();
-    }
-    else {
-      createdBy = this.createdBy;
-    }
-  }
-
-  // If this.lastModifiedBy is defined
-  if (this.lastModifiedBy) {
-    // If this.lastModifiedBy is populated
-    if (typeof this.lastModifiedBy === 'object') {
-      // Get the public data of lastModifiedBy
-      lastModifiedBy = this.lastModifiedBy.getPublicData();
-    }
-    else {
-      lastModifiedBy = this.lastModifiedBy;
-    }
-  }
-
-  // If this.archivedBy is defined
-  if (this.archivedBy) {
-    // If this.archivedBy is populated
-    if (typeof this.archivedBy === 'object') {
-      // Get the public data of archivedBy
-      archivedBy = this.archivedBy.getPublicData();
-    }
-    else {
-      archivedBy = this.archivedBy;
-    }
-  }
-
-  // If this.parent is defined
-  if (this.parent) {
-    // If this.parent is populated
-    if (typeof this.parent === 'object') {
-      // Get the public data of parent
-      parent = this.parent.getPublicData();
-    }
-    else {
-      parent = utils.parseID(this.parent).pop();
-    }
-  }
-
-  // If this.source is defined
-  if (this.source) {
-    // If this.source is populated
-    if (typeof this.source === 'object') {
-      // Get the public data of source
-      source = this.source.getPublicData();
-    }
-    else {
-      source = utils.parseID(this.source).pop();
-    }
-  }
-
-  // If this.target is defined
-  if (this.target) {
-    // If this.target is populated
-    if (typeof this.target === 'object') {
-      // Get the public data of target
-      target = this.target.getPublicData();
-    }
-    else {
-      target = utils.parseID(this.target).pop();
-    }
-  }
-
-  const data = {
-    id: idParts.pop(),
-    name: this.name,
-    project: idParts[1],
-    org: idParts[0],
-    parent: parent,
-    source: source,
-    target: target,
-    type: this.type,
-    documentation: this.documentation,
-    custom: this.custom,
-    createdOn: this.createdOn,
-    createdBy: createdBy,
-    updatedOn: this.updatedOn,
-    lastModifiedBy: lastModifiedBy,
-    archived: (this.archived) ? true : undefined,
-    archivedOn: (this.archivedOn) ? this.archivedOn : undefined,
-    archivedBy: archivedBy
-  };
-
-
-  if (this.contains) {
-    // Handle the virtual contains field
-    data.contains = (this.contains.every(e => typeof e === 'object'))
-      ? this.contains.map(e => utils.parseID(e._id).pop())
-      : this.contains.map(e => utils.parseID(e).pop());
-  }
-
-  return data;
+ElementSchema.statics.getValidRootElements = function() {
+  return ElementSchema.methods.getValidRootElements();
 };
 
 /**
  * @description Validates an object to ensure that it only contains keys
  * which exist in the element model.
  *
- * @param {Object} object to check keys of.
+ * @param {Object} object - Object for key verification.
  * @return {boolean} The boolean indicating if the object contained only
  * existing fields.
  */
@@ -324,10 +231,14 @@ ElementSchema.statics.validateObjectKeys = function(object) {
 /* ---------------------------( Element Indexes )---------------------------- */
 
 /**
- * @description Adds a compound index on the name and documentation fields.
+ * @description Adds a compound text index on the name, documentation, _id,
+ * source, target and parent fields.
  * @memberOf ElementSchema
  */
-ElementSchema.index({ name: 'text', documentation: 'text' });
+ElementSchema.index({
+  name: 'text',
+  documentation: 'text'
+});
 
 
 /* -----------------------( Organization Properties )------------------------ */

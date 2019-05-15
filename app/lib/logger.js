@@ -20,6 +20,7 @@
  */
 
 // Node modules
+const fs = require('fs');
 const path = require('path');
 const winston = require('winston');
 const { combine, timestamp, label, printf } = winston.format;
@@ -133,10 +134,12 @@ const formatter = printf((msg) => {
   return `${ts} [${level}] ${f}:${line} -> ${msg.message}`;
 });
 
-// Creates the log directory if it doesn't already exist
-const logDir = (M.config.log.dir === undefined) ? 'logs' : M.config.log.dir;
-const cmd = `mkdir -p ${logDir}`;
-execSync(cmd);
+// Check that the logs directory exists
+if (!fs.existsSync(path.join(M.root, 'logs'))) {
+  // If logs directory doesn't exist, create it
+  const cmd = 'mkdir logs';
+  execSync(cmd);
+}
 
 /**
  * @description This creates the logger. Defines log level, log formatting and
@@ -159,18 +162,18 @@ const logger = winston.createLogger({
     new winston.transports.Console(),
     // error log transport - logs error-level and below to error log file
     new winston.transports.File({
-      filename: path.join(logDir, M.config.log.error_file),
+      filename: path.join('logs', M.config.log.error_file),
       level: 'error'
     }),
     // combined log transport - logs default-level and below to combined log file
     // NOTE: Default level specified in config file
     new winston.transports.File({
-      filename: path.join(logDir, M.config.log.file),
+      filename: path.join('logs', M.config.log.file),
       level: M.config.log.level
     }),
     // debug log transport - logs debug-level and below to debug log file
     new winston.transports.File({
-      filename: path.join(logDir, M.config.log.debug_file),
+      filename: path.join('logs', M.config.log.debug_file),
       level: 'debug'
     })
   ],

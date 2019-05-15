@@ -13,11 +13,13 @@
  %>
 <div id="footer" class="footer" style="
                   width: 100%;
-                  height: 100%;
+                  position: fixed;
+                  bottom: 0;
                   text-align: center;
                   font-size: 14px;
                   color: <%= ui.banner.color || "#333" %>;
                   background: <%= ui.banner.background || "#fff" %>;
                   font-weight: <%= (ui.banner.bold) ? "bold":"normal"%>;
                   border-top: <%= (ui.banner.border) || "none" %>;
+                  z-index: 1000;
                   "><%= ui.banner.message %></div>

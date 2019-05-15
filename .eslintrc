@@ -22,14 +22,17 @@
     "sourceType": "module",
     "ecmaFeatures": {
       "generators": false,
-      "objectLiteralDuplicateProperties": false
+      "objectLiteralDuplicateProperties": false,
+      "jsx": true
     }
   },
 
   "env": {
     "es6": true,
     "node": true,
-    "mocha": true
+    "mocha": true,
+    "browser": true,
+    "jquery": true
   },
 
   "globals": {
@@ -346,6 +349,7 @@
 
     // enforces use of function declarations or expressions
     // https://eslint.org/docs/rules/func-style
+    // "TODO": enable
     "func-style": ["off", "expression"],
 
     // enforce consistent line breaks inside function parentheses
@@ -800,6 +804,8 @@
     "no-label-var": "error",
 
     // disallow specific globals
+    // Use Number.isNaN instead of global isNaN. The global isNaN coerces
+    // non-numbers to numbers, returning true for anything that coerces to NaN.
     "no-restricted-globals": ["error", "isFinite", "isNaN"],
 
     // disallow declaration of variables already declared in the outer scope
@@ -983,7 +989,10 @@
     // enforce that class methods use "this"
     // https://eslint.org/docs/rules/class-methods-use-this
     "class-methods-use-this": ["error", {
-      "exceptMethods": [],
+      "exceptMethods": [
+        "componentDidMount",
+        "render"
+      ],
     }],
 
     // require return statements to either always or never specify values
@@ -1025,7 +1034,7 @@
 
     // disallow else after a return in an if
     // https://eslint.org/docs/rules/no-else-return
-    "no-else-return": ["error", { "allowElseIf": false }],
+    "no-else-return": ["off", { "allowElseIf": false }],
 
     // disallow empty functions, except for standalone funcs/arrows
     // https://eslint.org/docs/rules/no-empty-function

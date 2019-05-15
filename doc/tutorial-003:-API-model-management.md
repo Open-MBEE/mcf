@@ -3,7 +3,12 @@
 Now that we have an organization and a project, we can begin creating a model.
 To begin, let's briefly introduce some of MBEE's data model. 
 
-By default, a project has a single root element with an ID of `model`.
+By default, a project has a single root element with an ID of `model`. Under the
+root `model` element is a package called `__mbee__`. `__mbee__` contains two
+elements, the `holding_bin` and `undefined` element. These elements were
+designed to be used to store elements with parents not yet defined and to be used to
+serve as temporary sources/targets for relationships. None of these elements are
+allowed to be deleted.
 
 Before we start coding, let's begin with the same boilerplate code as the 
 previous tutorials:
@@ -11,7 +16,7 @@ previous tutorials:
 ```python
 import requests
 server = 'http://localhost:9080'
-creds = ('admin', 'CHANGE_ME')
+creds = ('admin', 'Admin12345!')
 ```
 
 We can POST additional packages to our model using the following code:
@@ -20,15 +25,15 @@ We can POST additional packages to our model using the following code:
 # Create some top-level packages
 url_template = '{}/api/orgs/demo/projects/demo-project/branches/master/elements/{}'
 packages = [
-    {'id': 'pkg-a', 'name': 'parent': 'model'},
-    {'id': 'pkg-b', 'name': 'parent': 'model'},
-    {'id': 'pkg-c', 'name': 'parent': 'model'}
+    {'id': 'pkg-a', 'name': 'Element 01', 'parent': 'model', 'type': 'Package'},
+    {'id': 'pkg-b', 'name': 'Element 02', 'parent': 'model', 'type': 'Package'},
+    {'id': 'pkg-c', 'name': 'Element 03', 'parent': 'model', 'type': 'Pacakge'}
 ]
 for pkg in packages:
     url = url_template.format(server, pkg['id'])
     r = requests.post(url, auth=creds, json=pkg)
-    print r.status_code
-    print r.text
+    print(r.status_code)
+    print(r.text)
 ```
 
 The above code defines a list of packages to create, then loops over that list
@@ -37,7 +42,7 @@ to create each package.
 Similarly we can do this for other types of elements. The only requirement is
 that we specify any data required by those elements (i.e. supply a source and
 target for relationships). The following piece of code shows adding several more
-elements:
+elements, this time with a single POST request:
 
 ```python
 packages = [
@@ -77,28 +82,43 @@ packages = [
     }
 ]
 
-for pkg in packages:
-    url = url_template.format(server, pkg['id'])
-    r = requests.post(url, auth=creds, json=pkg)
-    print r.status_code
-    print r.text
+url_template = '{}/api/orgs/demo/projects/demo-project/branches/master/elements'
+url = url_template.format(server)
+r = requests.post(url, auth=creds, json=packages)
+print(r.status_code)
+print(r.text)
+```
+
+We can now get the entire model tree and see all of our elements which we have
+created. We simply need to make an HTTP GET request to the `elements` route.
+NOTE: If you wish to get a single element, you can use the
+`/api/orgs/:orgid/projects/:projectid/branches/:branchid/elements/:elementid`
+route.
+
+```python
+url= '{}/api/orgs/demo/projects/demo-project/branches/master/elements'.format(server)
+r = requests.get(url, auth=creds)
+print(r.status_code)
+print(r.text)
 ```
 
 Model elements can be deleted by making an HTTP DELETE request to the 
-`/api/orgs/:orgid/projects/:projectid/branches/:branchid/elements/:elementid` route. An example of
-this in Python is as follows:
+`/api/orgs/:orgid/projects/:projectid/branches/:branchid/elements/:elementid`
+route. An example of this in Python is as follows:
 
 ```python
-url = '{}/api/orgs/demo/projects/demo-project/branches/master/elements/pkg-a'.format(server);
+url_template = '{}/api/orgs/demo/projects/demo-project/branches/master/elements/{}'
+url = url_template.format(server, 'pkg-a')
 r = requests.delete(url, auth=creds)
-print r.status_code
-print r.text
+print(r.status_code)
+print(r.text)
 ```
 
-Note that model elements are soft-deleted by default. This means they are not
-truly removed from the database and can be recovered if needed. MBEE admins, 
-however, have the option to pass the option `"hardDelete": true` in the request
-body to permanently delete elements.
+NOTE: The response from the DELETE endpoints are slightly different than the
+others. They return an array of ids (strings) which have been deleted, while the
+other endpoints return arrays of elements (objects).
 
-This tutorial introduced some of the basics of model model management showing 
-how to create, retrieve, and delete model elements. 
+This tutorial introduced some of the basics of model management, showing
+how to create, retrieve, and delete model elements. The next tutorial will show
+how to create a plugin, and allow you to use the MBEE API and UI to perform
+mass rollup with some sample elements.

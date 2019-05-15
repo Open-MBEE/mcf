@@ -10,19 +10,19 @@
  *
  * @description The "login" page members log in from.
  */
- %>
+%>
 
 <div id="main">
   <div id="view" class="view">
-    <div class="container" style="max-width: 450px;" onkeypress="triggerModal(event);">
+    <div class="container" style="max-width: 450px;" onkeypress="triggerModal(event)">
       <% if (err.length) { %>
-        <div class="alert alert-danger alert-dismissible fade show" role="alert"
-             style="position: fixed; top: 100px; left: 50%; transform: translateX(-50%);">
-          <%= err %>
-          <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-            <span aria-hidden="true">&times;</span>
-          </button>
-        </div>
+      <div class="alert alert-danger alert-dismissible fade show" role="alert"
+           style="position: fixed; top: 100px; left: 50%; transform: translateX(-50%);">
+        <%= err[0] %>
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
       <% } %>
       <form id="login-form" action="/login" method="POST" >
         <div class="form-group" >
@@ -49,15 +49,14 @@
 // This script contains the doLogin() function which submits the form
 // data to the login API and then uses the retrieved token with a
 // redirect to the home page.
- %>
+%>
 <script>
-function triggerModal(e) {
-  if (e.keyCode == 13) {
-    doLogin();
+  function triggerModal(e) {
+    if (e.keyCode == 13) {
+      doLogin();
+    }
   }
-}
-function doLogin() {
-  $('#login-form').submit();
-}
+  function doLogin() {
+    $('#login-form').submit();
+  }
 </script>
-

@@ -1,5 +1,5 @@
 # Model-Based Engineering Environment
-
+ 
 The Model-Based Engineering Environment (MBEE) is a modeling collaboration software
 that integrates system models with multidisciplinary engineering data and tools.
 This enables system models to be a single-source of truth. MBEE allows for model
@@ -17,7 +17,8 @@ distributed services.
 
 **Node.js**
 MBEE's only dependency to get started is Node.js and NPM. NPM comes with
-Node.js, just install packages with NPM to get started.
+Node.js; just install packages with NPM to get started. To start up MBEE,
+node version 10.15.0 or greater is required.
 See [nodejs.org](https://nodejs.org/en/) for information on Node.js.
 
 **MongoDB**
@@ -48,5 +49,7 @@ Included documentation:
   - Test Framework Documentation
   - Docker Set Up Documentation
 
-## Public Release Info
-Approved for public release per PIRA #SSS201809050.
+## Reporting Bugs
+
+Please report issues on the MBEE GitHub page, or contact us through the MBEE
+community.

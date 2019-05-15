@@ -19,9 +19,8 @@ const express = require('express');
 const expressLayouts = require('express-ejs-layouts');
 const session = require('express-session');
 const bodyParser = require('body-parser');
-const mongoose = require('mongoose');
-const MongoStore = require('connect-mongo')(session);
 const flash = require('express-flash');
+const compression = require('compression');
 
 // MBEE modules
 const db = M.require('lib.db');
@@ -30,6 +29,7 @@ const middleware = M.require('lib.middleware');
 const migrate = M.require('lib.migrate');
 const Organization = M.require('models.organization');
 const User = M.require('models.user');
+const Session = M.require('models.session');
 
 // Initialize express app and export the object
 const app = express();
@@ -40,7 +40,7 @@ module.exports = app;
  * default organization if needed.
  */
 db.connect()
-.then(() => getSchemaVersion())
+.then(() => migrate.getSchemaVersion())
 .then(() => createDefaultOrganization())
 .then(() => createDefaultAdmin())
 .then(() => initApp())
@@ -53,18 +53,22 @@ db.connect()
  * @description Initializes the application and exports app.js
  */
 function initApp() {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
+    // Compress responses
+    app.use(compression());
+
     // Configure the static/public directory
     const staticDir = path.join(__dirname, '..', 'build', 'public');
     app.use(express.static(staticDir));
     app.use('/favicon.ico', express.static('build/public/img/favicon.ico'));
 
     // for parsing application/json
-    app.use(bodyParser.json({ limit: '50mb' }));
+    app.use(bodyParser.json({ limit: M.config.server.requestSize || '50mb' }));
     app.use(bodyParser.text());
 
     // for parsing application/xwww-form-urlencoded
-    app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+    app.use(bodyParser.urlencoded({ limit: M.config.server.requestSize || '50mb',
+      extended: true }));
 
     // Trust proxy for IP logging
     app.enable('trust proxy');
@@ -82,7 +86,7 @@ function initApp() {
       resave: false,
       saveUninitialized: false,
       cookie: { maxAge: M.config.auth.session.expires * units },
-      store: new MongoStore({ mongooseConnection: mongoose.connection })
+      store: Session
     }));
 
     // Enable flash messages
@@ -220,44 +224,5 @@ function createDefaultAdmin() {
     })
     // Catch and reject error
     .catch(error => reject(error));
-  });
-}
-
-/**
- * @description Gets the schema version from the database. Runs the migrate
- * function if no schema version exists.
- */
-function getSchemaVersion() {
-  return new Promise((resolve, reject) => {
-    // Get all collections in the DB
-    mongoose.connection.db.collections()
-    .then((collections) => {
-      // Get all collection names
-      const existingCollections = collections.map(c => c.s.name);
-      // Create the server_data collection if it doesn't exist
-      if (!existingCollections.includes('server_data')) {
-        return mongoose.connection.db.createCollection('server_data');
-      }
-    })
-    // Get all documents from the server data
-    .then(() => mongoose.connection.db.collection('server_data').find({}).toArray())
-    .then((serverData) => {
-      // Restrict collection to one document
-      if (serverData.length > 1) {
-        throw new Error('Cannot have more than one document in the server_data collection.');
-      }
-      // No server data found, automatically upgrade versions
-      if (serverData.length === 0) {
-        M.log.info('No server data found, automatically migrating.');
-        return migrate.migrate([]);
-      }
-      // One document exists, read and compare versions
-      if (serverData.length === 0 || serverData[0].version !== M.schemaVersion) {
-        throw new Error('Please run \'node mbee migrate\' to migrate the '
-          + 'database.');
-      }
-    })
-    .then(() => resolve())
-    .catch((error) => reject(error));
   });
 }

@@ -1,0 +1,83 @@
+/**
+ * Classification: UNCLASSIFIED
+ *
+ * @module app.ui.sass.components._general.scss
+ *
+ * @copyright Copyright (C) 2018, Lockheed Martin Corporation
+ *
+ * @license MIT
+ *
+ * @description This defines the general Sass variables.
+ */
+
+/******************************************************************************
+/*                                  General                                   *
+/******************************************************************************/
+
+@import '../utils/_variables';
+
+body,html {
+  margin: 0;
+  padding: 0;
+}
+* {
+  box-sizing: border-box;
+}
+
+::-webkit-scrollbar {
+  width: 0px;
+  background: transparent; /* make scrollbar transparent */
+}
+
+
+.table-width {
+  width: 60%;
+}
+
+th, td {
+  padding: 5px;
+}
+
+th {
+  text-align: left;
+}
+
+hr {
+  border-color: #9c9c9c;
+}
+
+h2 {
+  font-size: 18px;
+}
+
+h3 {
+  font-size: 15px;
+}
+
+label {
+  font-size: 15px;
+}
+
+textarea[name="custom"] {
+  font-family: Consolas, "Courier New";
+  resize: vertical;
+  outline: none;
+}
+
+.extra-padding {
+  padding: 20px;
+}
+
+/******************************************************************************
+/*                                  Themes                                    *
+/******************************************************************************/
+.mbee-theme {
+  background-color: $mbee-background;
+  color: $mbee-color;
+  font-family: $mbee-font;
+  height: 100%;
+}
+
+.about-top {
+  padding-top: 30px;
+}

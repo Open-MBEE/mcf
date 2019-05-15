@@ -13,13 +13,12 @@
  * improve CI testing.
  */
 
-// Node modules
-const chai = require('chai');
-
 // NPM modules
 const mongoose = require('mongoose');
+const chai = require('chai');
 
 // MBEE modules
+const Element = M.require('models.element');
 const Organization = M.require('models.organization');
 const db = M.require('lib.db');
 
@@ -72,6 +71,8 @@ function cleanDB(done) {
   .then(() => mongoose.connection.db.createCollection('server_data'))
   .then(() => mongoose.connection.db.collection('server_data')
   .insertOne({ version: M.schemaVersion }))
+  // Ensure element indexes are created prior to running other tests
+  .then(() => Element.ensureIndexes())
   .then(() => done())
   .catch(error => {
     M.log.error(error);

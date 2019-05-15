@@ -22,6 +22,7 @@ if (module.parent == null || typeof M === 'undefined') {
 }
 
 // Node modules
+const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
@@ -43,6 +44,24 @@ function start(args) {
   + `with env=${M.env} and configuration: `}${JSON.stringify(M.config)}`);
 
   startup(); // Print startup banner
+
+  // Create command to check if dependencies are up-to-date
+  let cmd = 'yarn check --verify-tree';
+  if (process.env.NODE_ENV === 'production') {
+    cmd += ' --production';
+  }
+
+  try {
+    // Run the command
+    execSync(cmd);
+  }
+  catch (error) {
+    // If failed, warn user and exit
+    M.log.warn('Dependencies out of date! Please run \'yarn install\' or \'npm'
+      + ' install\' to update the dependencies.');
+    process.exit(1);
+  }
+
 
   // Initialize httpServer and httpsServer objects
   let httpServer = null;
