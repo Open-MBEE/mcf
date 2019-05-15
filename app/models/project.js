@@ -15,8 +15,8 @@ const mongoose = require('mongoose');
 
 // MBEE modules
 const validators = M.require('lib.validators');
-const utils = M.require('lib.utils');
 const extensions = M.require('models.plugin.extensions');
+const utils = M.require('lib.utils');
 
 
 /* ----------------------------( Project Model )----------------------------- */
@@ -32,6 +32,10 @@ const extensions = M.require('models.plugin.extensions');
  * @property {Object} permissions - An object whose keys identify a
  * projects's roles. The keys are the users username, and values are arrays of
  * given permissions.
+ * @property {string[]} projectReferences - An array of references to other
+ * projects within the same org. Elements in those projects are able to be
+ * source and targets of elements in this project. NOTE: The referenced projects
+ * visibility level must be 'internal'.
  * @property {Object} custom - JSON used to store additional data.
  * @property {string} visibility - The visibility level of a project defining
  * its permissions behaviour.
@@ -43,7 +47,16 @@ const ProjectSchema = new mongoose.Schema({
     required: true,
     match: RegExp(validators.project.id),
     maxlength: [73, 'Too many characters in ID'],
-    minlength: [5, 'Too few characters in ID']
+    minlength: [5, 'Too few characters in ID'],
+    validate: {
+      validator: function(v) {
+        const projID = utils.parseID(v).pop();
+        // If the ID is a reserved keyword, reject
+        return !validators.reserved.includes(projID);
+      },
+      message: 'Project ID cannot include the following words: '
+      + `[${validators.reserved}].`
+    }
   },
   org: {
     type: String,
@@ -72,6 +85,10 @@ const ProjectSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.Mixed,
     default: {}
   },
+  projectReferences: [{
+    type: String,
+    ref: 'Project'
+  }],
   custom: {
     type: mongoose.Schema.Types.Mixed,
     default: {}
@@ -87,77 +104,6 @@ const ProjectSchema = new mongoose.Schema({
 ProjectSchema.plugin(extensions);
 
 /* ---------------------------( Project Methods )---------------------------- */
-
-/**
- * @description Returns a project's public data.
- * @memberOf ProjectSchema
- */
-ProjectSchema.methods.getPublicData = function() {
-  const permissions = {};
-  let createdBy;
-  let lastModifiedBy;
-  let archivedBy;
-
-  // Loop through each permission key/value pair
-  Object.keys(this.permissions).forEach((u) => {
-    // Return highest permission
-    permissions[u] = this.permissions[u].pop();
-  });
-
-  // If this.createdBy is defined
-  if (this.createdBy) {
-    // If this.createdBy is populated
-    if (typeof this.createdBy === 'object') {
-      // Get the public data of createdBy
-      createdBy = this.createdBy.getPublicData();
-    }
-    else {
-      createdBy = this.createdBy;
-    }
-  }
-
-  // If this.lastModifiedBy is defined
-  if (this.lastModifiedBy) {
-    // If this.lastModifiedBy is populated
-    if (typeof this.lastModifiedBy === 'object') {
-      // Get the public data of lastModifiedBy
-      lastModifiedBy = this.lastModifiedBy.getPublicData();
-    }
-    else {
-      lastModifiedBy = this.lastModifiedBy;
-    }
-  }
-
-  // If this.archivedBy is defined
-  if (this.archivedBy) {
-    // If this.archivedBy is populated
-    if (typeof this.archivedBy === 'object') {
-      // Get the public data of archivedBy
-      archivedBy = this.archivedBy.getPublicData();
-    }
-    else {
-      archivedBy = this.archivedBy;
-    }
-  }
-
-  // Return the projects public fields
-  return {
-    id: utils.parseID(this._id).pop(),
-    org: (this.org.hasOwnProperty('_id')) ? this.org.getPublicData() : this.org,
-    name: this.name,
-    permissions: permissions,
-    custom: this.custom,
-    visibility: this.visibility,
-    createdOn: this.createdOn,
-    createdBy: createdBy,
-    updatedOn: this.updatedOn,
-    lastModifiedBy: lastModifiedBy,
-    archived: (this.archived) ? true : undefined,
-    archivedOn: (this.archivedOn) ? this.archivedOn : undefined,
-    archivedBy: archivedBy
-  };
-};
-
 /**
  * @description Returns supported permission levels
  * @memberOf ProjectSchema
@@ -174,7 +120,7 @@ ProjectSchema.statics.getPermissionLevels = function() {
  * @memberOf ProjectSchema
  */
 ProjectSchema.methods.getValidUpdateFields = function() {
-  return ['name', 'custom', 'archived', 'permissions'];
+  return ['name', 'custom', 'archived', 'permissions', 'visibility', 'projectReferences'];
 };
 ProjectSchema.statics.getValidUpdateFields = function() {
   return ProjectSchema.methods.getValidUpdateFields();
@@ -208,7 +154,7 @@ ProjectSchema.statics.getValidPopulateFields = function() {
  * @description Validates an object to ensure that it only contains keys
  * which exist in the project model.
  *
- * @param {Object} object to check keys of.
+ * @param {Object} object - Object for key verification.
  * @return {boolean} The boolean indicating if the object contained only
  * existing fields.
  */
@@ -234,7 +180,6 @@ ProjectSchema.statics.validateObjectKeys = function(object) {
   // project model, return true
   return returnBool;
 };
-
 
 /* --------------------------( Project Properties )-------------------------- */
 

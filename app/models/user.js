@@ -28,29 +28,32 @@ const extensions = M.require('models.plugin.extensions');
  *
  * @description Defines the User Schema
  *
- * @property {string} _id - The Users unique name.
- * @property {string} password - The Users password.
- * @property {string} email - The Users email.
- * @property {string} fname - The Users first name.
- * @property {string} preferredName - The Users preferred first name.
- * @property {string} lname - The Users last name.
- * @property {boolean} admin - Indicates if the User is a global admin.
+ * @property {string} _id - The users unique name.
+ * @property {string} password - The users password.
+ * @property {string} email - The users email.
+ * @property {string} fname - The users first name.
+ * @property {string} preferredName - The users preferred first name.
+ * @property {string} lname - The users last name.
+ * @property {boolean} admin - Indicates if the user is a global admin.
  * @property {string} provider - Defines the authentication provider for the
- * User.
- * @property {Object} custom - JSON used to store additional date.
+ * user.
+ * @property {Object} custom - JSON used to store additional data.
  *
  */
 const UserSchema = new mongoose.Schema({
   _id: {
     type: String,
     required: [true, 'Username is required.'],
+    match: RegExp(validators.user.username),
     maxlength: [36, 'Too many characters in username'],
     minlength: [3, 'Too few characters in username'],
     validate: {
       validator: function(v) {
-        return RegExp(validators.user.username).test(v);
+        // If the ID is a reserved keyword, reject
+        return !validators.reserved.includes(v);
       },
-      message: 'Not a valid username.'
+      message: 'Username cannot include the following words: '
+      + `[${validators.reserved}].`
     }
   },
   password: {
@@ -59,7 +62,8 @@ const UserSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    match: RegExp(validators.user.email)
+    match: RegExp(validators.user.email),
+    default: ''
   },
   fname: {
     type: String,
@@ -167,7 +171,7 @@ UserSchema.methods.verifyPassword = function(pass) {
  * @memberOf UserSchema
  */
 UserSchema.methods.getValidUpdateFields = function() {
-  return ['fname', 'preferredName', 'lname', 'email', 'custom', 'archived'];
+  return ['fname', 'preferredName', 'lname', 'email', 'custom', 'archived', 'admin'];
 };
 
 UserSchema.statics.getValidUpdateFields = function() {
@@ -184,70 +188,6 @@ UserSchema.methods.getValidPopulateFields = function() {
 
 UserSchema.statics.getValidPopulateFields = function() {
   return UserSchema.methods.getValidPopulateFields();
-};
-
-/**
- * @description Returns a user's public data.
- * @memberOf UserSchema
- */
-UserSchema.methods.getPublicData = function() {
-  let createdBy;
-  let lastModifiedBy;
-  let archivedBy;
-
-  // If this.createdBy is defined
-  if (this.createdBy) {
-    // If this.createdBy is populated
-    if (typeof this.createdBy === 'object') {
-      // Get the public data of createdBy
-      createdBy = this.createdBy.getPublicData();
-    }
-    else {
-      createdBy = this.createdBy;
-    }
-  }
-
-  // If this.lastModifiedBy is defined
-  if (this.lastModifiedBy) {
-    // If this.lastModifiedBy is populated
-    if (typeof this.lastModifiedBy === 'object') {
-      // Get the public data of lastModifiedBy
-      lastModifiedBy = this.lastModifiedBy.getPublicData();
-    }
-    else {
-      lastModifiedBy = this.lastModifiedBy;
-    }
-  }
-
-  // If this.archivedBy is defined
-  if (this.archivedBy) {
-    // If this.archivedBy is populated
-    if (typeof this.archivedBy === 'object') {
-      // Get the public data of archivedBy
-      archivedBy = this.archivedBy.getPublicData();
-    }
-    else {
-      archivedBy = this.archivedBy;
-    }
-  }
-
-  return {
-    username: this._id,
-    name: this.name,
-    fname: this.fname,
-    preferredName: this.preferredName,
-    lname: this.lname,
-    email: this.email,
-    custom: this.custom,
-    createdOn: this.createdOn,
-    createdBy: createdBy,
-    updatedOn: this.updatedOn,
-    lastModifiedBy: lastModifiedBy,
-    archived: (this.archived) ? true : undefined,
-    archivedOn: (this.archivedOn) ? this.archivedOn : undefined,
-    archivedBy: archivedBy,
-    admin: this.admin
-  };
 };
 
 /* ---------------------------( User Properties )---------------------------- */

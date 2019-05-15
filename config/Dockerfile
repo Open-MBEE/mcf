@@ -1,5 +1,5 @@
-## THIS IS A SAMPLE DOCKER FILE. 
-# Classification: UNCLASSIFIED                                                                                                        
+##
+# Classification: UNCLASSIFIED                                                                                                        #
 #
 # @module config.Dockerfile
 #
@@ -8,24 +8,26 @@
 # @license MIT
 #
 # @description This Dockerfile defines the Docker build for MBEE.
-# 
 ##
-FROM node:6.14.1
+FROM node:10-stretch
 WORKDIR /lm/mbee
 
 # Set proxy environment variables
-# Uncomment for proxy use
 # ENV HTTP_PROXY="" \
-#     HTTPS_PROXY="" \
-#     http_proxy="" \
-#     https_proxy="" \
-#     NO_PROXY=127.0.0.1,localhost
+#    HTTPS_PROXY="" \
+#    http_proxy="" \
+#    https_proxy="" \
+#    NO_PROXY=127.0.0.1,localhost
+
+# Install certs - If you have certs in a certs directory, uncomment the following lines
+# RUN mkdir -p certs
+# COPY ./certs certs
+# RUN chmod 400 certs/*
 
 # Prerequisites for MongoDB install
-RUN dpkg-divert --local --rename --add /etc/init.d/mongod
-RUN ln -s /bin/true /etc/init.d/mongod
-RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 9DA31620334BD75D9DCB49F368818C72E52529D4
-RUN echo "deb [ arch=amd64 ] http://repo.mongodb.org/apt/ubuntu trusty/mongodb-org/4.0 multiverse" | tee -i /etc/apt/sources.list.d/mongodb-org-4.0.list
+RUN apt-get install curl
+RUN curl https://www.mongodb.org/static/pgp/server-4.0.asc | apt-key add -
+RUN echo "deb http://repo.mongodb.org/apt/debian stretch/mongodb-org/4.0 main" | tee /etc/apt/sources.list.d/mongodb-org-4.0.list
 
 # Install dependencies
 RUN apt-get -y upgrade \
@@ -34,20 +36,14 @@ RUN apt-get -y upgrade \
  && apt-get install -y openssh-client \
  && apt-get install -y --force-yes mongodb-org
 
-# Install certs - If you have certs in a certs directory, uncomment the following lines
-RUN mkdir -p certs
-COPY ./certs certs
-RUN chmod 400 certs/*
-
 # Configure Yarn
 # Uncomment for yarn proxy and Cert
-# RUN yarn config set proxy "" \
-#     && yarn config set cafile "" \
-#     && yarn config set http-proxy "" \
-#     && yarn config set https-proxy ""
+# RUN yarn config set proxy \
+#    && yarn config set cafile "" \
+#    && yarn config set http-proxy "" \
+#    && yarn config set https-proxy ""
 
 # Install modules using yarn from the package.json
-# Uncomment for git proxy
 # COPY ./package.json package.json
 # RUN git config --global url."https://github.com".insteadOf "git://github.com"
 # RUN git config --global http.proxy ""
@@ -86,5 +82,3 @@ EXPOSE 27017
 
 # Run server
 ENTRYPOINT /lm/mbee/config/entrypoint.sh
-
-

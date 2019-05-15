@@ -76,14 +76,14 @@ function htmlTest(done) {
  */
 function sanitizeHtmlObject(done) {
   const data = {
-    name: 'Sample Name',
+    name: 'First Last',
     fname: '<script>',
     lname: '</script>',
     admin: true,
     email: null
   };
   const htmlSan = sani.html(data);
-  chai.expect(htmlSan.name).to.equal('Sample Name');
+  chai.expect(htmlSan.name).to.equal('First Last');
   chai.expect(htmlSan.fname).to.equal('&lt;script&gt;');
   chai.expect(htmlSan.lname).to.equal('&lt;/script&gt;');
   chai.expect(htmlSan.admin).to.equal(true);

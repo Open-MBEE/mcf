@@ -18,14 +18,15 @@
 module.exports = {
   home,
   flightManual,
-  organizations,
-  projects,
   whoami,
+  organization,
+  project,
   swaggerDoc,
   showAboutPage,
   showLoginPage,
   login,
-  logout
+  logout,
+  notFound
 };
 
 // Node modules
@@ -39,6 +40,9 @@ const validators = M.require('lib.validators');
 
 /**
  * @description Renders the home page.
+ *
+ * @param {Object} req - Request express object
+ * @param {Object} res - Response express object
  */
 function home(req, res) {
   // Sanity check: confirm req.user exists
@@ -54,7 +58,67 @@ function home(req, res) {
 }
 
 /**
+ * @description Renders the current user's page.
+ *
+ * @param {Object} req - Request express object
+ * @param {Object} res - Response express object
+ */
+function whoami(req, res) {
+  // Sanity check: confirm req.user exists
+  if (!req.user) {
+    M.log.critical(new M.CustomError('/whoami executed with invalid req.user object'));
+    // redirect to the login screen
+    res.redirect('/login');
+  }
+  utils.render(req, res, 'user', {
+    name: 'user',
+    title: 'MBEE | Model-Based Engineering Environment'
+  });
+}
+
+/**
+ * @description Renders the organization page.
+ *
+ * @param {Object} req - Request express object
+ * @param {Object} res - Response express object
+ */
+function organization(req, res) {
+  // Sanity check: confirm req.user exists
+  if (!req.user) {
+    M.log.critical(new M.CustomError('/ executed with invalid req.user object'));
+    // redirect to the login screen
+    res.redirect('/login');
+  }
+  // Render the MBEE home screen
+  return utils.render(req, res, 'organization', {
+    title: 'MBEE | Model-Based Engineering Environment'
+  });
+}
+
+/**
+ * @description Renders the project page.
+ *
+ * @param {Object} req - Request express object
+ * @param {Object} res - Response express object
+ */
+function project(req, res) {
+  // Sanity check: confirm req.user exists
+  if (!req.user) {
+    M.log.critical(new M.CustomError('/ executed with invalid req.user object'));
+    // redirect to the login screen
+    res.redirect('/login');
+  }
+  // Render the MBEE home screen
+  return utils.render(req, res, 'project', {
+    title: 'MBEE | Model-Based Engineering Environment'
+  });
+}
+
+/**
  * @description Renders the flight manual.
+ *
+ * @param {Object} req - Request express object
+ * @param {Object} res - Response express object
  */
 function flightManual(req, res) {
   // Read the flight manual sections from the doc directory
@@ -83,54 +147,6 @@ function flightManual(req, res) {
 }
 
 /**
- * @description Renders an organization page.
- */
-function organizations(req, res) {
-  // Sanity check: confirm req.user exists
-  if (!req.user) {
-    M.log.critical(new M.CustomError('/:orgid executed with invalid req.user object'));
-    // redirect to the login screen
-    res.redirect('/login');
-  }
-  utils.render(req, res, 'organizations', {
-    name: 'organizations',
-    title: 'MBEE | Model-Based Engineering Environment'
-  });
-}
-
-/**
- * @description Renders the project list page.
- */
-function projects(req, res) {
-  // Sanity check: confirm req.user exists
-  if (!req.user) {
-    M.log.critical(new M.CustomError('/:orgid/:projectid executed with invalid req.user object'));
-    // redirect to the login screen
-    res.redirect('/login');
-  }
-  utils.render(req, res, 'projects', {
-    name: 'projects',
-    title: 'MBEE | Model-Based Engineering Environment'
-  });
-}
-
-/**
- * @description Renders the current user's page.
- */
-function whoami(req, res) {
-  // Sanity check: confirm req.user exists
-  if (!req.user) {
-    M.log.critical(new M.CustomError('/whoami executed with invalid req.user object'));
-    // redirect to the login screen
-    res.redirect('/login');
-  }
-  utils.render(req, res, 'user', {
-    name: 'user',
-    title: 'MBEE | Model-Based Engineering Environment'
-  });
-}
-
-/**
  * @description Generates the Swagger specification based on the Swagger JSDoc
  * in the API routes file.
  */
@@ -149,9 +165,10 @@ function swaggerSpec() {
 }
 
 /**
- * GET /api/doc
- *
  * @description Renders the swagger doc.
+ *
+ * @param {Object} req - Request express object
+ * @param {Object} res - Response express object
  */
 function swaggerDoc(req, res) {
   return utils.render(req, res, 'swagger', {
@@ -164,6 +181,9 @@ function swaggerDoc(req, res) {
  * @description Renders the about page. This page is accessible even when users are not
  * signed in. Therefore, this function has some logic to identify whether
  * or not the user is logged in.
+ *
+ * @param {Object} req - Request express object
+ * @param {Object} res - Response express object
  */
 function showAboutPage(req, res) {
   return utils.render(req, res, 'about', {
@@ -179,6 +199,9 @@ function showAboutPage(req, res) {
  * called "next" is passed in the URL, the next url rendered as a hidden input
  * to tell the login process where to redirect the user after a successful
  * login.
+ *
+ * @param {Object} req - Request express object
+ * @param {Object} res - Response express object
  */
 function showLoginPage(req, res) {
   let next = '';
@@ -200,6 +223,9 @@ function showLoginPage(req, res) {
  * the authentication controller's authenticate() and doLogin() functions
  * are called. This function should only get called once login was
  * successful. It handles the appropriate redirect for the user.
+ *
+ * @param {Object} req - Request express object
+ * @param {Object} res - Response express object
  */
 function login(req, res) {
   // make sure the passed in "next" parameter is valid
@@ -222,6 +248,9 @@ function login(req, res) {
 /**
  * @description Logs out the user by un-setting the req.user object and the
  * req.session.token object.
+ *
+ * @param {Object} req - Request express object
+ * @param {Object} res - Response express object
  */
 function logout(req, res) {
   // Sanity check: confirm req.user exists
@@ -236,4 +265,15 @@ function logout(req, res) {
 
   // redirect to the login screen
   res.redirect('/login');
+}
+
+/**
+ * @description This is  for pages that were not found.
+ *
+ * @param {Object} req - Request express object
+ * @param {Object} res - Response express object
+ */
+function notFound(req, res) {
+  // render the 404 not found page
+  return utils.render(req, res, '404');
 }

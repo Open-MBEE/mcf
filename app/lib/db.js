@@ -18,7 +18,7 @@ const mongoose = require('mongoose');
 /**
  * @description Create connection to database.
  *
- * @return {Promise}
+ * @return {Promise} Resolved promise.
  */
 module.exports.connect = function() {
   return new Promise((resolve, reject) => {
@@ -68,7 +68,7 @@ module.exports.connect = function() {
 /**
  * @description Closes connection to database.
  *
- * @return {Promise}
+ * @return {Promise} Resolved promise.
  */
 module.exports.disconnect = function() {
   return new Promise((resolve, reject) => {

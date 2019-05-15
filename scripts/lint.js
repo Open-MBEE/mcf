@@ -30,6 +30,7 @@ function lint(_args) {
   const args = [
     `${M.root}/*.js`,
     `${M.root}/app/**/*.js`,
+    `${M.root}/app/**/*.jsx`,
     `${M.root}/plugins/*.js`,
     `${M.root}/scripts/**/*.js`,
     `${M.root}/test/**/*.js`

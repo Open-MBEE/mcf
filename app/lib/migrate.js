@@ -268,7 +268,7 @@ function sortVersions(versions, order) {
  * @param {string[]} migrations - The list of migrations to run.
  * @param {number} move - Either 1 (migrate up) or -1 (migrate down)
  *
- * @return {Promise}
+ * @return {Promise} Resolved promise.
  */
 function runMigrations(from, migrations, move) {
   return new Promise((resolve, reject) => {
@@ -324,3 +324,42 @@ function runMigrations(from, migrations, move) {
     }
   });
 }
+
+/**
+ * @description Gets the schema version from the database. Runs the migrate
+ * function if no schema version exists.
+ */
+module.exports.getSchemaVersion = function() {
+  return new Promise((resolve, reject) => {
+    // Get all collections in the DB
+    mongoose.connection.db.collections()
+    .then((collections) => {
+      // Get all collection names
+      const existingCollections = collections.map(c => c.s.name);
+      // Create the server_data collection if it doesn't exist
+      if (!existingCollections.includes('server_data')) {
+        return mongoose.connection.db.createCollection('server_data');
+      }
+    })
+    // Get all documents from the server data
+    .then(() => mongoose.connection.db.collection('server_data').find({}).toArray())
+    .then((serverData) => {
+      // Restrict collection to one document
+      if (serverData.length > 1) {
+        throw new Error('Cannot have more than one document in the server_data collection.');
+      }
+      // No server data found, automatically upgrade versions
+      if (serverData.length === 0) {
+        M.log.info('No server data found, automatically migrating.');
+        return this.migrate([]);
+      }
+      // One document exists, read and compare versions
+      if (serverData.length === 0 || serverData[0].version !== M.schemaVersion) {
+        throw new Error('Please run \'node mbee migrate\' to migrate the '
+          + 'database.');
+      }
+    })
+    .then(() => resolve())
+    .catch((error) => reject(error));
+  });
+};

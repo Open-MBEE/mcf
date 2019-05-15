@@ -15,7 +15,6 @@
 
 // Node modules
 const chai = require('chai');
-const path = require('path');
 
 // MBEE modules
 const Element = M.require('models.element');
@@ -26,7 +25,7 @@ const utils = M.require('lib.utils');
 
 /* --------------------( Test Data )-------------------- */
 // Variables used across test functions
-const testUtils = require(path.join(M.root, 'test', 'test-utils'));
+const testUtils = M.require('lib.test-utils');
 const testData = testUtils.importTestData('test_data.json');
 let org = null;
 let project = null;

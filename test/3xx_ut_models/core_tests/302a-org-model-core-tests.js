@@ -14,9 +14,6 @@
  * setters, and getters.
  */
 
-// Node modules
-const path = require('path');
-
 // NPM modules
 const chai = require('chai');
 
@@ -28,7 +25,7 @@ const db = M.require('lib.db');
 let userAdmin = null;
 
 /* --------------------( Test Data )-------------------- */
-const testUtils = require(path.join(M.root, 'test', 'test-utils'));
+const testUtils = M.require('lib.test-utils');
 const testData = testUtils.importTestData('test_data.json');
 
 /* --------------------( Main )-------------------- */

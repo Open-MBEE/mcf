@@ -1,6 +1,6 @@
 ## Tutorial: API Authentication and Pulling Data
 
-Let's being by demonstrating a simple API-based integration. One convenient 
+Let's begin by demonstrating a simple API-based integration. One convenient 
 thing about interacting with MBEE via the RESTful API is that the integration
 can be written in any language. In this tutorial, we'll use Python.
 
@@ -24,7 +24,7 @@ sure we can successfully communicate with the MBEE server.
 # Test connection to server
 url = '{}/api/test'.format(server) # the url we want to request
 r = requests.get(url)              # make a GET request to url
-print r.status_code                # print the HTTP response code        
+print(r.status_code)               # print the HTTP response code        
 ```
 
 If MBEE is up and running and the application is able to communicate with it,
@@ -32,7 +32,7 @@ the program should print out `200`, indicating that a request was made to the
 API endpoint `/api/test` and the server responded with an HTTP 200 status 
 (e.g. OK).
 
-If the program does not print a 200 and instead throws an error, this is likely
+If the program does not print a 200 status code and instead throws an error, this is likely
 because your new integration cannot talk to the server. Confirm that the server
 is up and running and you are able to talk to it from your machine.
 
@@ -42,22 +42,22 @@ and passing our user credentials as a basic authentication header.
 ```python
 # Login to the server
 url = '{}/api/login'.format(server)       # the url we want to request
-auth_header = ('admin', 'CHANGE_ME')      # the basic auth header
+auth_header = ('admin', 'Admin12345!')    # the basic auth header
 r = requests.post(url, auth=auth_header)  # make a GET request to url
 res = r.json()                            # parse the JSON response
-print r.status_code                       # print the HTTP response code
-print res                                 # print the HTTP response body
+print(r.status_code)                      # print the HTTP response code
+print(res)                                # print the HTTP response body
 token = res['token']                      # store the auth token for later
 ```
 
 If all goes well (i.e. your credentials are valid), another 200 response should
-be printed to the console along with the response body which includes and 
+be printed to the console along with the response body, which includes an
 authentication token. This token can be used in subsequent requests rather than
 passing specific user credentials to each request.
 
 > NOTE: Both basic authentication and token authentication are valid for future 
-> requests, but using tokens has a few benefits. First, tokens expire and are 
-> therefore safer to pass around because a compromised token can be revoked and
+> requests, but using tokens has a few benefits. First, tokens expire and are, 
+> therefore, safer to pass around because a compromised token can be revoked and
 > will only be valid for a limited amount of time. The other reason to use
 > tokens is that they can perform better than basic auth in some configurations.
 > For example, if an external authentication service is used such as Active 
@@ -65,7 +65,7 @@ passing specific user credentials to each request.
 > to be made to validate user credentials. Tokens can be validated without 
 > taking the time for that additional request.
 
-Now we that we've authenticated with MBEE, we can make a request to the server
+Now that we've authenticated with MBEE, we can make a request to the server
 to retrieve the MBEE version information. In this case, we will use our token
 to authenticate this request.
 
@@ -75,8 +75,8 @@ url = '{}/api/version'.format(server)
 auth_header = {'Authorization': 'Bearer {}'.format(token)}
 r = requests.get(url, headers=auth_header)
 res = r.json()
-print r.status_code
-print res
+print(r.status_code)
+print(res)
 ```
 
 Similar to our previous requests, we make a request to the `/api/version` route.
@@ -84,7 +84,7 @@ In this case, we parse the JSON response and print the response status code and
 the response body to the console. You should see the `200` status indicating 
 that everything is okay and a body that includes MBEE version information.
 
-Now, let's clean up our code to create a simple program that inerfaces with 
+Now, let's clean up our code to create a simple program that interfaces with 
 MBEE to simply retrieve and print the MBEE version information. Your code
 should look something like this:
 
@@ -99,7 +99,7 @@ r = requests.get(url)
 
 # Login to the server
 url = '{}/api/login'.format(server)
-r = requests.post(url, auth=('admin', 'CHANGE_ME'))
+r = requests.post(url, auth=('admin', 'Admin12345!'))
 res = r.json()
 token = res['token']
 
@@ -108,13 +108,13 @@ url = '{}/api/version'.format(server)
 auth_header = {'Authorization': 'Bearer {}'.format(token)}
 r = requests.get(url, headers=auth_header)
 res = r.json()
-print res['version']
+print(res['version'])
 ```
 
 The above program removes most of the print statements that were used throughout
-this walkthrough and includes a single print statement on the last line to print
-the MBEE version.
+this walk-through, and includes a single print statement on the last line to
+print the MBEE version.
 
 That's it, you've written your first integration with MBEE! The following 
-tutorial will walk through creating and organization and project.
+tutorial will walk through creating an organization and project.
 

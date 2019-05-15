@@ -1,4 +1,4 @@
-## Tutorial: Creating a plugin
+## Tutorial: Creating a Plugin
 
 In this tutorial, we will create a simple plugin that adds a mass roll-up 
 capability for mechanical model elements. In this case, we will assume that
@@ -32,7 +32,7 @@ this document for more on writing API-based integrations.
 import json
 import requests
 server = 'http://localhost:9080'
-creds = ('admin', 'CHANGE_ME')
+creds = ('admin', 'Admin12345!')
 
 # Load our element data from our data.json file
 with open('data.json', 'r') as f:
@@ -42,26 +42,26 @@ with open('data.json', 'r') as f:
 url = '{}/api/orgs/default/projects/demo-mass-rollup'.format(server)
 r = requests.post(url, auth=creds, json={'name': 'Demo - Mass Rollup'})
 if (r.status_code != 200):
-    print 'Project creation failed!'
-    print r.text
+    print('Project creation failed!')
+    print(r.text)
     exit(1)
  
 # Append to the previously defined projects URL
-url = '{}/elements'.format(url)
+url = '{}/branches/master/elements'.format(url)
 
 # POST our model elements
 r = requests.post(url, auth=creds, json=packages)
 if (r.status_code != 200):
-    print 'Element creation failed!'
-    print r.text
+    print('Element creation failed!')
+    print(r.text)
     exit(1)
 
 # Rename the model root
 url = '{}/{}'.format(url, 'model')
 r = requests.patch(url, auth=creds, json={"name": "Spacecraft Model"})
 if (r.status_code != 200):
-    print 'Element creation failed!'
-    print r.text
+    print('Element modification failed!')
+    print(r.text)
     exit(1)
 ```
 
@@ -169,7 +169,9 @@ to view the model tree and verify that the data was created.
 ### Starting an application
 
 First we need to create a plugin. Navigate to an empty directory where you want
-to develop your plugin and run `yarn init` and enter the following information:
+to develop your plugin. Ensure this code is NOT in your MBEE plugins directory
+as the plugin will get cloned into that directory upon server startup. Run
+`yarn init` and enter the following information:
 
 ```
 question name (demo-mass-rollup): 
@@ -180,10 +182,26 @@ question repository url:
 question author: 
 question license (MIT): MIT
 question private: true
-success Saved package.json
 ```
 
-Now we must create our application's entrypoint, we will define this in an 
+Now lets add this plugin to the MBEE configuration. Upon startup of the server,
+the plugin is cloned from the `source` provided, which can be a local directory,
+git repository, or link to tar/gz. Simply add the code below to the
+`server.plugins` section of your running config, making sure to change
+the source to the actual path of your plugin. Additionally, ensure enabled is
+set to true.
+
+```json
+"plugins": [
+  {
+    "name": "demo-mass-rollup",
+    "source": "PATH_TO_YOUR_PLUGIN",
+    "title": "Demo Mass Rollup"
+  }
+],
+```
+
+Now we must create our application's entrypoint. We will define this in an
 app.js file. Begin by defining an express application and some 
 boilerplate code for the plugin.
 
@@ -196,14 +214,14 @@ const app = express();
 const {authenticate} = M.require('lib.auth');
 
 // Require the element controller and utils
-const Element = M.require('controllers/element-controller');
-const utils = M.require('lib/utils');
+const Element = M.require('controllers.element-controller');
+const utils = M.require('lib.utils');
 
 // Configure EJS
 app.set('view engine', `ejs`);
 app.set('views', __dirname);
 
-/* YOU PLUGIN CODE GOES HERE */
+/* YOUR PLUGIN CODE GOES HERE */
 
 // Export the app
 module.exports = app;
@@ -220,12 +238,11 @@ app.set('layout', `${M.root}/app/views/layout.ejs`);
 ### Adding an API endpoint
 
 Now we want to add an API endpoint to do our mass roll up. In this case,
-we'll execute a database query to find all elements who have the `mech-part` 
+we will execute a database query to find all elements who have the `mech-part`
 property set to `true` in their custom data.
 
-We'll start by defining two routes. The first is a placeholder for our homepage. 
-For now, this will be simple redirect to our other route. We'll replace this 
-later with an actual view, but for now  we'll just redirect to our API endpoint.
+Start by defining two routes. The first is a placeholder for our homepage.
+This will be a simple redirect to our API endpoints.
 
 ```javascript
 // Add a route that redirects for now
@@ -235,49 +252,47 @@ app.get('/', (req, res) => {
 });
 ```
 
-Next, we'll add a simple authenticated API endpoint for obtaining system mass 
-that takes an organization ID and a project ID in the URL parameters and 
-identifies this endpoint as a mass resource.
-
-```javascript
-// Our mass roll-up API endpoint
-app.get('/:org/:proj/mass', authenticate, (req, res) => {
-    // API logic here
-})
-```
+Next, add a simple authenticated API endpoint for obtaining system mass.
+This API endpoint takes an organization ID and a project ID in the URL
+parameters and identifies this endpoint as a mass resource.
 
 Now we can add the logic that actually looks up the elements. Let's start
 by just getting all elements that are tagged with `mech-part` and return those
 to the user as JSON.
 
 ```javascript
-// Find all elements in a project
-Element.find(req.user, req.params.org, req.params.proj)
-.then(elements => {
-    const filtered = elements.filter(e => e.custom['mech-part']);
-    const formatted = JSON.stringify(filtered, null, 4);
-    res.header('Content-Type', 'application/json');
-    res.status(200).send(formatted);
-})
-.catch(error => {
-    M.log.error(error);
-    return res.status(500).send('Internal Server Error')
+// Our mass roll-up API endpoint
+app.get('/:org/:proj/mass', authenticate, (req, res) => {
+    // Find all elements in a project
+    Element.find(req.user, req.params.org, req.params.proj, 'master')
+    .then(elements => {
+        const filtered = elements.filter(e => e.custom['mech-part']);
+        const formatted = JSON.stringify(filtered, null, 4);
+        res.header('Content-Type', 'application/json');
+        res.status(200).send(formatted);
+    })
+    .catch(error => {
+        M.log.error(error);
+        return res.status(500).send('Internal Server Error')
+    });
 });
 ```
 
-You can test you new endpoint by browsing to your plugin in the MBEE UI. This 
-will then redirect you to the API endpoint (because of the first route we
-defined).
+You can test your new endpoint by starting up the server, and browsing to
+`http://localhost:9080/plugins/demo-mass-rollup`. This will then redirect you
+to the API endpoint (because of the first route defined). NOTE: Everytime we
+make a change to the plugin, you will need to restart the server so it get
+cloned again.
 
 Note that the element controller's `findElements()` function takes a user, an
-organization ID, and a project ID as parameters. This controller handles the
-permission management to ensure that the requesting user has permission to read
-elements in the specified project. 
+organization ID, project ID, and branchID as parameters. This controller handles
+the permission management to ensure that the requesting user has permission to
+read elements in the specified project. 
 
-If alternatively you wanted to use the model instead of the controller (perhaps 
-to do a more specific query rather than filter the results after-the-fact), you 
-would have to check those permissions yourself to avoid providing a user data 
-they do not have access to. That approach would increase the 
+Alternatively, if you wanted to use the model instead of the controller (for
+more specific query rather than filter the results after-the-fact), you
+would have to check those permissions yourself to avoid providing a user with
+data they do not have access to. That approach would increase the
 likelihood of a major permission bypass bug in MBEE. To avoid this, always use
 the controllers.
 
@@ -297,7 +312,7 @@ app.get('/:org/:proj/mass', authenticate, (req, res) => {
   };
 
   // Find all elements
-  Element.find(req.user, req.params.org, req.params.proj)
+  Element.find(req.user, req.params.org, req.params.proj, 'master')
   .then(elements => {
     // Filter elements to only mech-parts
     const filtered = elements.filter(e => e.custom['mech-part']);
@@ -317,11 +332,11 @@ app.get('/:org/:proj/mass', authenticate, (req, res) => {
     M.log.error(error);
     return res.status(500).send('Internal Server Error')
   });
-})
+});
 ```
 
-With this change, you should now be able to request that API endpoint and
-get a result that looks something like this:
+Restart your sever and log back in. With this change, you should now be able
+to request that API endpoint and get a result that looks something like this:
 
 ```json
 {
@@ -336,8 +351,9 @@ Now that we have a working API endpoint, let's add a view. To do this, we need
 to create an EJS file that will render when showing the home page for 
 our plugin. 
 
-To begin we'll create a file called `home.ejs` and add some header content, 
-a form, and a table where the results will be displayed.
+To begin we'll create a file called `home.ejs` in the plugin root directory
+and add some header content, a form, and a table where the results will be
+displayed.
 
 ```ejs
 <h1>Mass Rollup Tool</h1>
@@ -406,7 +422,12 @@ table {
   margin-top: 20px;
 }
 </style>
+```
 
+Below is code that allows our UI to make request to our plugin. Append the code
+below to your `home.ejs` file.
+
+```ejs
 <%- contentFor('scripts') %>
 <script>
   // Overwrite the default form submit
@@ -445,3 +466,31 @@ and then displays it in the table.
 
 Also note that, like Bootstrap, [JQuery](https://jquery.com/) is automatically 
 loaded for you by the MBEE Core Framework.
+
+Now finally, lets change the root route '/' to render the `.ejs` file. We will
+make this an authenticate route, since the other route is authenticated as well.
+
+Replace your root route in app.js:
+```javascript
+app.get('/', (req, res) => {
+    const url = `${req.originalUrl}/default/demo-mass-rollup/mass`;
+    return res.redirect(url);
+});
+```
+
+With the code below:
+```javascript
+app.get('/', authenticate, (req, res) => {
+	return utils.render(req, res, 'home');
+});
+```
+
+That should be it! Go to 
+<http://localhost:9080/plugins/demo-mass-rollup> and login. You should see the
+rendered page, where you can enter in the organization ID and project ID and get
+back the mass and number of parts.
+
+This has been a very simple example of plugins, but it demonstrates the core
+features. Plugins can create their own views, use their own API routes, and
+still take advantage of built in controllers. Plugins are very simple to create,
+and can provide extensions to the core framework that can improve any project.

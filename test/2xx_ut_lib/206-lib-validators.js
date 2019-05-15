@@ -46,7 +46,6 @@ function verifyOrgID(done) {
 
   // Invalid IDs
   chai.expect(RegExp(validators.org.id).test('Org3')).to.equal(false);
-  chai.expect(RegExp(validators.org.id).test('login-org')).to.equal(false);
   chai.expect(RegExp(validators.org.id).test('special*')).to.equal(false);
   chai.expect(RegExp(validators.org.id).test('')).to.equal(false);
   done();
@@ -88,7 +87,7 @@ function verifyElementID(done) {
  */
 function verifyUserUsername(done) {
   // Valid usernames
-  chai.expect(RegExp(validators.user.username).test('username0123')).to.equal(true);
+  chai.expect(RegExp(validators.user.username).test('testuser')).to.equal(true);
   chai.expect(RegExp(validators.user.username).test('my_username01')).to.equal(true);
 
   // Invalid usernames
@@ -107,7 +106,7 @@ function verifyUserUsername(done) {
 function verifyUserEmail(done) {
   // Valid emails
   chai.expect(RegExp(validators.user.email).test('valid@test.com')).to.equal(true);
-  chai.expect(RegExp(validators.user.email).test('test-email@test.com')).to.equal(true);
+  chai.expect(RegExp(validators.user.email).test('test-email.123@test-email.com')).to.equal(true);
 
   // Invalid emails
   chai.expect(RegExp(validators.user.email).test('tooshortadd@test.a')).to.equal(false);
@@ -125,11 +124,11 @@ function verifyUserEmail(done) {
  */
 function verifyUserName(done) {
   // Valid names
-  chai.expect(RegExp(validators.user.fname).test('Bob')).to.equal(true);
-  chai.expect(RegExp(validators.user.lname).test('Smith')).to.equal(true);
+  chai.expect(RegExp(validators.user.fname).test('First Last')).to.equal(true);
+  chai.expect(RegExp(validators.user.lname).test('First-Middle Last')).to.equal(true);
 
   // Invalid names
-  chai.expect(RegExp(validators.user.fname).test('9mike')).to.equal(false);
+  chai.expect(RegExp(validators.user.fname).test('9first')).to.equal(false);
   chai.expect(RegExp(validators.user.lname).test(' space first')).to.equal(false);
   chai.expect(RegExp(validators.user.fname).test('-first')).to.equal(false);
   done();
