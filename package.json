@@ -1,6 +1,6 @@
 {
   "name": "mbee",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "schemaVersion": "0.8.0",
   "build": "NO_BUILD_NUMBER",
   "description": "Model-Based Engineering Environment",
