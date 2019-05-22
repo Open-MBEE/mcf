@@ -1,6 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [0.8.1] - 2019-05-22
+### Minor Bug Fixes
+* Fixed bug where file names of doc files caused NTFS incompatibility
+* Fixed source field display for element side panel
+
 ## [0.8.0] - 2019-05-13
 ### Major Features and Improvements
 * Updated UI pages for organization, project, user, and elements
