@@ -1,0 +1,82 @@
+/**
+ * Classification: UNCLASSIFIED
+ *
+ * @module app.ui.sass.components.workspace-components._project.scss
+ *
+ * @copyright Copyright (C) 2018, Lockheed Martin Corporation
+ *
+ * @license MIT
+ *
+ * @description This defines the project page Sass variables.
+ */
+
+@import '../../utils/_variables';
+
+/******************************************************************************
+/*                         Project Page Styling                               *
+/******************************************************************************/
+.proj-org-header {
+  a {
+    width: 10%;
+
+    &:hover {
+      color: lighten($mbee-navbar-color, 20);
+    }
+  }
+
+  &:hover {
+    background: #f7f7f7;
+  }
+}
+
+/******************************************************************************
+/*                           Search Form Styling                              *
+/******************************************************************************/
+
+#search {
+  overflow-y: scroll;
+}
+
+.search-form {
+  padding: 80px;
+
+  .form-row {
+    width: 100%;
+
+    input {
+      width: 100%;
+    }
+  }
+}
+
+.no-results {
+  display: flex;
+  justify-content: center;
+  margin: 20px;
+}
+
+.search-results {
+  margin: 20px;
+
+  .search-result {
+
+    border: 1px solid #ccc;
+    border-radius: 2px;
+    padding: 10px;
+    margin: 20px;
+
+    .search-result-header {
+      span {
+        margin-left: 15px;
+      }
+    }
+
+    .search-result-raw {
+      background-color: #efefef;
+      border: 1px solid #e8e8e8;
+      font-family: Consolas, "Courier New";
+      margin: 20px;
+      overflow: scroll;
+    }
+  }
+}

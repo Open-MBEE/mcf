@@ -40,7 +40,7 @@ module.exports.encrypt = function encrypt(data) {
  *
  * @param {string} data - Data to be decrypted
  *
- * @return {string} Decrypted data
+ * @return {Object} Decrypted data
  */
 module.exports.decrypt = function decrypt(data) {
   if (data === undefined || data.toString() === '') {
@@ -99,7 +99,7 @@ module.exports.inspectToken = function inspectToken(token) {
  *
  * @params {Object} data - Data to md5 hash
  *
- * @return {string} hash of data
+ * @return {string} Hash of data
  */
 module.exports.md5Hash = function md5Hash(data) {
   // hash input data and return it
@@ -111,7 +111,7 @@ module.exports.md5Hash = function md5Hash(data) {
  *
  * @params {Object} data - Data to sha256 hash
  *
- * @return {string} hash of data
+ * @return {string} Hash of data
  */
 module.exports.sha256Hash = function sha256Hash(data) {
   // hash input data and return it

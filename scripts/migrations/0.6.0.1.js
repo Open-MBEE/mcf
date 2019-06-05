@@ -18,7 +18,7 @@ const path = require('path');
 const mongoose = require('mongoose');
 
 // MBEE modules
-const utils = M.require('lib.utils');
+const jmi = M.require('lib.jmi-conversions');
 
 /**
  * @description Handles the database migration from 0.6.0.1 to 0.6.0. This drop in
@@ -84,7 +84,7 @@ module.exports.up = function() {
     mongoose.connection.db.collection('organizations').find({}).toArray()
     .then((foundOrgs) => {
       orgs = foundOrgs;
-      jmiOrgs = utils.convertJMI(1, 2, orgs);
+      jmiOrgs = jmi.convertJMI(1, 2, orgs);
 
       // Write contents to temporary file
       return new Promise(function(res, rej) {
@@ -98,7 +98,7 @@ module.exports.up = function() {
     .then(() => mongoose.connection.db.collection('projects').find({}).toArray())
     .then((foundProjects) => {
       projects = foundProjects;
-      jmiProjects = utils.convertJMI(1, 2, projects);
+      jmiProjects = jmi.convertJMI(1, 2, projects);
 
       // Write contents to temporary file
       return new Promise(function(res, rej) {
@@ -113,7 +113,7 @@ module.exports.up = function() {
     .then(() => mongoose.connection.db.collection('elements').find({}).toArray())
     .then((foundElements) => {
       elements = foundElements;
-      jmiElements = utils.convertJMI(1, 2, elements);
+      jmiElements = jmi.convertJMI(1, 2, elements);
 
       // Write contents to temporary file
       return new Promise(function(res, rej) {
@@ -128,7 +128,7 @@ module.exports.up = function() {
     .then(() => mongoose.connection.db.collection('users').find({}).toArray())
     .then((foundUsers) => {
       users = foundUsers;
-      jmiUsers = utils.convertJMI(1, 2, users);
+      jmiUsers = jmi.convertJMI(1, 2, users);
 
       // Write contents to temporary file
       return new Promise(function(res, rej) {

@@ -7,14 +7,15 @@
  *
  * @license MIT
  *
- * @description This defines the Sass variables.
+ * @description This defines the Sass variables for the flight manual.
  */
 
-@import 'variables';
+@import './utils/_variables';
 
 #fm {
 
     color: $mbee-color;
+    padding-bottom: 10px;
 
     h1.title {
         color: $mbee-color;
@@ -32,6 +33,7 @@
 
     .nav-link {
         border-radius: 0px;
+        color:  $mbee-color;
     }
 
     .nav-pills .nav-link.active {

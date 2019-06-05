@@ -2,7 +2,7 @@
 /**
  * Classification: UNCLASSIFIED
  *
- * @module scripts.migrate
+ * @module scripts.migration
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *

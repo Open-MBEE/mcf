@@ -18,14 +18,18 @@ const utils = require('./utils');
 const customValidators = M.config.validators || {};
 
 // This ID is used as the common regex for other ID fields in this module
-const id = customValidators.id || '([a-z0-9])([-_a-z0-9]){0,}';
+const id = customValidators.id || '([_a-z0-9])([-_a-z0-9]){0,}';
+
+// A list of reserved keywords which cannot be used in ids
+module.exports.reserved = ['css', 'js', 'img', 'doc', 'docs', 'webfonts',
+  'login', 'about', 'assets', 'static', 'public', 'api', 'organizations',
+  'orgs', 'projects', 'users', 'plugins', 'ext', 'extension', 'search',
+  'whoami', 'profile', 'edit', 'proj', 'elements', 'branch'];
 
 /**
  * @description Regular Expressions to validate organization data
  *
  * id:
- *   - CANNOT include the follow reserved words: css, js, im, login, logout,
- *     about, assets, static, public
  *   - MUST start with a lowercase letter, number or '_'
  *   - MUST only include lowercase letters, numbers, '_' or '-'
  *   - MUST be of length 1 or more
@@ -33,21 +37,10 @@ const id = customValidators.id || '([a-z0-9])([-_a-z0-9]){0,}';
  *     - org1 [valid]
  *     - my-org [valid]
  *     - f81d4fae-7dec-11d0-a765-00a0c91e6bf6 [valid]
- *     - login-org [invalid - begins with reserved word]
  *     - myOrg [invalid - uses uppercase letter]
- * name:
- *   - MUST start with a letter or number
- *   - MUST ONLY include lowercase letters, uppercase letters, numbers,
- *     '-', or whitespace
- *   - MUST be of length 1 or more
- *   Examples:
- *     - "Org 1" [valid]
- *     - "An organization name - with dashes" [valid]
- *     - "No invalid chars (e.g. ', $, &, etc)" [invalid - no special characters]
- *     - " " [invalid - cannot start with a space]
  */
 module.exports.org = {
-  id: customValidators.org_id || `^(?!(css|js|img|login|logout|about|assets|static|public|api|organizations|projects|users))${id}$`
+  id: customValidators.org_id || `^${id}$`
 };
 
 /**

@@ -57,7 +57,7 @@ function handleBasicAuth(req, res, username, password) {
         .catch(localErr => reject(localErr));
       }
 
-      // User is not found locally
+      // User is not found locally or is found and provider is LDAP
       // try LDAP authentication
       else if (users.length === 0 || (users.length === 1 && users[0].provider === 'ldap')) {
         LDAPStrategy.handleBasicAuth(req, res, username, password)

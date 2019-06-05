@@ -1,23 +1,24 @@
-# Model Management System 4.0
+# Model-Based Engineering Environment
+ 
+The Model-Based Engineering Environment (MBEE) is a modeling collaboration software
+that integrates system models with multidisciplinary engineering data and tools.
+This enables system models to be a single-source of truth. MBEE allows for model
+data to be more accessible across disciplines and skill sets via web-based UI.
+The UI enables users to interact with system model data without needing to be a
+systems modeler.
 
-The Model Management System or MMS is a modeling collaboration backend and supporting UI
-that stores and integrates system models with multidisciplinary engineering data to enable
-the system model to be a single-source of truth project data. It makes model
-data more accessible via RESTful API's for ease of use across
-disciplines and skill sets within an organization. MMS4 also provides a web-based UI framework
-for team members to manage system model data without needing to interact with a modeling tool.
-
-The goal of MBEE overal is to better communicate data across engineering organizations
+MBEE's mission is to better communicate data across engineering organizations
 by implementing the core goals of model-based systems engineering through
-software tools. MMS4 enables a single-source of truth for model
+software tools. MBEE decreases ambiguity by making a single-source of truth for
 data more achievable through its RESTful API, extensible plugins, and
 distributed services.
 
 ## Prerequisites
 
 **Node.js**
-MMS4's only dependency to get started is Node.js and NPM. NPM comes with
-Node.js, just install packages with NPM to get started.
+MBEE's only dependency to get started is Node.js and NPM. NPM comes with
+Node.js; just install packages with NPM to get started. To start up MBEE,
+node version 10.15.0 or greater is required.
 See [nodejs.org](https://nodejs.org/en/) for information on Node.js.
 
 **MongoDB**
@@ -27,20 +28,20 @@ and the [MongoDB Getting Started Guide](https://docs.mongodb.com/manual/tutorial
 for up-to-date documentation on MongoDB.
 
 **Source Code**
-1. Clone the MMS4 code by running: `git clone https://github.com/Open-MBEE/mms4.git`.
+1. Clone the MBEE code by running: `git clone https://github.com/lmco/mbee.git`. 
 2. Enter the directory with `cd mbee`.
 
 ## Getting Started
 
 1. Install dependencies and build by running `yarn install` or `npm install`.
-2. Run MMS4 by running `node mbee start`.
+2. Run MBEE by running `node mbee start`. 
 
 ## Documentation
 See the Flight Manual (source located at [`./doc`](./doc))
-for all encompassing user manual of MMS4.
+for all encompassing user manual of MBEE.
 
-You can view the MMS4 Flight Manual at the `/doc/flight-manual` route on a
-running MMS4 server.
+You can view the MBEE Flight Manual at the `/doc/flight-manual` route on a
+running MBEE server.
 Included documentation:
 - Flight Manual
   - API Documentation
@@ -48,5 +49,7 @@ Included documentation:
   - Test Framework Documentation
   - Docker Set Up Documentation
 
-## Public Release Info
-Approved for public release per PIRA #SSS201809050.
+## Reporting Bugs
+
+Please report issues on the MBEE GitHub page, or contact us through the MBEE
+community.

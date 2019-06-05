@@ -84,9 +84,9 @@ function build(_args) {
     .pipe(gulp.dest('build/public/js'));
 
     // Copy Jquery UI JS
-    gulp.src(['./node_modules/jquery-ui/ui/effect.js', './node_modules/jquery-ui/ui/effects/*.js'])
-    .pipe(concat('jquery-ui.js'))
-    .pipe(minify({ noSource: true }))
+    gulp.src([
+      './node_modules/jquery-ui-dist/jquery-ui.min.js'
+    ])
     .pipe(gulp.dest('build/public/js'));
 
     // Copy Popper JS
@@ -98,16 +98,21 @@ function build(_args) {
     // Copy Font-Awesome dependencies
     gulp.src('./node_modules/@fortawesome/fontawesome-free/webfonts/**/*')
     .pipe(gulp.dest('build/public/webfonts'));
+
+    // Copy MBEE JS
+    gulp.src('./app/ui/js/**/*.js')
+    .pipe(concat('mbee.js'))
+    .pipe(minify({ ext: { min: '.min.js' } }))
+    .pipe(gulp.dest('build/public/js'));
   }
 
   // Initialize validators for UI validation
   const validator = {
+    id: validators.org.id,
     org: {
-      id: validators.org.id,
       name: validators.org.name
     },
     project: {
-      id: validators.project.id,
       name: validators.project.name
     },
     user: {
@@ -131,42 +136,6 @@ function build(_args) {
 
   // Import validator object into validators file
   fs.writeFileSync(path.join(validatorsDir, 'validators.json'), JSON.stringify(validator), 'utf8');
-
-  // Transpile React components
-  if (args.includes('--all') || args.includes('--react')) {
-    webpack({
-      mode: 'production',
-      entry: {
-        navbar: path.join(M.root, 'app', 'ui', 'react-components', 'general-components', 'nav.jsx'),
-        'home-page': path.join(M.root, 'app', 'ui', 'react-components', 'home-page', 'home-page.jsx'),
-        organizations: path.join(M.root, 'app', 'ui', 'react-components', 'organizations', 'organizations.jsx'),
-        projects: path.join(M.root, 'app', 'ui', 'react-components', 'projects', 'projects.jsx'),
-        user: path.join(M.root, 'app', 'ui', 'react-components', 'user', 'user.jsx')
-      },
-      output: {
-        path: path.join(M.root, 'build', 'public', 'react-js'),
-        filename: '[name].js'
-      },
-      module: {
-        rules: [
-          {
-            test: /\.jsx?$/,
-            loader: 'babel-loader',
-            exclude: /node_modules/,
-            options: {
-              presets: ['babel-preset-env', 'babel-preset-react']
-            }
-          }
-        ]
-      }
-    }, (err, stats) => {
-      if (err || stats.hasErrors()) {
-        // eslint-disable-next-line no-console
-        console.log(stats.compilation.errors);
-      }
-    });
-  }
-
 
   // Compile Sass into CSS
   if (args.includes('--all') || args.includes('--sass')) {
@@ -196,7 +165,68 @@ function build(_args) {
     .pipe(gulp.dest('build/fm'));
   }
 
-  M.log.info('Build Complete.');
+  // Returning a promise to make synchronous
+  return new Promise((resolve, reject) => {
+    // Transpile React components
+    if (args.includes('--all') || args.includes('--react')) {
+      // Set default mode
+      let mode = 'production';
+
+      // Verify if mode provided
+      if (M.config.server.ui.mode) {
+        // Set config mode
+        mode = M.config.server.ui.mode;
+      }
+
+      M.log.info(`  + Transpiling react in ${mode} mode...`);
+      webpack({
+        mode: mode,
+        entry: {
+          navbar: path.join(M.root, 'app', 'ui', 'components', 'apps', 'nav.jsx'),
+          'home-app': path.join(M.root, 'app', 'ui', 'components', 'apps', 'home-app.jsx'),
+          'org-app': path.join(M.root, 'app', 'ui', 'components', 'apps', 'org-app.jsx'),
+          'project-app': path.join(M.root, 'app', 'ui', 'components', 'apps', 'project-app.jsx'),
+          'profile-app': path.join(M.root, 'app', 'ui', 'components', 'apps', 'profile-app.jsx')
+        },
+        output: {
+          path: path.join(M.root, 'build', 'public', 'js'),
+          filename: '[name].js'
+        },
+        devServer: {
+          historyApiFallback: true
+        },
+        module: {
+          rules: [
+            {
+              test: /\.jsx?$/,
+              loader: 'babel-loader',
+              exclude: /node_modules/,
+              options: {
+                presets: ['babel-preset-env', 'babel-preset-react']
+              }
+            }
+          ]
+        }
+      }, (err, stats) => {
+        if (err || stats.hasErrors()) {
+          // eslint-disable-next-line no-console
+          console.log(stats.compilation.errors);
+          return reject();
+        }
+        return resolve();
+      });
+    }
+    else {
+      return resolve();
+    }
+  })
+  .then(() => {
+    M.log.info('Build Complete.');
+  })
+  .catch(() => {
+    M.log.warn('React build FAILED');
+    M.log.info('Build Complete.');
+  });
 }
 
 module.exports = build;

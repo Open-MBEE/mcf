@@ -1,0 +1,102 @@
+/**
+ * Classification: UNCLASSIFIED
+ *
+ * @module app.ui.sass.components._sidebar.scss
+ *
+ * @copyright Copyright (C) 2018, Lockheed Martin Corporation
+ *
+ * @license MIT
+ *
+ * @description This defines the sidebar Sass variables.
+ */
+
+@import '../utils/_variables';
+
+/******************************************************************************
+/*                              Sidebar Styling                               *
+/******************************************************************************/
+
+.sidebar {
+  background: whitesmoke;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: $sidebar-min-width;
+  border-right: 1px solid #e8e8e8;
+
+  &.sidebar-expanded {
+    width: $sidebar-full-width
+  }
+
+  a {
+    font-size: 10px;
+    display: block;
+    text-decoration: none;
+    color: $sidebar-text;
+    font-weight: 200;
+    &.active {
+      :hover {
+        color: $mbee-navbar-color;
+        font-weight: 600;
+      }
+      color: $mbee-navbar-color;
+      background-color: darken(whitesmoke, 5);
+      font-weight: 600;
+    }
+    :hover {
+      color: darken($sidebar-text, 20);
+      font-weight: 300;
+    }
+  }
+
+  hr {
+    margin: .75em;
+    border-color: #9c9c9c;
+  }
+
+  hr.divider {
+    margin: .75em 0;
+    border-color: #e8e8e8;
+  }
+
+  .sidebar-header {
+    padding: 10px 20px;
+    margin-top: 15px;
+    margin-bottom: 0px;
+    display: flex;
+    justify-content: center;
+    font-weight: 500;
+  }
+
+  .sidebar-links {
+    height: 100vh;
+    overflow: scroll;
+  }
+
+  .sidebar-item {
+    padding:20px;
+    height: 50px;
+    font-size: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    h4, p {
+      margin: 0 auto 0 0;
+      padding: 10px 10px 10px 20px;
+      font-size: 1.5em;
+    }
+
+    i.fas, i.fa {
+      font-size: 12px;
+      width: 12px;
+      text-align: center;
+    }
+  }
+
+  .nested-sidebar-header {
+    padding: 10px;
+    color: lighten($sidebar-text, 5);
+    font-size: 0.75rem;
+  }
+}

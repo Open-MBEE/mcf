@@ -29,6 +29,7 @@ const ldap = require('ldapjs');
 const LocalStrategy = M.require('auth.local-strategy');
 const Organization = M.require('models.organization');
 const User = M.require('models.user');
+const EventEmitter = M.require('lib.events');
 const sani = M.require('lib.sanitization');
 
 // Allocate LDAP configuration variable for convenience
@@ -315,12 +316,14 @@ function ldapSync(ldapUserObj) {
   return new Promise((resolve, reject) => {
     // Store user object function-wide
     let userObject = {};
+    let found = false;
 
     // Search for user in database
     User.findOne({ _id: ldapUserObj[ldapConfig.attributes.username] })
     .then(foundUser => {
       // If the user was found, update with LDAP info
       if (foundUser) {
+        found = true;
         // User exists, update database with LDAP information
         foundUser.fname = ldapUserObj[ldapConfig.attributes.firstName];
         foundUser.preferredName = ldapUserObj[ldapConfig.attributes.preferredName];
@@ -348,6 +351,11 @@ function ldapSync(ldapUserObj) {
     .then(savedUser => {
       // Save user to function-wide variable
       userObject = savedUser;
+
+      // If user created, emit users-created
+      if (!found) {
+        EventEmitter.emit('users-created', [savedUser]);
+      }
 
       // Find the default org
       return Organization.findOne({ _id: M.config.server.defaultOrganizationId });

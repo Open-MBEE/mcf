@@ -1,7 +1,8 @@
 # MBEE Security
 
 **Contents**
-- [Disclosure Policy](#disclosure-policy)
+- [Reporting Bugs](#reporting-bugs)
+- [Disclosure and Security Update Policy](#disclosure-and-security-update-policy)
 - [Known Gaps and Issues](#known-gaps-and-issues)
 - [Security Related Configuration](#security-related-configuration)
   - [Plugins and Integrations](#plugins-and-integrations)
@@ -13,10 +14,16 @@
   - [Authentication](#authentication)
 
 
-## Disclosure Policy
+## Reporting Bugs
 
-This will be defined in an upcoming release. This software is currently in 
-beta and a formal disclosure policy will be defined by our 1.0.0 release.
+Please report issues on the MBEE GitHub page, or contact us through the MBEE
+community.
+
+## Disclosure and Security Update Policy
+
+If and when security-related updates are made to MBEE, refer to `CHANGELOG.md`
+for instructions on how to mitigate the issue.
+
 
 ## Known Gaps and Issues
 
@@ -26,16 +33,10 @@ an arbitrary admin user in the database.
 
 It's important to ensure that all test users are deleted from the database.
 
-#### Asynchronous Build Script 
-
-Some components in the build script are asynchronous and the build script will 
-print out a message that build is complete before build has finished.
-
-#### UI Refresh
-Refreshing some UI pages causes issues with page rendering due to client-side
-applications mapping to server-side routes.
-
-
+#### UI Model Tree Refresh
+If updating the parent in the model tree, an issue occurs with the re-rendering
+of model tree elements due to the refresh element functions. Refreshing the page 
+will display the updated, correct tree.
 
 ## Security Related Configuration
 
@@ -50,8 +51,8 @@ fact, it is part of the same running process. It is a module or collection of
 modules written in JavaScript as an Express application that is included by MBEE
 and used under namespaced routes. These plugins offer the ability to extend the
 functionality of MBEE. On one hand they allow for high-performance integrations
-with direct access to the underlying MBEE modules and database connections, on
-the other hand they extend MBEE functionality in along a monolithic architecture
+with direct access to the underlying MBEE modules and database connections. On
+the other hand, they extend MBEE functionality in a monolithic approach
 rather than a distributed microservice architecture that is created by API-based
 integrations.
 
@@ -66,11 +67,16 @@ any plugins being installed on an MBEE instance.
 
 ### Ports
 
-| Port   | Purpose                                                            |
-|:-------|:-------------------------------------------------------------------|
-| 9080   | MBEE HTTP port, this is adjustable in the configuration file.      |
-| 9443   | MBEE HTTPS port, this is adjustable in the configuration file.     |
-| 27017  | MongoDB. See [MongoDB section below](#mongodb) for more detail.    |
+Below are the default ports necessary for running an MBEE instance and what those
+ports are used for. The HTTP and HTTPS ports are adjustable in the configuration
+file. The MongoDB port can be adjusted on deployment, see 
+[MongoDB section below](#mongodb) for more detail. 
+
+| Port   | Purpose           |
+|:-------|:----------------- |
+| 9080   | MBEE HTTP port    |
+| 9443   | MBEE HTTPS port   |
+| 27017  | MongoDB           |
 
 
 ### Configuration JSON File
@@ -78,7 +84,7 @@ any plugins being installed on an MBEE instance.
 MBEE retrieves its configuration information from the JSON files in
 `config/*.json`. Which JSON file is used depends on the value of the `NODE_ENV`
 environment variable. MBEE looks for a file called `config/<NODE_ENV>.json`,
-where `<NODE_ENV>` is the value stored in the `NODE_ENV` environment variabled.
+where `<NODE_ENV>` is the value stored in the `NODE_ENV` environment variable.
 For example, if `NODE_ENV` is set to `production` MBEE will use the file
 `config/production.json` for its configuration.
 
@@ -86,10 +92,30 @@ This configuration file contains security-related information such as database
 credentials, authentication information, SSL certificate info, and more. This
 configuration should not be checked into version control.
 
+### Password Validation
+
+Password validation was designed to be configurable through each authentication
+module. When a user is created, the configured auth module is checked for an
+exported validator function called `validatePassword()`. This function should
+accept up to two parameters, the password (required) and the provider
+(optional), and should return a boolean of whether the password is valid or not.
+
+When creating a user, this function is ran and if the value *false* is returned,
+the creation of that user is rejected. The default password requirements
+provided in the local-strategy expect each password to contain at least 8
+characters and at least one number, uppercase letter, lowercase letter and at
+least one special character. If desired, one implementing this function can
+allow for stricter requirements, but we do not suggest lessening the
+requirements for security reasons.
+
+If using an auth module that does not need to store passwords in the database
+(such as LDAP), the `validatePassword()` function still needs to be provided and
+exported, but only needs to return *true* for any case.
+
 ### HTTPS
 
 To run MBEE with SSL enabled, you need a valid SSL certificate for the server.
-Once you have this you can simply define name of that certificate (which MBEE
+Once you have this you can simply define the name of that certificate (which MBEE
 expects to find in the `certs` directory of the project) in the `server.https`
 section of the configuration JSON file. For example, consider the following
 section of the configuration file:
@@ -104,7 +130,7 @@ section of the configuration file:
     "https": {
       "enabled": true,
       "port": 9443,
-      "sslCertName": "your-cert-name-here"
+      "sslCertName": "example.com"
     }
   }
 }
@@ -221,14 +247,14 @@ mongod --sslMode requireSSL \
 
 MBEE operates on a concept of *modular authentication*. This means that one or
 more authentication modules are defined in the MBEE code. These authentication
-modules are located in the `app/auth` directory. MBEE was built to be an open
-source product and was therefore designed with varying organizations in mind.
+modules are located in the `app/auth` directory.
 
-To accommodate this, we implemented these authentication modules which allow
-each organization to write a few small functions to define their own
-authentication strategies that meet their organization's needs. As such, the
-module to be used is defined in the configuration JSON file. Consider the JSON
-configuration example below:
+MBEE was built to be an open source product and was therefore designed with 
+varying organizations in mind. To accommodate this, we implemented these 
+authentication modules which allow each organization to write a few small 
+functions to define their own authentication strategies that meet their 
+organization's needs. As such, the module to be used is defined in the 
+configuration JSON file. Consider the JSON configuration example below:
 
 ```json
 {
@@ -250,16 +276,16 @@ configuration example below:
 ```
 
 The `auth.strategy` section tells MBEE which authentication module or *strategy*
-to used. The `auth.ldap` section is required for the LDAP strategy and is used
+to use. The `auth.ldap` section is required for the LDAP strategy and is used
 to pass LDAP-specific information into MBEE.
 
-Also important to note is the `auth.token` and `auth.session` configuration.
-Both allow the definition of an expiration time, but there are differences
-between the two that should be explained.
+Also important to note are the `auth.token` and `auth.session` configuration 
+options. Both allow the definition of an expiration time, but there are 
+differences between the two that should be explained.
 
 A token is generated within MBEE. It stores basic information about the user
-(such as username and token expiration time) encrypted using the server's secret
-key (see the section on [Server Secret Key](#server-secret-key) above). This
+(such as username and token expiration time), which is encrypted using the server's 
+secret key (see the section on [Server Secret Key](#server-secret-key) above). This
 token is used to authenticate the user during session token authentication as
 well as API token authentication. The `auth.token` section defines when this
 token expires.
@@ -268,6 +294,6 @@ When interacting with MBEE via the UI, a user's token is stored in their session
 object. The `auth.session` section defines when a session expires.
 
 For API interactions with MBEE, only the `auth.token` expiration matters since
-sessions aren't used. However, for UI interaction with MBEE, both the token
+sessions are not used. However, for UI interaction with MBEE, both the token
 and session definitions matter. Whichever expires first will cause the user's
 authentication to expire.

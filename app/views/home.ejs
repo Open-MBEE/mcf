@@ -8,9 +8,11 @@
  *
  * @license MIT
  *
- * @description The MBEE home page
+ * @description This page renders the MBEE home page by grabbing the javascript
+ * after being compiled by the home-page.jsx file.
  */
  %>
-<div id="view" class="view"></div>
+<div id="main" class="view"></div>
 
-<script type="text/javascript" src="/react-js/home-page.js"></script>
+<%- contentFor('scripts') %>
+<script type="text/javascript" src="/js/home-app.js"></script>

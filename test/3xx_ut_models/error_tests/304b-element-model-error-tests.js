@@ -11,7 +11,6 @@
  */
 
 // Node modules
-const path = require('path');
 const chai = require('chai');
 
 // MBEE modules
@@ -19,7 +18,7 @@ const Element = M.require('models.element');
 const db = M.require('lib.db');
 
 /* --------------------( Test Data )-------------------- */
-const testUtils = require(path.join(M.root, 'test', 'test-utils'));
+const testUtils = M.require('lib.test-utils');
 const testData = testUtils.importTestData('test_data.json');
 
 /* --------------------( Main )-------------------- */
@@ -106,7 +105,9 @@ function idTooLong(done) {
 
   // Change id to be too long.
   elemData._id = '012345678901234567890123456789012345:01234567890123456789'
-    + '0123456789012345:0123456789012345678901234567890123456';
+    + '0123456789012345:01234567890123456789012345678901234567890123456789'
+    + '0123456789012345678901234567890123456789012345678901234567890123456789'
+    + '012345678901234567890123456789012345678901234567890123456789012';
 
   // Create element object
   const elemObject = new Element(elemData);

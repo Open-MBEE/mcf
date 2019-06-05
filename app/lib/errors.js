@@ -39,22 +39,22 @@ module.exports.CustomError = class CustomError extends Error {
    *
    * @return {string} HTTP error message
    *
-   * +-------------+-------------------------+
-   * | Status Code |         Message         |
-   * +-------------+-------------------------+
-   * | 200         | 'OK'                    |
-   * | 300         | 'Multiple Choices'      |
-   * | 301         | 'Moved Permanently'     |
-   * | 400         | 'Bad Request'           |
-   * | 401         | 'Unauthorized'          |
-   * | 403         | 'Forbidden'             |
-   * | 403         | 'Not Found'             |
-   * | 418         | 'I'm a teapot'          |
-   * | 500         | 'Internal Server Error' |
-   * | 501         | 'Not Implemented'       |
-   * | 503         | 'Service Unavailable'   |
-   * | default     | 'Internal Server Error' |
-   * +-------------+-------------------------+
+   * <p> +-------------+-------------------------+
+   * <br>| Status Code |         Message         |
+   * <br>+-------------+-------------------------+
+   * <br>| 200         | 'OK'                    |
+   * <br>| 300         | 'Multiple Choices'      |
+   * <br>| 301         | 'Moved Permanently'     |
+   * <br>| 400         | 'Bad Request'           |
+   * <br>| 401         | 'Unauthorized'          |
+   * <br>| 403         | 'Forbidden'             |
+   * <br>| 403         | 'Not Found'             |
+   * <br>| 418         | 'I'm a teapot'          |
+   * <br>| 500         | 'Internal Server Error' |
+   * <br>| 501         | 'Not Implemented'       |
+   * <br>| 503         | 'Service Unavailable'   |
+   * <br>| default     | 'Internal Server Error' |
+   * <br>+-------------+-------------------------+ </p>
    */
   getMessage() {
     switch (this.status) {
