@@ -52,8 +52,8 @@ Included documentation:
 ## Known Plugins List
 This is a list of repositories that contain plugins or example plugins for MMS4:
 
-[Official Sandbox Plugin|https://github.com/lmco/mbee-plugin-sandbox]
-[MBEE Requirements Plugin|https://github.com/josh-kaplan/mbee-requirements-plugin]
+- [Official Sandbox Plugin](https://github.com/lmco/mbee-plugin-sandbox)
+- [MBEE Requirements Plugin](https://github.com/josh-kaplan/mbee-requirements-plugin)
 
 ## Reporting Bugs
 
