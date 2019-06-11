@@ -49,6 +49,12 @@ Included documentation:
   - Test Framework Documentation
   - Docker Set Up Documentation
 
+## Known Plugins List
+This is a list of repositories that contain plugins or example plugins for MMS4:
+
+[Official Sandbox Plugin|https://github.com/lmco/mbee-plugin-sandbox]
+[MBEE Requirements Plugin|https://github.com/josh-kaplan/mbee-requirements-plugin]
+
 ## Reporting Bugs
 
 Please report issues on the MBEE GitHub page, or contact us through the MBEE
