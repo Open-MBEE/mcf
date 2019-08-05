@@ -8,9 +8,9 @@
   },
   "source": {
       "include": ["app", "test"],
-      "exclude": ["app/views", "app/ui", "test/test_data"],
+      "exclude": ["app/views", "app/ui"],
       "includePattern": "",
-      "excludePattern": ".+\\.(ejs|json|config|cfg)$"
+      "excludePattern": ".+\\.(ejs|json|config|cfg|gz)$"
   },
   "templates": {
     "default": {

@@ -147,13 +147,13 @@ function ldapConnect() {
     // Now if it's not an array, fail
     if (!Array.isArray(ldapCA)) {
       M.log.error('Failed to load LDAP CA certificates (invalid type)');
-      return reject(new M.CustomError('An error occurred.', 500));
+      return reject(new M.ServerError('An error occurred.', 'error'));
     }
 
     // If any items in the array are not strings, fail
     if (!ldapCA.every(c => typeof c === 'string')) {
       M.log.error('Failed to load LDAP CA certificates (invalid type in array)');
-      return reject(new M.CustomError('An error occurred.', 500));
+      return reject(new M.ServerError('An error occurred.', 'error'));
     }
 
     M.log.verbose('Reading LDAP server CAs ...');
@@ -247,7 +247,7 @@ function ldapSearch(ldapClient, username) {
     // Execute the search
     ldapClient.search(ldapConfig.base, opts, (err, result) => {
       if (err) {
-        return reject(new M.CustomError('LDAP Search Failure.', 500, 'warn'));
+        return reject(new M.ServerError('LDAP Search Failure.', 'warn'));
       }
 
       // If search fails, reject error
@@ -264,7 +264,7 @@ function ldapSearch(ldapClient, username) {
         if (!person) {
           // Person undefined, reject error
           ldapClient.destroy(); // Disconnect from LDAP server on failure
-          return reject(new M.CustomError('Invalid username or password.', 401));
+          return reject(new M.AuthorizationError('Invalid username or password.', 'warn'));
         }
         // Person defined, return results
         return resolve(person.object);
@@ -292,7 +292,7 @@ function ldapAuth(ldapClient, user, password) {
       if (authErr) {
         M.log.error(authErr);
         ldapClient.destroy(); // Disconnect from LDAP server on failure
-        return reject(new M.CustomError('Invalid username or password.', 401));
+        return reject(new M.AuthorizationError('Invalid username or password.', 'warn'));
       }
       // Validation successful, resolve authenticated user's information
       M.log.debug(`User [${user[ldapConfig.attributes.username]

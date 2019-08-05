@@ -20,11 +20,15 @@ required is dependent on the total model storage needed.
 
 ## Obtaining the MBEE Source Code
 The MBEE source code can be obtained from [GitHub](https://github.com/lmco/mbee.git).
+
 Clone the source code using Git by running:
 
-```shell
-git clone https://github.com/lmco/mbee.git
+```json
+git clone <MBEE_REPO_URL>
 ```
+
+Where `<MBEE_REPO_URL>` should be replaced with the repository URL you are 
+cloning from. Then enter the newly created directory containing the source code.
 
 ## Building MBEE
 Before running MBEE, the software must be built. The build process compiles 

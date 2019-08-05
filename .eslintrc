@@ -18,7 +18,7 @@
 
 {
   "parserOptions": {
-    "ecmaVersion": 6,
+    "ecmaVersion": 2017,
     "sourceType": "module",
     "ecmaFeatures": {
       "generators": false,
@@ -48,13 +48,13 @@
     // enforces no braces where they can be omitted
     // https://eslint.org/docs/rules/arrow-body-style
     "arrow-body-style": ["warn", "as-needed", {
-      "requireReturnForObjectLiteral": false,
+      "requireReturnForObjectLiteral": false
     }],
 
     // require parens in arrow function arguments
     // https://eslint.org/docs/rules/arrow-parens
     "arrow-parens": ["off", "as-needed", {
-      "requireForBlockBody": true,
+      "requireForBlockBody": true
     }],
 
     // require space before/after arrow function"s arrow
@@ -75,7 +75,7 @@
     // disallow arrow functions where they could be confused with comparisons
     // https://eslint.org/docs/rules/no-confusing-arrow
     "no-confusing-arrow": ["error", {
-      "allowParens": true,
+      "allowParens": true
     }],
 
     // disallow modifying variables that are declared using const
@@ -118,7 +118,7 @@
     "no-useless-rename": ["error", {
       "ignoreDestructuring": false,
       "ignoreImport": false,
-      "ignoreExport": false,
+      "ignoreExport": false
     }],
 
     // require let or const instead of var
@@ -131,13 +131,13 @@
     // suggest using arrow functions as callbacks
     "prefer-arrow-callback": ["off", {
       "allowNamedFunctions": false,
-      "allowUnboundThis": false,
+      "allowUnboundThis": false
     }],
 
     // suggest using of const declaration for variables that are never modified after declared
     "prefer-const": ["error", {
       "destructuring": "any",
-      "ignoreReadBeforeAssign": true,
+      "ignoreReadBeforeAssign": true
     }],
 
     // Prefer destructuring from arrays and objects
@@ -145,14 +145,14 @@
     "prefer-destructuring": ["off", {
       "VariableDeclarator": {
         "array": false,
-        "object": true,
+        "object": true
       },
       "AssignmentExpression": {
         "array": true,
-        "object": true,
-      },
+        "object": true
+      }
     }, {
-      "enforceForRenamedProperties": false,
+      "enforceForRenamedProperties": false
     }],
 
     // disallow parseInt() in favor of binary, octal, and hexadecimal literals
@@ -188,7 +188,7 @@
     "sort-imports": ["off", {
       "ignoreCase": false,
       "ignoreMemberSort": false,
-      "memberSyntaxSortOrder": ["none", "all", "multiple", "single"],
+      "memberSyntaxSortOrder": ["none", "all", "multiple", "single"]
     }],
 
     // require a Symbol description
@@ -258,12 +258,10 @@
 
     // enforce line breaks after opening and before closing array brackets
     // https://eslint.org/docs/rules/array-bracket-newline
-    // "TODO": enable? semver-major
     "array-bracket-newline": ["off", "consistent"], // object option "alternative": { "multiline": true, "minItems": 3 }
 
     // enforce line breaks between array elements
     // https://eslint.org/docs/rules/array-element-newline
-    // "TODO": enable? semver-major
     "array-element-newline": ["off", { "multiline": true, "minItems": 3 }],
 
     // enforce spacing inside array brackets
@@ -291,7 +289,7 @@
         "ignorePattern": ".*",
         "ignoreInlineComments": true,
         "ignoreConsecutiveComments": true,
-      },
+      }
     }],
 
     // require trailing commas in multiline object literals when set to "always-multiline"
@@ -300,7 +298,7 @@
       "objects": "never",
       "imports": "never",
       "exports": "never",
-      "functions": "never",
+      "functions": "never"
     }],
 
     // enforce spacing before and after comma
@@ -349,7 +347,6 @@
 
     // enforces use of function declarations or expressions
     // https://eslint.org/docs/rules/func-style
-    // "TODO": enable
     "func-style": ["off", "expression"],
 
     // enforce consistent line breaks inside function parentheses
@@ -431,7 +428,6 @@
 
     // enforce position of line comments
     // https://eslint.org/docs/rules/line-comment-position
-    // "TODO": enable?
     "line-comment-position": ["off", {
       "position": "above",
       "ignorePattern": "",
@@ -510,7 +506,6 @@
 
     // require multiline ternary
     // https://eslint.org/docs/rules/multiline-ternary
-    // "TODO": enable?
     "multiline-ternary": ["off", "never"],
 
     // require a capital letter for constructors
@@ -620,7 +615,7 @@
       {
         "selector": "WithStatement",
         "message": "`with` is disallowed in strict mode because it makes code impossible to predict and optimize.",
-      },
+      }
     ],
 
     // disallow space between function identifier and application
@@ -822,7 +817,6 @@
 
     // disallow use of undefined variable
     // https://eslint.org/docs/rules/no-undefined
-    // "TODO": enable?
     "no-undefined": "off",
 
     // disallow declaration of variables that are not used in the code
@@ -1042,7 +1036,7 @@
       "allow": [
         "arrowFunctions",
         "functions",
-        "methods",
+        "methods"
       ]
     }],
 

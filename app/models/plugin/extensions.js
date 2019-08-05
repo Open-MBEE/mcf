@@ -31,7 +31,7 @@ module.exports = function extensionPlugin(schema) {
     },
     createdOn: {
       type: Date,
-      default: Date.now()
+      default: Date.now
     },
     archivedOn: {
       type: Date,
@@ -56,7 +56,7 @@ module.exports = function extensionPlugin(schema) {
   schema.pre('save', function(next) {
     // createdOn cannot be changed
     if (this.isModified('createdOn')) {
-      next(new M.CustomError('createdOn is protected and cannot be changed.', 400, 'warn'));
+      next(new M.OperationError('createdOn is protected and cannot be changed.', 'warn'));
     }
     // Update time
     this.updatedOn = Date.now();

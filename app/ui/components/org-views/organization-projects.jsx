@@ -34,7 +34,7 @@ function OrganizationProjects(props) {
       const username = props.user.username;
       if (project.permissions[username]) {
         listItems.push(<ListItem key={`proj-key-${project.id}`} className='proj-org-header'>
-                        <a href={`/${org.id}/${project.id}`}>
+                        <a href={`/orgs/${org.id}/project/${project.id}/branches/master/elements`}>
                           {project.name}
                         </a>
                        </ListItem>);
@@ -42,7 +42,7 @@ function OrganizationProjects(props) {
     }
     else {
       listItems.push(<ListItem key={`proj-key-${project.id}`} className='proj-org-header'>
-                      <a href={`/${org.id}/${project.id}`}>
+                      <a href={`/orgs/${org.id}/projects/${project.id}/branches/master/elements`}>
                         {project.name}
                       </a>
                      </ListItem>);
@@ -59,7 +59,7 @@ function OrganizationProjects(props) {
         </ModalBody>
       </Modal>
       <div id='workspace'>
-        <div id='workspace-header' className='workspace-header'>
+        <div id='workspace-header' className='workspace-header header-box-depth'>
            <h2 className='workspace-title workspace-title-padding'>Projects</h2>
           {/* Verify user has write permissions */}
           {(!props.write)

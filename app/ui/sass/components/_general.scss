@@ -1,15 +1,14 @@
 /**
  * Classification: UNCLASSIFIED
  *
- * @module app.ui.sass.components._general.scss
+ * @module ui.sass.components._general
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
  *
- * @description This defines the general Sass variables.
+ * @description Defines general html sass component styles
  */
-
 /******************************************************************************
 /*                                  General                                   *
 /******************************************************************************/
@@ -80,4 +79,105 @@ textarea[name="custom"] {
 
 .about-top {
   padding-top: 30px;
+}
+
+.element-selector {
+  display: inline;
+  margin-left: 10px;
+
+  i.fas:hover {
+    color: lighten(#333333, 25%);
+  }
+}
+
+.element-selector-modal {
+  .modal-footer {
+    p {
+      width: 100%;
+      margin: 0;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+  }
+}
+
+.dropdown-list {
+  border: 1px solid #ced4da;
+  position: absolute;
+  background-color: white;
+  width: 85%;
+
+  .drop-list {
+    margin-bottom: 0;
+    padding-left: 0;
+  }
+}
+
+.grayed-out {
+  color: #c0c0c0;
+}
+
+.minimize {
+  font-size: smaller;
+}
+
+.spacing {
+  padding: 0 24px;
+}
+
+.bottom-spacing {
+  padding-bottom: 10px;
+}
+
+.bold-name {
+  font-weight: 600;
+}
+
+.bolder-name {
+  font-weight: 700;
+}
+
+.box-list {
+  padding: 5px 10px;
+  margin: 15px;
+
+  .box-list-header {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .box-list-footer {
+    display: flex;
+    justify-content: space-between;
+    padding-top: 5px;
+
+    .footer-btn {
+      color: black;
+      &:hover {
+        cursor: pointer;
+        color: #cccccc;
+      }
+
+      .btn-label {
+        font-size: small;
+        font-weight: 100;
+      }
+
+      i {
+        padding: 5px;
+        font-size: small;
+      }
+    }
+  }
+}
+
+.transparent {
+  color: transparent;
+}
+
+.warning-label {
+  color: $color-danger;
+  font-size: 10px;
+  padding-left: 20px;
 }

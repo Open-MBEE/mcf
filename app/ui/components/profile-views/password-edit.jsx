@@ -104,13 +104,13 @@ class PasswordEdit extends Component {
       statusCode: {
         200: () => { window.location.replace('/profile'); },
         401: (err) => {
-          this.setState({ error: err.responseJSON.description });
+          this.setState({ error: err.responseText });
 
           // Refresh when session expires
           window.location.reload();
         },
         403: (err) => {
-          this.setState({ error: err.responseJSON.description });
+          this.setState({ error: err.responseText });
         }
       }
     });
@@ -171,7 +171,7 @@ class PasswordEdit extends Component {
                        invalid={this.state.newPasswordInvalid}
                        onChange={this.handleChange}/>
                 <FormFeedback>
-                  Invalid: Password must have 8 characters,
+                  Invalid: Password must have at least 8 characters,
                   a lowercase, uppercase, digit, and special character.
                 </FormFeedback>
               </FormGroup>

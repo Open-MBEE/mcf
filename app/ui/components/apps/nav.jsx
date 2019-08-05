@@ -49,25 +49,19 @@ class MbeeNav extends Component {
     // Bind component functions
     this.toggle = this.toggle.bind(this);
     this.setComponentSize = this.setComponentSize.bind(this);
+    this.sessionDestroy = this.sessionDestroy.bind(this);
   }
 
   componentDidMount() {
     // Add event listener for window sizing
     window.addEventListener('resize', this.setComponentSize);
-
-    // Initialize url
-    const url = '/api/users/whoami?minified=true';
-
-    // Do ajax request
-    $.ajax({
-      method: 'GET',
-      url: url,
-      statusCode: {
-        200: (data) => { this.setState({ user: data }); },
-        401: (err) => { this.setState({ error: err.responseJSON.description }); },
-        403: (err) => {
-          this.setState({ error: err.responseJSON.description });
-        }
+    // eslint-disable-next-line no-undef
+    mbeeWhoAmI((err, data) => {
+      if (err) {
+        this.setState({ error: err.responseText });
+      }
+      else {
+        this.setState({ user: data });
       }
     });
 
@@ -96,6 +90,12 @@ class MbeeNav extends Component {
       isOpen: !this.state.isOpen
     });
   }
+
+  /* eslint-disable class-methods-use-this */
+  sessionDestroy() {
+    window.sessionStorage.removeItem('mbee-user');
+  }
+  /* eslint-enable class-methods-use-this */
 
   render() {
     let setNavbarSize;
@@ -152,7 +152,14 @@ class MbeeNav extends Component {
                         <DropdownItem href='/profile/projects'>Your Projects</DropdownItem>
                         <DropdownItem href='/about'>About</DropdownItem>
                         <DropdownItem divider />
-                        <DropdownItem href='/logout'>Log Out</DropdownItem>
+                        {(!this.state.user.admin)
+                          ? ''
+                          : (<React.Fragment>
+                              <DropdownItem href='/admin'> Admin Console</DropdownItem>
+                              <DropdownItem divider />
+                             </React.Fragment>)
+                        }
+                        <DropdownItem href='/logout' onClick={this.sessionDestroy}>Log Out</DropdownItem>
                       </DropdownMenu>
                     </UncontrolledDropdown>
                   )

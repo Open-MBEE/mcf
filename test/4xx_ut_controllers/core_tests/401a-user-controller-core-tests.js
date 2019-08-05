@@ -79,6 +79,7 @@ describe(M.getModuleName(module.filename), () => {
   it('should find a user', findUser);
   it('should find multiple users', findUsers);
   it('should find all users', findAllUsers);
+  it('should find a user through text search', searchUser);
   it('should update a user', updateUser);
   it('should update multiple users', updateUsers);
   it('should update a users password', updateUserPassword);
@@ -476,6 +477,63 @@ function findAllUsers(done) {
     done();
   });
 }
+
+/**
+ * @description Finds a user through text based search via the user
+ * controller.
+ */
+function searchUser(done) {
+  const userData = [
+    testData.users[0],
+    testData.users[1],
+    testData.users[2],
+    testData.users[3]
+  ];
+
+  // Find user via controller
+  UserController.search(adminUser, `"${userData[0].fname}"`, {})
+  .then((foundUsers) => {
+    // Expect foundUsers array to contain all users with the same first name (all 4)
+    chai.expect(foundUsers.length).to.equal(userData.length);
+
+    // Convert foundUsers to JMI type 2 for easier lookup
+    const jmi2Users = jmi.convertJMI(1, 2, foundUsers, 'username');
+    // Loop through each user data object
+    userData.forEach((userDataObject) => {
+      const foundUser = jmi2Users[userDataObject.username];
+      // Ensure user was found
+      chai.expect(foundUser).to.not.equal(undefined);
+
+      // Verify expected response
+      chai.expect(foundUser._id).to.equal(userDataObject.username);
+      chai.expect(foundUser.username).to.equal(userDataObject.username);
+      chai.expect(foundUser.preferredName).to.equal(userDataObject.preferredName);
+      chai.expect(foundUser.fname).to.equal(userDataObject.fname);
+      chai.expect(foundUser.lname).to.equal(userDataObject.lname);
+      chai.expect(foundUser.admin).to.equal(userDataObject.admin);
+      chai.expect(foundUser.custom).to.deep.equal(userDataObject.custom);
+
+      // Expect the password to be hashed
+      chai.expect(foundUser.password).to.not.equal(userDataObject.password);
+
+      // Verify additional properties
+      chai.expect(foundUser.createdBy).to.equal(adminUser.username);
+      chai.expect(foundUser.lastModifiedBy).to.equal(adminUser.username);
+      chai.expect(foundUser.archivedBy).to.equal(null);
+      chai.expect(foundUser.createdOn).to.not.equal(null);
+      chai.expect(foundUser.updatedOn).to.not.equal(null);
+      chai.expect(foundUser.archivedOn).to.equal(null);
+    });
+    done();
+  })
+  .catch((error) => {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error.message).to.equal(null);
+    done();
+  });
+}
+
 
 /**
  * @description Updates a user using the user controller

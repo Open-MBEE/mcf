@@ -15,20 +15,14 @@
 
 // React Modules
 import React, { Component } from 'react';
-import { Form,
+import {
+  Form,
   FormGroup,
   Label,
   Input,
   Button,
-  Dropdown,
-  DropdownToggle,
-  DropdownMenu,
-  DropdownItem,
-  UncontrolledAlert
+  UncontrolledAlert, Spinner, Row, Col
 } from 'reactstrap';
-
-// MBEE Modules
-import CustomMenu from '../../general/dropdown-search/custom-menu.jsx';
 
 /* eslint-enable no-unused-vars */
 
@@ -44,16 +38,17 @@ class MemberEdit extends Component {
       users: null,
       username: '',
       permissions: '',
-      searchParam: '',
-      dropDownOpen: false,
+      results: null,
       error: null
     };
 
     // Bind component functions
     this.handleChange = this.handleChange.bind(this);
+    this.userChange = this.userChange.bind(this);
+    this.selectUser = this.selectUser.bind(this);
     this.onSubmit = this.onSubmit.bind(this);
-    this.toggle = this.toggle.bind(this);
-    this.updateUsername = this.updateUsername.bind(this);
+    this.doSearch = this.doSearch.bind(this);
+    this.resetForm = this.resetForm.bind(this);
   }
 
   // Define handle change function
@@ -62,28 +57,56 @@ class MemberEdit extends Component {
     this.setState({ [event.target.name]: event.target.value });
   }
 
+  userChange(event) {
+    this.setState({ username: event.target.value });
+
+    this.doSearch(event.target.value);
+
+    if (event.target.value.length === 0) {
+      this.resetForm();
+    }
+  }
+
+  selectUser(username) {
+    this.setState({ username: username, results: null });
+
+    // Verify if org provided
+    if (this.props.org) {
+      if (this.props.org.permissions.hasOwnProperty(username)) {
+        this.setState({ permissions: this.props.org.permissions[username] });
+      }
+    }
+    else if (this.props.project.permissions.hasOwnProperty(username)) {
+      this.setState({ permissions: this.props.project.permissions[username] });
+    }
+    else {
+      this.setState({ permissions: '' });
+    }
+  }
+
   // Define the submit function
   onSubmit() {
     // Initialize variables
     const username = this.state.username;
     let url;
-    let redirect;
     const data = {
       permissions: {
         [username]: this.state.permissions
       }
     };
 
+    if (this.state.error) {
+      this.setState({ error: null });
+    }
+
     // Verify if org provided
     if (this.props.org) {
       // Set url and redirect to org information
       url = `/api/orgs/${this.props.org.id}`;
-      redirect = `/${this.props.org.id}/users`;
     }
     else {
       // Set url and redirect to project information
       url = `/api/orgs/${this.props.project.org}/projects/${this.props.project.id}`;
-      redirect = `/${this.props.project.org}/${this.props.project.id}/users`;
     }
 
     // Send a patch request to update data
@@ -95,88 +118,157 @@ class MemberEdit extends Component {
       statusCode: {
         200: () => {
           // Update the page to reload to user page
-          window.location.replace(redirect);
+          window.location.reload();
+        },
+        400: (err) => {
+          this.setState({ error: err.responseText });
         },
         401: (err) => {
-          this.setState({ error: err.responseJSON.description });
+          this.setState({ error: err.responseText });
 
           // Refresh when session expires
           window.location.reload();
         },
         404: (err) => {
-          this.setState({ error: err.responseJSON.description });
+          this.setState({ error: err.responseText });
         },
         403: (err) => {
-          this.setState({ error: err.responseJSON.description });
+          this.setState({ error: err.responseText });
         }
       }
     });
   }
 
-  // Define toggle function
-  toggle() {
-    // Set the drop down states
-    this.setState({ dropDownOpen: !this.state.dropDownOpen });
+
+  doSearch(e) {
+    // Pre-search state resets
+    this.setState({
+      message: '',
+      results: 'Searching ...'
+    });
+
+    let query;
+
+    // Disable form submit
+    if (typeof e !== 'string') {
+      e.preventDefault();
+    }
+    else if (e) {
+      query = e;
+    }
+
+    // Build query URL
+    const url = '/api/users/search';
+    // Do ajax request
+    $.ajax({
+      method: 'GET',
+      url: `${url}?q=${query}&limit=5&minified=true`,
+      statusCode: {
+        401: () => {
+          // Refresh when session expires
+          window.location.reload();
+        }
+      }
+    })
+    .done(data => {
+      // Loop through users
+      const userOpts = data.map((user) => (
+          <div className='members-dropdown-item' key={`user-${user.username}`}
+               onClick={() => this.selectUser(user.username)}>
+            <span>{user.fname} {user.lname}</span>
+            <span className='member-username'>@{user.username}</span>
+          </div>));
+
+      this.setState({
+        results: userOpts
+      });
+    })
+    .fail(res => {
+      if (res.status === 404 || res.status === 400) {
+        this.setState({ results: [] });
+      }
+    });
   }
 
-  // Define update username
-  updateUsername(event) {
-    // Change the username with new value
-    this.setState({ username: event.target.value });
+  resetForm() {
+    this.setState({ username: '', permissions: '', results: null });
   }
 
   componentDidMount() {
-    // Get all the users
-    $.ajax({
-      method: 'GET',
-      url: '/api/users?minified=true',
-      statusCode: {
-        200: (users) => {
-          // Loop through users
-          const userOpts = users.map((user) => {
-            if (user.name) {
-              return (<DropdownItem value={user.username}>{user.name}</DropdownItem>);
-            }
-            else {
-              return (<DropdownItem value={user.username}>{user.username}</DropdownItem>);
-            }
-          });
+    if (this.props.selectedUser) {
+      const username = this.props.selectedUser.username;
+      const permission = this.props.selectedUser.perm;
+      this.setState({ username: username, permissions: permission });
+    }
+  }
 
-          // Set the user state
-          this.setState({ users: userOpts });
-        },
-        401: (err) => {
-          // Throw error and set state
-          this.setState({ error: err.responseJSON.description });
-
-          // Refresh when session expires
-          window.location.reload();
-        },
-        404: (err) => {
-          this.setState({ error: err.responseJSON.description });
-        }
-      }
-    });
+  componentDidUpdate(prevProps, prevState) {
+    if (this.props.selectedUser !== prevProps.selectedUser) {
+      this.componentDidMount();
+    }
+    if ((this.state.results !== prevState.results) && (this.state.username.length === 0)) {
+      this.setState({ results: null });
+    }
   }
 
   render() {
     // Initialize variables
     let title;
+    let btnTitle = 'Add';
+    let header = 'Add User';
+
+    if (this.state.username.length === 0) {
+      header = 'Add User';
+      btnTitle = 'Add';
+    }
 
     // Verify if org provided
     if (this.props.org) {
       // Set title to org name
       title = this.props.org.name;
+
+      if (this.props.org.permissions.hasOwnProperty(this.state.username)) {
+        btnTitle = 'Save';
+        header = 'Modify User';
+      }
     }
     else {
       // Set title to project name
       title = this.props.project.name;
+      if (this.props.project.permissions.hasOwnProperty(this.state.username)) {
+        btnTitle = 'Save';
+        header = 'Modify User';
+      }
+    }
+
+    // Set search results or loading icons ...
+    let searchResults = '';
+    if (this.state.results === 'Searching ...') {
+      searchResults = (
+        <div style={{ width: '100%', textAlign: 'center' }}>
+          <Spinner type="grow" color="primary" />
+          <span style={{ paddingLeft: '20px' }}>
+            Searching ...
+          </span>
+        </div>
+      );
+    }
+    else if (Array.isArray(this.state.results)) {
+      if (this.state.results.length > 0) {
+        searchResults = this.state.results;
+      }
+      else {
+        searchResults = (
+          <div className='members-dropdown-item' key='no-user'>
+            <span>No matches found.</span>
+          </div>);
+      }
     }
 
     // Render project edit page
     return (
       <div className='extra-padding'>
-        <h2>User Roles</h2>
+        <h2>{header}</h2>
         <hr />
         <div>
           <h3 className='edit-role-title'> {title} </h3>
@@ -187,56 +279,40 @@ class MemberEdit extends Component {
               </UncontrolledAlert>)
           }
           {/* Create form to update user roles */}
-          <Form>
-            <FormGroup>
-              {/* Create a search bar for username input */}
-              <Label for='username'>Username</Label>
-              <div className='username-search'>
-                {/* Input field for username */}
-                <Input autoFocus
-                       id="username"
-                       name="username"
-                       className="user-searchbar my-2 w-auto"
-                       placeholder="Choose a user..."
-                       onChange={this.handleChange}
-                       value={this.state.username || ''} />
-               {/* Drop down menu to choose a user */}
-                <Dropdown className='search-button' isOpen={this.state.dropDownOpen} toggle={this.toggle}>
-                  {/* Button to toggle drop down menu */}
-                  <DropdownToggle
-                    onClick={this.toggle}
-                    aria-expanded={this.state.dropDownOpen}>
-                        Search
-                  </DropdownToggle>
-                  <DropdownMenu >
-                    {/* List all the usernames with a filter option */}
-                    <CustomMenu username={this.state.username}
-                                onChange={this.updateUsername}>
-                      {this.state.users}
-                    </CustomMenu>
-                  </DropdownMenu>
-                </Dropdown>
-              </div>
-            </FormGroup>
+          <div>
+            <Input type='search'
+                   name='username'
+                   id='username'
+                   autoComplete='off'
+                   placeholder='Search User...'
+                   value={this.state.username || ''}
+                   onChange={this.userChange}/>
+          {(searchResults.length !== 0)
+            ? (<div className='members-dropdown'>
+                {searchResults}
+               </div>)
+            : ''
+          }
+        </div>
+          <Form style={{ paddingTop: '10px' }}>
             {/* Permissions user updates with */}
             <FormGroup>
               <Label for="permissions">Permissions</Label>
-              <Input type="select"
+              <Input type='select'
                      name='permissions'
-                     id="permissions"
+                     id='permissions'
                      value={this.state.permissions}
                      onChange={this.handleChange}>
-                <option>Choose one...</option>
-                <option>read</option>
-                <option>write</option>
-                <option>admin</option>
-                <option>REMOVE_ALL</option>
+                  <option>Choose one...</option>
+                  <option>read</option>
+                  <option>write</option>
+                  <option>admin</option>
+                  <option>REMOVE_ALL</option>
               </Input>
             </FormGroup>
-            {/* Button to submit changes */}
-            <Button onClick={this.onSubmit}> Submit </Button>{' '}
-            <Button outline color="secondary" onClick={this.props.toggle}>Cancel</Button>
           </Form>
+          {/* Button to submit changes */}
+          <Button onClick={this.onSubmit}> {btnTitle} </Button>
         </div>
       </div>
     );

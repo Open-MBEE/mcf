@@ -48,7 +48,12 @@ function clean(_args) {
 
   // Clean logs
   if (args.length === 0 || args.includes('--all')) {
-    execSync(`rm -rf ${root}/build ${root}/logs/*`);
+    execSync(`rm -rf ${root}/build ${root}/logs`);
+  }
+
+  // Clean data
+  if (args.includes('--all') || args.includes('--data')) {
+    execSync(`rm -rf ${root}/data/*`);
   }
 
   // Clean node_modules

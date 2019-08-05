@@ -22,7 +22,7 @@
 module.exports.removeComments = function(inputString) {
   // Ensure inputString is of type string
   if (typeof inputString !== 'string') {
-    throw new M.CustomError('Value is not a string.', 400);
+    throw new M.DataFormatError('Value is not a string.', 'warn');
   }
 
   // Attempt to read file into array separated by each newline character.

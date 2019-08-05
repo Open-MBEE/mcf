@@ -120,29 +120,8 @@ UserSchema.plugin(extensions);
  * @memberOf UserSchema
  */
 UserSchema.pre('save', function(next) {
-  // Require auth module
-  const AuthController = M.require('lib.auth');
-
-  // Check validation status NOT successful
-  if (!AuthController.validatePassword(this.password, this.provider)) {
-    // Failed validation, throw error
-    throw new M.CustomError('Password validation failed.', 400, 'warn');
-  }
-
-  // Hash plaintext password
-  if (this.password) {
-    crypto.pbkdf2(this.password, this._id.toString(), 1000, 32, 'sha256', (err, derivedKey) => {
-      // If an error occurred, throw it
-      if (err) throw err;
-
-      // Set user password to hashed password
-      this.password = derivedKey.toString('hex');
-      next();
-    });
-  }
-  else {
-    next();
-  }
+  UserSchema.statics.hashPassword(this);
+  next();
 });
 
 /* -----------------------------( User Methods )----------------------------- */
@@ -189,6 +168,56 @@ UserSchema.methods.getValidPopulateFields = function() {
 UserSchema.statics.getValidPopulateFields = function() {
   return UserSchema.methods.getValidPopulateFields();
 };
+
+/**
+ * @description Validates and hashes a password
+ */
+UserSchema.methods.hashPassword = function() {
+  // Require auth module
+  const AuthController = M.require('lib.auth');
+
+  // Check validation status NOT successful
+  if (!AuthController.validatePassword(this.password, this.provider)) {
+    // Failed validation, throw error
+    throw new M.DataFormatError('Password validation failed.', 'warn');
+  }
+  // Hash plaintext password
+  if (this.password) {
+    const derivedKey = crypto.pbkdf2Sync(this.password, this._id.toString(), 1000, 32, 'sha256');
+    this.password = derivedKey.toString('hex');
+  }
+};
+
+/**
+ * @description Validates and hashes a password
+ */
+UserSchema.statics.hashPassword = function(obj) {
+  // Require auth module
+  const AuthController = M.require('lib.auth');
+
+  // Check validation status NOT successful
+  if (!AuthController.validatePassword(obj.password, obj.provider)) {
+    // Failed validation, throw error
+    throw new M.DataFormatError('Password validation failed.', 'warn');
+  }
+  // Hash plaintext password
+  if (obj.password) {
+    const derivedKey = crypto.pbkdf2Sync(obj.password, obj._id.toString(), 1000, 32, 'sha256');
+    obj.password = derivedKey.toString('hex');
+  }
+};
+
+/* ------------------------------( User Index )------------------------------ */
+/**
+ * @description Adds a compound text index on the first name, preferred name,
+ * and last name of the user.
+ * @memberOf UserSchema
+ */
+UserSchema.index({
+  fname: 'text',
+  preferredName: 'text',
+  lname: 'text'
+});
 
 /* ---------------------------( User Properties )---------------------------- */
 // Required for virtual getters

@@ -1,15 +1,14 @@
 /**
  * Classification: UNCLASSIFIED
  *
- * @module app.ui.sass.components.workspace-components._sidepanel.scss
+ * @module ui.sass.components.workspace-components._sidepanel
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
  *
- * @description This defines the side panel Sass variables.
+ * @description Defines the side panel sass variables
  */
-
 @import '../../utils/_variables';
 
 /******************************************************************************
@@ -22,6 +21,7 @@
   height: 86vh;
   overflow: scroll;
   width: 100%;
+  font-size: 14px;
 
   hr {
     width: 95%;
@@ -107,5 +107,30 @@
 
   p {
     padding: 8px 0;
+  }
+
+  #parent {
+    font-size: 14px;
+    font-weight: normal;
+    padding: 10px 0;
+  }
+}
+
+.selector-value {
+  font-size: 14px;
+  font-weight: normal;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.cross-ref {
+
+}
+
+.cross-ref-broken {
+  color: $color-danger;
+
+  &:hover {
+    color: darken($color-danger, 20%);
   }
 }

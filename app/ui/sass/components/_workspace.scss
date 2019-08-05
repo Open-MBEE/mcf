@@ -1,15 +1,14 @@
 /**
  * Classification: UNCLASSIFIED
  *
- * @module app.ui.sass.components._workspace.scss
+ * @module ui.sass.components._workspace
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
  *
- * @description This defines some general workspace Sass variables.
+ * @description Defines the all workspace sass variables
  */
-
 @import '../utils/_variables';
 @import './workspace-components/_home.scss';
 @import './workspace-components/_model';
@@ -84,6 +83,7 @@
       border-left:  1px solid darken($mbee-background, 10%);
       border-right:  1px solid darken($mbee-background, 10%);
       background: $mbee-background;
+      box-shadow: 0px 0px 3px 1px rgba(0,0,0,0.25);
 
       &.side-panel-expanded {
         display: flex;
@@ -151,11 +151,9 @@
 
 .list {
   a {
-    display: block;
-    text-decoration: none;
     color: black;
+    text-decoration: none;
   }
-
   hr {
     border-color: darkgrey;
     margin: 0;
@@ -205,7 +203,7 @@
 
 .stats-list-item {
   display: grid;
-  grid-template-columns: minmax(auto, 600px) 1fr;
+  grid-template-columns: minmax(auto, 750px) 1fr;
   grid-template-areas: "header stats";
   justify-content: space-between;
   align-items: center;
@@ -216,11 +214,6 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    p {
-      font-size: 15px;
-      margin: 0;
-      display: inline-block;
-    }
     a:hover {
       color:  lighten($mbee-navbar-color, 20);
     }
@@ -267,34 +260,126 @@
   }
 }
 
-.user-list-item {
+.template-header {
   display: grid;
-  grid-template-columns: minmax(auto, 48%) minmax(auto, 48%) 1fr;
-  grid-template-areas: "username perm";
-  justify-content: space-between;
+  grid-template-columns: 1fr minmax(2px, 60px);
+  grid-template-areas: "main button";
+  justify-content: left;
+  align-items: center;
+  border-bottom: 1px solid #ccc;
+
+  .head-info {
+    grid-area: main;
+    justify-content: space-around;
+  }
+}
+
+.template-item {
+  margin: 1em;
+  font-size: smaller;
+  grid-area: header;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+
+.user-info {
+  display: grid;
+  grid-template-columns: 1fr minmax(2px, 60px);
+  grid-template-areas: "main button";
+  justify-content: left;
   align-items: center;
 
-  .username {
-    margin: 8px;
-    grid-area: username;
-    p {
-      margin: 0;
-      display: inline-block;
-    }
+  &:hover {
+    background: #f7f7f7;
   }
 
-  .permission {
-    grid-area: perm;
-    p {
-      font-size: 15px;
-      margin: 0;
-      display: inline-block;
-    }
+  .user-name {
+    grid-area: main;
+    justify-content: space-around;
+    margin: 5px;
+    font-size: smaller;
   }
+}
+
+#user-list-items {
+  margin: 0.5em;
+  display: grid;
+  grid-template-columns: 25% 25% 25% 25%;
 }
 
 .required-fields {
   font-size: x-small;
   padding-bottom: 10px;
   color: $color-danger;
+}
+
+.header-box-depth {
+  box-shadow: 1px 1px 2px rgba(0,0,0,0.25);
+}
+
+#branch-list-items {
+  margin: 0.5em;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+}
+
+.branch-link {
+  color: $mbee-navbar-color;
+
+  &:hover {
+    color: lighten($mbee-navbar-color, 20);
+    text-decoration: none;
+  }
+}
+
+.model-dropdown-btn {
+  &:active {
+    border: none;
+    outline: none;
+  }
+  &:focus {
+    border: none;
+    outline: none;
+  }
+}
+
+.members-dropdown-item {
+  display: grid;
+  padding: 10px;
+
+  &:hover {
+    cursor: pointer;
+    background: #f7f7f7;
+  }
+}
+
+.members-dropdown {
+  position: absolute;
+  background: white;
+  border-radius: 5px;
+  border-bottom: #c0c0c0c0 solid 1px;
+  width: 325px;
+  box-shadow: 1px 1px 2px rgba(0,0,0,0.25);
+  border-right: #c0c0c0c0 solid 1px;
+  border-left: #c0c0c0c0 solid 1px;
+}
+
+.member-username {
+  font-size: small;
+}
+
+.roles-box {
+  background-color: #f9f9f9;
+  border: 1px solid #e8e8e8;
+  margin-bottom: 15px;
+
+  hr {
+    border: 1px solid #ccc;
+  }
+}
+
+.members-box {
+  padding: 10px;
 }

@@ -29,6 +29,7 @@ const path = require('path');
 
 // MBEE Modules
 const Element = M.require('models.element');
+const Branch = M.require('models.branch');
 const Organization = M.require('models.organization');
 const Project = M.require('models.project');
 const User = M.require('models.user');
@@ -37,6 +38,7 @@ const sani = M.require('lib.sanitization');
 const utils = M.require('lib.utils');
 const validators = M.require('lib.validators');
 const jmi = M.require('lib.jmi-conversions');
+const errors = M.require('lib.errors');
 
 /**
  * @description This function finds one or many organizations. Depending on the
@@ -64,6 +66,18 @@ const jmi = M.require('lib.jmi-conversions');
  * and skip is 5, the first 5 documents will NOT be returned.
  * @param {boolean} [options.lean = false] - A boolean value that if true
  * returns raw JSON instead of converting the data to objects.
+ * @param {string} [options.sort] - Provide a particular field to sort the results by.
+ * You may also add a negative sign in front of the field to indicate sorting in
+ * reverse order.
+ * @param {string} [options.name] - Search for orgs with a specific name.
+ * @param {string} [options.createdBy] - Search for orgs with a specific
+ * createdBy value.
+ * @param {string} [options.lastModifiedBy] - Search for orgs with a specific
+ * lastModifiedBy value.
+ * @param {string} [options.archivedBy] - Search for orgs with a specific
+ * archivedBy value.
+ * @param {string} [options.custom....] - Search for any key in custom data. Use
+ * dot notation for the keys. Ex: custom.hello = 'world'
  *
  * @return {Promise} Array of found organization objects
  *
@@ -102,7 +116,7 @@ function find(requestingUser, orgs, options) {
       assert.ok(optionsTypes.includes(typeof options), 'Options parameter is an invalid type.');
     }
     catch (err) {
-      throw new M.CustomError(err.message, 400, 'warn');
+      throw new M.DataFormatError(err.message, 'warn');
     }
 
     // Sanitize input parameters
@@ -111,12 +125,32 @@ function find(requestingUser, orgs, options) {
       ? sani.mongo(JSON.parse(JSON.stringify(orgs)))
       : undefined;
 
-    // Initialize and ensure options are valid
-    const validOptions = utils.validateOptions(options, ['populate', 'archived',
-      'fields', 'limit', 'skip', 'lean'], Organization);
-
     // Define searchQuery
     const searchQuery = { archived: false };
+
+    // Initialize and ensure options are valid
+    const validOptions = utils.validateOptions(options, ['populate', 'archived',
+      'fields', 'limit', 'skip', 'lean', 'sort'], Organization);
+
+    // Ensure options are valid
+    if (options) {
+      // Create array of valid search options
+      const validSearchOptions = ['name', 'createdBy', 'lastModifiedBy', 'archivedBy'];
+
+      // Loop through provided options, look for validSearchOptions
+      Object.keys(options).forEach((o) => {
+        // If the provided option is a valid search option
+        if (validSearchOptions.includes(o) || o.startsWith('custom.')) {
+          // Ensure the search option is a string
+          if (typeof options[o] !== 'string') {
+            throw new M.DataFormatError(`The option '${o}' is not a string.`, 'warn');
+          }
+          // Add the search option to the searchQuery
+          searchQuery[o] = sani.mongo(options[o]);
+        }
+      });
+    }
+
     // If not system admin, add permissions check
     if (!reqUser.admin) {
       searchQuery[`permissions.${reqUser._id}`] = 'read';
@@ -137,7 +171,7 @@ function find(requestingUser, orgs, options) {
     }
     else if (!((typeof orgs === 'object' && orgs !== null) || orgs === undefined)) {
       // Invalid parameter, throw an error
-      throw new M.CustomError('Invalid input for finding organizations.', 400, 'warn');
+      throw new M.DataFormatError('Invalid input for finding organizations.', 'warn');
     }
 
     // If the lean option is supplied
@@ -145,16 +179,18 @@ function find(requestingUser, orgs, options) {
       // Find the orgs
       Organization.find(searchQuery, validOptions.fieldsString,
         { limit: validOptions.limit, skip: validOptions.skip })
+      .sort(validOptions.sort)
       .populate(validOptions.populateString).lean()
       .then((foundOrgs) => resolve(foundOrgs))
-      .catch((error) => reject(M.CustomError.parseCustomError(error)));
+      .catch((error) => reject(errors.captureError(error)));
     }
     else {
       Organization.find(searchQuery, validOptions.fieldsString,
         { limit: validOptions.limit, skip: validOptions.skip })
+      .sort(validOptions.sort)
       .populate(validOptions.populateString)
       .then((foundOrgs) => resolve(foundOrgs))
-      .catch((error) => reject(M.CustomError.parseCustomError(error)));
+      .catch((error) => reject(errors.captureError(error)));
     }
   });
 }
@@ -216,7 +252,7 @@ function create(requestingUser, orgs, options) {
       assert.ok(optionsTypes.includes(typeof options), 'Options parameter is an invalid type.');
     }
     catch (err) {
-      throw new M.CustomError(err.message, 400, 'warn');
+      throw new M.DataFormatError(err.message, 'warn');
     }
 
     // Sanitize input parameters
@@ -242,7 +278,7 @@ function create(requestingUser, orgs, options) {
     }
     else {
       // orgs is not an object or array, throw an error
-      throw new M.CustomError('Invalid input for creating organizations.', 400, 'warn');
+      throw new M.DataFormatError('Invalid input for creating organizations.', 'warn');
     }
 
     // Create array of id's for lookup and array of valid keys
@@ -280,7 +316,7 @@ function create(requestingUser, orgs, options) {
       });
     }
     catch (err) {
-      throw new M.CustomError(err.message, 403, 'warn');
+      throw new M.DataFormatError(err.message, 'warn');
     }
 
     // Create searchQuery to search for any existing, conflicting orgs
@@ -295,8 +331,8 @@ function create(requestingUser, orgs, options) {
         const foundOrgIDs = foundOrgs.map(o => o._id);
 
         // There are one or more orgs with conflicting IDs
-        throw new M.CustomError('Orgs with the following IDs already exist'
-          + ` [${foundOrgIDs.toString()}].`, 403, 'warn');
+        throw new M.OperationError('Orgs with the following IDs already exist'
+          + ` [${foundOrgIDs.toString()}].`, 'warn');
       }
 
       // Get all existing users for permissions
@@ -312,7 +348,7 @@ function create(requestingUser, orgs, options) {
         Object.keys(orgObj.permissions).forEach((u) => {
           // If user does not exist, throw an error
           if (!foundUsernames.includes(u)) {
-            throw new M.CustomError(`User [${u}] not found.`, 404, 'warn');
+            throw new M.NotFoundError(`User [${u}] not found.`, 'warn');
           }
 
           const permission = orgObj.permissions[u];
@@ -329,7 +365,7 @@ function create(requestingUser, orgs, options) {
               orgObj.permissions[u] = ['read', 'write', 'admin'];
               break;
             default:
-              throw new M.CustomError(`Invalid permission [${permission}].`, 400, 'warn');
+              throw new M.DataFormatError(`Invalid permission [${permission}].`, 'warn');
           }
         });
         orgObj.lastModifiedBy = reqUser._id;
@@ -357,7 +393,7 @@ function create(requestingUser, orgs, options) {
       }
     })
     .then((foundUpdatedOrgs) => resolve(foundUpdatedOrgs))
-    .catch((error) => reject(M.CustomError.parseCustomError(error)));
+    .catch((error) => reject(errors.captureError(error)));
   });
 }
 
@@ -428,7 +464,7 @@ function update(requestingUser, orgs, options) {
       assert.ok(optionsTypes.includes(typeof options), 'Options parameter is an invalid type.');
     }
     catch (err) {
-      throw new M.CustomError(err.message, 400, 'warn');
+      throw new M.DataFormatError(err.message, 'warn');
     }
 
     // Sanitize input parameters and function-wide variables
@@ -454,7 +490,7 @@ function update(requestingUser, orgs, options) {
       orgsToUpdate = [saniOrgs];
     }
     else {
-      throw new M.CustomError('Invalid input for updating organizations.', 400, 'warn');
+      throw new M.DataFormatError('Invalid input for updating organizations.', 'warn');
     }
 
     // Create list of ids
@@ -467,8 +503,8 @@ function update(requestingUser, orgs, options) {
         assert.ok(typeof org.id === 'string', `Org #${index}'s id is not a string.`);
         // If a duplicate ID, throw an error
         if (duplicateCheck[org.id]) {
-          throw new M.CustomError(`Multiple objects with the same ID [${org.id}] exist in the`
-            + ' update.', 400, 'warn');
+          throw new M.OperationError('Multiple objects with the same ID '
+            + `[${org.id}] exist in the update.`, 'warn');
         }
         else {
           duplicateCheck[org.id] = org.id;
@@ -486,7 +522,7 @@ function update(requestingUser, orgs, options) {
       });
     }
     catch (err) {
-      throw new M.CustomError(err.message, 403, 'warn');
+      throw new M.DataFormatError(err.message, 'warn');
     }
 
     // Create searchQuery
@@ -502,8 +538,8 @@ function update(requestingUser, orgs, options) {
       foundOrgs.forEach((org) => {
         if (!reqUser.admin && (!org.permissions[reqUser._id]
           || !org.permissions[reqUser._id].includes('admin'))) {
-          throw new M.CustomError('User does not have permission to update'
-            + ` the org [${org._id}].`, 403, 'warn');
+          throw new M.PermissionError('User does not have permission to update'
+            + ` the org [${org._id}].`, 'warn');
         }
       });
 
@@ -511,8 +547,8 @@ function update(requestingUser, orgs, options) {
       if (foundOrgs.length !== arrIDs.length) {
         const foundIDs = foundOrgs.map(o => o._id);
         const notFound = arrIDs.filter(o => !foundIDs.includes(o));
-        throw new M.CustomError(
-          `The following orgs were not found: [${notFound.toString()}].`, 404, 'warn'
+        throw new M.NotFoundError(
+          `The following orgs were not found: [${notFound.toString()}].`, 'warn'
         );
       }
 
@@ -544,29 +580,30 @@ function update(requestingUser, orgs, options) {
         // Error Check: ensure the org being updated is not the default org
         if (org._id === M.config.server.defaultOrganizationId) {
           // orgID is default, reject error
-          throw new M.CustomError('Cannot update the default org.', 403, 'warn');
+          throw new M.OperationError('Cannot update the default org.', 'warn');
         }
 
         // Error Check: if org is currently archived, it must first be unarchived
-        if (org.archived && updateOrg.archived !== false) {
-          throw new M.CustomError(`Organization [${org._id}] is archived. `
-              + 'Archived objects cannot be modified.', 403, 'warn');
+        if (org.archived && (updateOrg.archived === undefined
+          || JSON.parse(updateOrg.archived) !== false)) {
+          throw new M.OperationError(`Organization [${org._id}] is archived. `
+              + 'Archived objects cannot be modified.', 'warn');
         }
 
         // For each key in the updated object
         Object.keys(updateOrg).forEach((key) => {
           // Check if the field is valid to update
           if (!validFields.includes(key)) {
-            throw new M.CustomError(`Organization property [${key}] cannot `
-                + 'be changed.', 400, 'warn');
+            throw new M.OperationError(`Organization property [${key}] cannot `
+                + 'be changed.', 'warn');
           }
 
           // Get validator for field if one exists
           if (validators.org.hasOwnProperty(key)) {
             // If validation fails, throw error
             if (!RegExp(validators.org[key]).test(updateOrg[key])) {
-              throw new M.CustomError(
-                `Invalid ${key}: [${updateOrg[key]}]`, 403, 'warn'
+              throw new M.DataFormatError(
+                `Invalid ${key}: [${updateOrg[key]}]`, 'warn'
               );
             }
           }
@@ -576,7 +613,7 @@ function update(requestingUser, orgs, options) {
             && Organization.schema.obj[key].type.schemaName === 'Mixed') {
             // Only objects should be passed into mixed data
             if (typeof updateOrg !== 'object') {
-              throw new M.CustomError(`${key} must be an object`, 400, 'warn');
+              throw new M.DataFormatError(`${key} must be an object`, 'warn');
             }
 
             // If the user is updating permissions
@@ -586,17 +623,17 @@ function update(requestingUser, orgs, options) {
                 let permValue = updateOrg[key][user];
                 // Ensure user is not updating own permissions
                 if (user === reqUser.username) {
-                  throw new M.CustomError('User cannot update own permissions.', 403, 'warn');
+                  throw new M.OperationError('User cannot update own permissions.', 'warn');
                 }
 
                 // If user does not exist, throw an error
                 if (!existingUsers.includes(user)) {
-                  throw new M.CustomError(`User [${user}] not found.`, 404, 'warn');
+                  throw new M.NotFoundError(`User [${user}] not found.`, 'warn');
                 }
 
                 // Value must be an string containing highest permissions
                 if (typeof permValue !== 'string') {
-                  throw new M.CustomError(`Permission for ${user} must be a string.`, 400, 'warn');
+                  throw new M.DataFormatError(`Permission for ${user} must be a string.`, 'warn');
                 }
 
                 // Lowercase the permission value
@@ -617,17 +654,17 @@ function update(requestingUser, orgs, options) {
                     // If user is still on a project within the org, throw error
                     org.projects.forEach((p) => {
                       if (p.permissions.hasOwnProperty(user)) {
-                        throw new M.CustomError('User must be removed from '
+                        throw new M.OperationError('User must be removed from '
                           + `the project [${utils.parseID(p._id).pop()}] prior`
-                          + ` to being removed from the org [${org._id}].`, 403, 'warn');
+                          + ` to being removed from the org [${org._id}].`, 'warn');
                       }
                     });
                     delete org.permissions[user];
                     break;
                   // Default case, invalid permission
                   default:
-                    throw new M.CustomError(
-                      `${permValue} is not a valid permission`, 400, 'warn'
+                    throw new M.DataFormatError(
+                      `${permValue} is not a valid permission`, 'warn'
                     );
                 }
               });
@@ -684,7 +721,7 @@ function update(requestingUser, orgs, options) {
 
       return resolve(foundUpdatedOrgs);
     })
-    .catch((error) => reject(M.CustomError.parseCustomError(error)));
+    .catch((error) => reject(errors.captureError(error)));
   });
 }
 
@@ -735,8 +772,6 @@ function createOrReplace(requestingUser, orgs, options) {
       assert.ok(requestingUser !== null, 'Requesting user cannot be null.');
       // Ensure that requesting user has an _id field
       assert.ok(requestingUser._id, 'Requesting user is not populated.');
-      assert.ok(requestingUser.admin === true, 'User does not have permissions'
-        + 'to create or replace orgs.');
       assert.ok(typeof orgs === 'object', 'Orgs parameter is not an object.');
       assert.ok(orgs !== null, 'Orgs parameter cannot be null.');
       // If orgs is an array, ensure each item inside is an object
@@ -749,16 +784,19 @@ function createOrReplace(requestingUser, orgs, options) {
       assert.ok(optionsTypes.includes(typeof options), 'Options parameter is an invalid type.');
     }
     catch (err) {
-      throw new M.CustomError(err.message, 400, 'warn');
+      throw new M.DataFormatError(err.message, 'warn');
     }
 
     // Sanitize input parameters and function-wide variables
+    const reqUser = JSON.parse(JSON.stringify(requestingUser));
     const saniOrgs = sani.mongo(JSON.parse(JSON.stringify(orgs)));
     const duplicateCheck = {};
     let foundOrgs = [];
     let orgsToLookup = [];
     let createdOrgs = [];
-    const timestamp = Date.now();
+    let isCreated = false;
+    let isDeleted = false;
+    const ts = Date.now();
 
     // Check the type of the orgs parameter
     if (Array.isArray(saniOrgs)) {
@@ -770,8 +808,8 @@ function createOrReplace(requestingUser, orgs, options) {
       orgsToLookup = [saniOrgs];
     }
     else {
-      throw new M.CustomError('Invalid input for creating/replacing '
-        + 'organizations.', 400, 'warn');
+      throw new M.DataFormatError('Invalid input for creating/replacing '
+        + 'organizations.', 'warn');
     }
 
     // Create list of ids
@@ -784,8 +822,8 @@ function createOrReplace(requestingUser, orgs, options) {
         assert.ok(typeof org.id === 'string', `Org #${index}'s id is not a string.`);
         // If a duplicate ID, throw an error
         if (duplicateCheck[org.id]) {
-          throw new M.CustomError(`Multiple objects with the same ID [${org.id}]`
-            + ' exist in the orgs array.', 400, 'warn');
+          throw new M.DataFormatError(`Multiple objects with the same ID [${org.id}]`
+            + ' exist in the orgs array.', 'warn');
         }
         else {
           duplicateCheck[org.id] = org.id;
@@ -795,7 +833,7 @@ function createOrReplace(requestingUser, orgs, options) {
       });
     }
     catch (err) {
-      throw new M.CustomError(err.message, 403, 'warn');
+      throw new M.DataFormatError(err.message, 'warn');
     }
 
     // Create searchQuery
@@ -806,6 +844,23 @@ function createOrReplace(requestingUser, orgs, options) {
     .then((_foundOrgs) => {
       foundOrgs = _foundOrgs;
 
+      // Check if there are new orgs
+      // Note: if more orgs than found, there must be new orgs
+      if (orgsToLookup.length > foundOrgs.length) {
+        // Requires global admin to create new orgs
+        assert.ok(reqUser.admin === true, 'User does not have permissions'
+          + 'to create or replace orgs.');
+      }
+
+      // Check that the user has admin permissions
+      foundOrgs.forEach((org) => {
+        if (!reqUser.admin && (!org.permissions[reqUser._id]
+          || !org.permissions[reqUser._id].includes('admin'))) {
+          throw new M.PermissionError('User does not have permission to'
+            + ` create or replace the org [${org._id}].`, 'warn');
+        }
+      });
+
       // If data directory doesn't exist, create it
       if (!fs.existsSync(path.join(M.root, 'data'))) {
         fs.mkdirSync(path.join(M.root, 'data'));
@@ -813,7 +868,7 @@ function createOrReplace(requestingUser, orgs, options) {
 
       // Write contents to temporary file
       return new Promise(function(res, rej) {
-        fs.writeFile(path.join(M.root, 'data', `PUT-backup-orgs-${timestamp}.json`),
+        fs.writeFile(path.join(M.root, 'data', `PUT-backup-orgs-${ts}.json`),
           JSON.stringify(_foundOrgs), function(err) {
             if (err) rej(err);
             else res();
@@ -826,16 +881,24 @@ function createOrReplace(requestingUser, orgs, options) {
       // Emit the event orgs-deleted
       EventEmitter.emit('orgs-deleted', foundOrgs);
 
+      // Set deleted to true
+      isDeleted = true;
+
       // Create the new orgs
-      return create(requestingUser, orgsToLookup, options);
+      return create(reqUser, orgsToLookup, options);
     })
     .then((_createdOrgs) => {
       createdOrgs = _createdOrgs;
 
+      // Set created to true
+      isCreated = true;
+
       // Delete the temporary file.
-      if (fs.existsSync(path.join(M.root, 'data', `PUT-backup-orgs-${timestamp}.json`))) {
-        return new Promise(function(res, rej) {
-          fs.unlink(path.join(M.root, 'data', `PUT-backup-orgs-${timestamp}.json`), function(err) {
+      const filePath = path.join(M.root, 'data',
+        `PUT-backup-orgs-${ts}.json`);
+      if (fs.existsSync(filePath)) {
+        return new Promise((res, rej) => {
+          fs.unlink(filePath, function(err) {
             if (err) rej(err);
             else res();
           });
@@ -843,13 +906,39 @@ function createOrReplace(requestingUser, orgs, options) {
       }
     })
     .then(() => resolve(createdOrgs))
-    .catch((error) => reject(M.CustomError.parseCustomError(error)));
+    .catch((error) => new Promise((res) => {
+      // Check if deleted and creation failed
+      if (isDeleted && !isCreated) {
+        // Reinsert original data
+        Organization.insertMany(foundOrgs)
+        .then(() => new Promise((resInner, rejInner) => {
+          // Remove the file
+          fs.unlink(path.join(M.root, 'data',
+            `PUT-backup-orgs-${ts}.json`), function(err) {
+            if (err) rejInner(err);
+            else resInner();
+          });
+        }))
+        .then(() => res(errors.captureError(error)))
+        .catch((err) => res(err));
+      }
+      else {
+        // Resolve original error
+        return res(error);
+      }
+    }))
+    .then((error) => {
+      // If an error was returned, reject it.
+      if (error) {
+        return reject(errors.captureError(error));
+      }
+    });
   });
 }
 
 /**
  * @description This function removes one or many organizations as well as the
- * projects and elements that belong to them. This function can be used by
+ * projects, branches, and elements that belong to them. This function can be used by
  * system-wide admins ONLY. NOTE: Cannot delete the default org.
  *
  * @param {User} requestingUser - The object containing the requesting user.
@@ -889,7 +978,7 @@ function remove(requestingUser, orgs, options) {
       assert.ok(optionsTypes.includes(typeof options), 'Options parameter is an invalid type.');
     }
     catch (err) {
-      throw new M.CustomError(err.message, 400, 'warn');
+      throw new M.DataFormatError(err.message, 'warn');
     }
 
     // Sanitize input parameters and function-wide variables
@@ -914,7 +1003,7 @@ function remove(requestingUser, orgs, options) {
     }
     else {
       // Invalid parameter, throw an error
-      throw new M.CustomError('Invalid input for removing organizations.', 400, 'warn');
+      throw new M.DataFormatError('Invalid input for removing organizations.', 'warn');
     }
 
     // Find the orgs to delete
@@ -930,21 +1019,23 @@ function remove(requestingUser, orgs, options) {
       const notFoundIDs = searchedIDs.filter(o => !foundOrgIDs.includes(o));
       // Some orgs not found, throw an error
       if (notFoundIDs.length > 0) {
-        throw new M.CustomError('The following orgs were not found: '
-          + `[${notFoundIDs}].`, 404, 'warn');
+        throw new M.NotFoundError('The following orgs were not found: '
+          + `[${notFoundIDs}].`, 'warn');
       }
 
       // Check that user can remove each org
       foundOrgs.forEach((org) => {
         // If trying to delete the default org, throw an error
         if (org._id === M.config.server.defaultOrganizationId) {
-          throw new M.CustomError('The default organization cannot be deleted.', 403, 'warn');
+          throw new M.OperationError('The default organization cannot be deleted.', 'warn');
         }
       });
 
       // Delete any elements in the org
       return Element.deleteMany(ownedQuery).lean();
     })
+    // Delete any branches in the org
+    .then(() => Branch.deleteMany(ownedQuery).lean())
     // Delete any projects in the org
     .then(() => Project.deleteMany({ org: { $in: saniOrgs } }).lean())
     // Delete the orgs
@@ -959,6 +1050,6 @@ function remove(requestingUser, orgs, options) {
       }
       return resolve(foundOrgs.map(o => o._id));
     })
-    .catch((error) => reject(M.CustomError.parseCustomError(error)));
+    .catch((error) => reject(errors.captureError(error)));
   });
 }

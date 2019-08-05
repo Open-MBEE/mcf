@@ -56,45 +56,34 @@ class ProjectList extends Component {
   }
 
   componentDidMount() {
-    const url = '/api/users/whoami?minified=true';
+    // eslint-disable-next-line no-undef
+    mbeeWhoAmI((err, data) => {
+      if (err) {
+        this.setState({ error: err.responseText });
+      }
+      else {
+        this.setState({ user: data });
 
-    // Get project data
-    $.ajax({
-      method: 'GET',
-      url: url,
-      statusCode: {
-        200: (user) => {
-          // Get project data
-          $.ajax({
-            method: 'GET',
-            url: '/api/orgs?populate=projects&minified=true',
-            statusCode: {
-              200: (orgs) => {
-                this.setMountedComponentStates(user, orgs);
-              },
-              401: (err) => {
-                // Throw error and set state
-                this.setState({ error: err.responseJSON.description });
+        // Get project data
+        $.ajax({
+          method: 'GET',
+          url: '/api/orgs?populate=projects&minified=true',
+          statusCode: {
+            200: (orgs) => {
+              this.setMountedComponentStates(data, orgs);
+            },
+            401: (error) => {
+              // Throw error and set state
+              this.setState({ error: error.responseText });
 
-                // Refresh when session expires
-                window.location.reload();
-              },
-              404: (err) => {
-                this.setState({ error: err.responseJSON.description });
-              }
+              // Refresh when session expires
+              window.location.reload();
+            },
+            404: (error) => {
+              this.setState({ error: error.responseText });
             }
-          });
-        },
-        401: (err) => {
-          // Throw error and set state
-          this.setState({ error: err.responseJSON.description });
-
-          // Refresh when session expires
-          window.location.reload();
-        },
-        404: (err) => {
-          this.setState({ error: err.responseJSON.description });
-        }
+          }
+        });
       }
     });
   }
@@ -176,7 +165,7 @@ class ProjectList extends Component {
             permProjects.push(<ProjectListItem className='hover-darken project-hover'
                                                key={`proj-key-${project.id}`}
                                                project={project}
-                                               href={`/${orgId}/${project.id}`}/>);
+                                               href={`/orgs/${orgId}/projects/${project.id}/branches/master/elements`}/>);
           }
         });
       }
@@ -184,7 +173,7 @@ class ProjectList extends Component {
         projects.forEach(project => permProjects.push(<ProjectListItem className='hover-darken project-hover'
                                                                       key={`proj-key-${project.id}`}
                                                                       project={project}
-                                                                      href={`/${orgId}/${project.id}`}/>));
+                                                                      href={`/orgs/${orgId}/projects/${project.id}/branches/master/elements`}/>));
       }
 
       // Verify if projects
@@ -197,7 +186,7 @@ class ProjectList extends Component {
       return (
         <React.Fragment>
             <ListItem key={`org-key-${org.id}`} className='proj-org-header'>
-                <a href={`/${orgId}`}>{org.name}</a>
+                <a href={`/orgs/${orgId}`}>{org.name}</a>
             </ListItem>
             <List key={`org-list-key-${org.id}`}>
                 {permProjects}
@@ -233,7 +222,7 @@ class ProjectList extends Component {
         </Modal>
         {/* Display the list of project-views */}
         <div id='workspace' ref={this.ref}>
-          <div id='workspace-header' className='workspace-header'>
+          <div id='workspace-header' className='workspace-header header-box-depth'>
             <h2 className='workspace-title'>Your Projects</h2>
             <div className='workspace-header-button'>
               {/* Verify user has write permission */}

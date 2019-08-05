@@ -74,14 +74,22 @@ function start(args) {
     // If set to redirect to HTTPS
     // create an app that redirects all routes to HTTPS
     if (M.config.server.http.redirectToHTTPS) {
-      const redirectApp = express();
-      redirectApp.use('*', (req, res) => {
-        const host = req.hostname;
-        const port = M.config.server.https.port;
-        const originalRoute = req.originalUrl;
-        res.redirect(`https://${host}:${port}${originalRoute}`);
-      });
-      httpServer = http.createServer(redirectApp);
+      if (M.config.server.https.enabled) {
+        const redirectApp = express();
+        redirectApp.use('*', (req, res) => {
+          const host = req.hostname;
+          const port = M.config.server.https.port;
+          const originalRoute = req.originalUrl;
+          res.redirect(`https://${host}:${port}${originalRoute}`);
+        });
+        httpServer = http.createServer(redirectApp);
+      }
+      else {
+        // Warn the user that says HTTPS redirect is enabled but HTTPS is disabled.
+        M.log.warn('HTTPS redirect is enabled but HTTPS is disabled.'
+          + '  Continuing with HTTP instead.');
+        httpServer = http.createServer(app);
+      }
     }
     // Otherwise, use the imported app for HTTP
     else {

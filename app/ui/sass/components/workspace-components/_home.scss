@@ -1,15 +1,14 @@
 /**
  * Classification: UNCLASSIFIED
  *
- * @module app.ui.sass.components.workspace-components._home.scss
+ * @module ui.sass.components.workspace-components._home
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
  *
- * @description This defines the homepage Sass variables.
+ * @description Defines all the home page sass variables.
  */
-
 @import '../../utils/_variables';
 
 /******************************************************************************
@@ -63,6 +62,7 @@
   display: flex;
   grid-area: button;
   justify-content: flex-end;
+  padding-right: 5px;
 
   .add-btn {
     color: $color-secondary;

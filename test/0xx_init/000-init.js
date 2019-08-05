@@ -19,6 +19,7 @@ const chai = require('chai');
 
 // MBEE modules
 const Element = M.require('models.element');
+const User = M.require('models.user');
 const Organization = M.require('models.organization');
 const db = M.require('lib.db');
 
@@ -73,6 +74,8 @@ function cleanDB(done) {
   .insertOne({ version: M.schemaVersion }))
   // Ensure element indexes are created prior to running other tests
   .then(() => Element.ensureIndexes())
+  // Ensure user indexes are created prior to running other tests
+  .then(() => User.ensureIndexes())
   .then(() => done())
   .catch(error => {
     M.log.error(error);

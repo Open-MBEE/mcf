@@ -37,6 +37,8 @@ module.exports.getPublicData = function(object, type, options) {
   switch (type.toLowerCase()) {
     case 'element':
       return getElementPublicData(object, options);
+    case 'branch':
+      return getBranchPublicData(object, options);
     case 'project':
       return getProjectPublicData(object, options);
     case 'org':
@@ -44,7 +46,7 @@ module.exports.getPublicData = function(object, type, options) {
     case 'user':
       return getUserPublicData(object, options);
     default:
-      throw new M.CustomError(`Invalid model type [${type}]`, 400, 'warn');
+      throw new M.DataFormatError(`Invalid model type [${type}]`, 'warn');
   }
 };
 
@@ -66,8 +68,11 @@ function getElementPublicData(element, options) {
   let archivedBy;
   let parent = null;
   let source;
+  let sourceNamespace;
   let target;
+  let targetNamespace;
   let project;
+  let branch;
 
   // If element.createdBy is defined
   if (element.createdBy) {
@@ -119,47 +124,65 @@ function getElementPublicData(element, options) {
 
   // If element.source is defined
   if (element.source) {
-    const sourceIdParts = utils.parseID(element.source);
     // If element.source is populated
     if (typeof element.source === 'object') {
       // Get the public data of source
       source = getElementPublicData(element.source, {});
     }
-    // If source element's project is not the same as the elements parent
-    else if (sourceIdParts[1] !== idParts[1]) {
-      // Set source to object with org, project and element id
-      source = {
-        org: sourceIdParts[0],
-        project: sourceIdParts[1],
-        element: sourceIdParts.pop()
-      };
-    }
     else {
-      // Set source to just the element id
-      source = sourceIdParts.pop();
+      const sourceIdParts = utils.parseID(element.source);
+      // If source element's project is not the same as the elements parent
+      if (sourceIdParts[1] !== idParts[1]) {
+        // Set source to object with org, project and element id
+        source = sourceIdParts.pop();
+        sourceNamespace = {
+          org: sourceIdParts[0],
+          project: sourceIdParts[1],
+          branch: sourceIdParts[2]
+        };
+      }
+      else {
+        // Set source to just the element id
+        source = sourceIdParts.pop();
+      }
     }
   }
 
   // If element.target is defined
   if (element.target) {
-    const targetIdParts = utils.parseID(element.target);
     // If element.target is populated
     if (typeof element.target === 'object') {
       // Get the public data of target
       target = getElementPublicData(element.target, {});
     }
-    // If target element's project is not the same as the elements parent
-    else if (targetIdParts[1] !== idParts[1]) {
-      // Set target to object with org, project and element id
-      target = {
-        org: targetIdParts[0],
-        project: targetIdParts[1],
-        element: targetIdParts.pop()
-      };
+    else {
+      const targetIdParts = utils.parseID(element.target);
+      // If target element's project is not the same as the elements parent
+      if (targetIdParts[1] !== idParts[1]) {
+        // Set target to object with org, project and element id
+        target = targetIdParts.pop();
+        targetNamespace = {
+          org: targetIdParts[0],
+          project: targetIdParts[1],
+          branch: targetIdParts[2]
+        };
+      }
+      else {
+        // Set target to just the element id
+        target = targetIdParts.pop();
+      }
+    }
+  }
+
+  // If element.branch is defined
+  if (element.branch) {
+    // If element.branch is populated
+    if (typeof element.branch === 'object') {
+      // Get the public data of branch
+      branch = getBranchPublicData(element.branch, {});
     }
     else {
-      // Set target to just the element id
-      target = targetIdParts.pop();
+      branch = utils.parseID(element.branch).pop();
     }
   }
 
@@ -178,11 +201,14 @@ function getElementPublicData(element, options) {
   const data = {
     id: idParts.pop(),
     name: element.name,
+    branch: branch,
     project: project,
     org: idParts[0],
     parent: parent,
     source: source,
+    sourceNamespace: sourceNamespace,
     target: target,
+    targetNamespace: targetNamespace,
     type: element.type,
     documentation: element.documentation,
     custom: element.custom || {},
@@ -201,12 +227,79 @@ function getElementPublicData(element, options) {
     if (element.contains.every(e => typeof e === 'object')) {
       // If the archived option is supplied
       if (options.hasOwnProperty('archived') && options.archived === true) {
-        data.contains = element.contains.map(e => utils.parseID(e._id).pop());
+        // If the user specified 'contains' in the populate field of options
+        if (options.populate && options.populate.includes('contains')) {
+          data.contains = element.contains.map(e => getElementPublicData(e, {}));
+        }
+        else {
+          data.contains = element.contains.map(e => utils.parseID(e._id).pop());
+        }
       }
       else {
         // Remove all archived elements
         const tmpContains = element.contains.filter(e => e.archived !== true);
-        data.contains = tmpContains.map(e => utils.parseID(e._id).pop());
+        if (options.populate && options.populate.includes('contains')) {
+          data.contains = tmpContains.map(e => getElementPublicData(e, {}));
+        }
+        else {
+          data.contains = tmpContains.map(e => utils.parseID(e._id).pop());
+        }
+      }
+    }
+  }
+
+  // Handle the virtual sourceOf field
+  if (element.sourceOf) {
+    // If all contents are objects (they should be)
+    if (element.sourceOf.every(e => typeof e === 'object')) {
+      // If the archived option is supplied
+      if (options.hasOwnProperty('archived') && options.archived === true) {
+        // If user is populating sourceOf, return objects else just ids
+        if (options.populate && options.populate.includes('sourceOf')) {
+          data.sourceOf = element.sourceOf.map(e => getElementPublicData(e, {}));
+        }
+        else {
+          data.sourceOf = element.sourceOf.map(e => utils.parseID(e._id).pop());
+        }
+      }
+      else {
+        // Remove all archived elements
+        const tmpSourceOf = element.sourceOf.filter(e => e.archived !== true);
+        // If user is populating sourceOf, return objects else just ids
+        if (options.populate && options.populate.includes('sourceOf')) {
+          data.sourceOf = tmpSourceOf.map(e => getElementPublicData(e, {}));
+        }
+        else {
+          data.sourceOf = tmpSourceOf.map(e => utils.parseID(e._id).pop());
+        }
+      }
+    }
+  }
+
+  // Handle the virtual targetOf field
+  if (element.targetOf) {
+    // If all contents are objects (they should be)
+    if (element.targetOf.every(e => typeof e === 'object')) {
+      // If the archived option is supplied
+      if (options.hasOwnProperty('archived') && options.archived === true) {
+        // If user is populating targetOf, return objects else just ids
+        if (options.populate && options.populate.includes('targetOf')) {
+          data.targetOf = element.targetOf.map(e => getElementPublicData(e, {}));
+        }
+        else {
+          data.targetOf = element.targetOf.map(e => utils.parseID(e._id).pop());
+        }
+      }
+      else {
+        // Remove all archived elements
+        const tmpTargetOf = element.targetOf.filter(e => e.archived !== true);
+        // If user is populating targetOf, return objects else just ids
+        if (options.populate && options.populate.includes('targetOf')) {
+          data.targetOf = tmpTargetOf.map(e => getElementPublicData(e, {}));
+        }
+        else {
+          data.targetOf = tmpTargetOf.map(e => utils.parseID(e._id).pop());
+        }
       }
     }
   }
@@ -239,6 +332,130 @@ function getElementPublicData(element, options) {
 }
 
 /**
+ * @description Returns a branch public data
+ *
+ * @param {object} branch - The raw JSON of the branch.
+ * @param {Object} options - A list of options passed in by the user to the API
+ * Controller
+ *
+ * @return {object} The public data of the branch.
+ */
+function getBranchPublicData(branch, options) {
+  // Parse the branch ID
+  const idParts = utils.parseID(branch._id);
+  let createdBy = null;
+  let lastModifiedBy = null;
+  let archivedBy;
+  let project;
+  let source;
+
+  // If branch.createdBy is defined
+  if (branch.createdBy) {
+    // If branch.createdBy is populated
+    if (typeof branch.createdBy === 'object') {
+      // Get the public data of createdBy
+      createdBy = getUserPublicData(branch.createdBy, {});
+    }
+    else {
+      createdBy = branch.createdBy;
+    }
+  }
+
+  // If branch.lastModifiedBy is defined
+  if (branch.lastModifiedBy) {
+    // If branch.lastModifiedBy is populated
+    if (typeof branch.lastModifiedBy === 'object') {
+      // Get the public data of lastModifiedBy
+      lastModifiedBy = getUserPublicData(branch.lastModifiedBy, {});
+    }
+    else {
+      lastModifiedBy = branch.lastModifiedBy;
+    }
+  }
+
+  // If branch.archivedBy is defined
+  if (branch.archivedBy && branch.archived) {
+    // If branch.archivedBy is populated
+    if (typeof branch.archivedBy === 'object') {
+      // Get the public data of archivedBy
+      archivedBy = getUserPublicData(branch.archivedBy, {});
+    }
+    else {
+      archivedBy = branch.archivedBy;
+    }
+  }
+
+  // If branch.project is defined
+  if (branch.project) {
+    // If branch.project is populated
+    if (typeof branch.project === 'object') {
+      // Get the public data of project
+      project = getProjectPublicData(branch.project, {});
+    }
+    else {
+      project = utils.parseID(branch.project)[1];
+    }
+  }
+
+  // If branch.source is defined
+  if (branch.source) {
+    // If branch.source is populated
+    if (typeof branch.source === 'object') {
+      // Get the public data of branch
+      source = getBranchPublicData(branch.source, {});
+    }
+    else {
+      source = utils.parseID(branch.source).pop();
+    }
+  }
+
+  // Return the branches public fields
+  const data = {
+    id: idParts.pop(),
+    name: branch.name,
+    org: idParts[0],
+    project: project,
+    source: source,
+    tag: branch.tag,
+    custom: branch.custom || {},
+    createdOn: (branch.createdOn) ? branch.createdOn.toString() : undefined,
+    createdBy: createdBy,
+    updatedOn: (branch.updatedOn) ? branch.updatedOn.toString() : undefined,
+    lastModifiedBy: lastModifiedBy,
+    archived: branch.archived,
+    archivedOn: (branch.archivedOn) ? branch.archivedOn.toString() : undefined,
+    archivedBy: archivedBy
+  };
+
+  // If the fields options is defined
+  if (options.hasOwnProperty('fields')) {
+    // If fields should be excluded
+    if (options.fields.every(f => f.startsWith('-'))) {
+      // For each of those fields
+      options.fields.forEach((f) => {
+        // If -id, ignore it
+        if (f === '-id') {
+          return;
+        }
+        // Remove the field from data
+        data[f.slice(1)] = undefined;
+      });
+    }
+    // If only specific fields should be included
+    else if (options.fields.every(f => !f.startsWith('-'))) {
+      const returnObj = { id: data.id };
+      // Add specific field to returnObj
+      options.fields.forEach((f) => {
+        returnObj[f] = (data.hasOwnProperty(f)) ? data[f] : undefined;
+      });
+      return returnObj;
+    }
+  }
+
+  return data;
+}
+
+/**
  * @description Returns a projects public data
  *
  * @param {object} project - The raw JSON of the project.
@@ -252,23 +469,12 @@ function getProjectPublicData(project, options) {
   let createdBy = null;
   let lastModifiedBy = null;
   let archivedBy;
-  let projectReferences;
 
   // Loop through each permission key/value pair
   Object.keys(project.permissions || {}).forEach((u) => {
     // Return highest permission
     permissions[u] = project.permissions[u].pop();
   });
-
-  // If projectReferences are defined
-  if (project.hasOwnProperty('projectReferences')) {
-    projectReferences = [];
-    // Loop through each project reference
-    project.projectReferences.forEach((ref) => {
-      // Split concatenated id and return only project id
-      projectReferences.push(utils.parseID(ref).pop());
-    });
-  }
 
   // If project.createdBy is defined
   if (project.createdBy) {
@@ -314,7 +520,6 @@ function getProjectPublicData(project, options) {
       : utils.parseID(project._id)[0],
     name: project.name,
     permissions: permissions,
-    projectReferences: projectReferences,
     custom: project.custom || {},
     visibility: project.visibility,
     createdOn: (project.createdOn) ? project.createdOn.toString() : undefined,

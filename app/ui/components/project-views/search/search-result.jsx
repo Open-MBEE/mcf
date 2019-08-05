@@ -51,7 +51,6 @@ class SearchResult extends Component {
          *
          *  This isn't really that dangerous since we sanitize all
          *  input on the server side.
-         *
          */
     const rawJSONData = (
             <div id={`result-raw-${element.id}`} className="search-result-raw">

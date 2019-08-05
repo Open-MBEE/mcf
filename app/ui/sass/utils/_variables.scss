@@ -1,21 +1,21 @@
 /**
  * Classification: UNCLASSIFIED
  *
- * @module app.ui.sass.utils._variables.scss
+ * @module ui.sass.utils._variables
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
  *
- * @description This defines the Sass variables.
+ * @description Defines the variables.
  */
-
 $mbee-color-blue: #007bff;
 $mbee-color-purple: #727cf5;
 
+/* Light theme colors */
 $mbee-background: white;
 $mbee-color: #333333;
-$mbee-font: "Avenir Next";
+$mbee-font: "Avenir Next", "Helvetica Neue", Helvetica, Arial, "Sans Serif";
 $mbee-color-primary: $mbee-color-purple;
 $mbee-navbar-color: #1a3652;
 $mbee-navbar-text: #dedede;

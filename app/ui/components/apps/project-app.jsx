@@ -26,6 +26,7 @@ import InformationPage from '../shared-views/information-page.jsx';
 import MembersPage from '../shared-views/members/members-page.jsx';
 import ProjectElements from '../project-views/elements/project-elements.jsx';
 import Search from '../project-views/search/search.jsx';
+import BranchesTags from '../project-views/branches/branches-tags.jsx';
 
 // Define component
 class ProjectApp extends Component {
@@ -39,8 +40,6 @@ class ProjectApp extends Component {
     // Initialize state props
     this.state = {
       project: null,
-      orgid: null,
-      url: null,
       error: null,
       admin: false,
       permissions: null
@@ -53,95 +52,51 @@ class ProjectApp extends Component {
     const projId = this.props.match.params.projectid;
     const url = `/api/orgs/${orgId}/projects/${projId}`;
 
-    // Set states
-    this.setState({ url: url });
-    this.setState({ orgid: orgId });
+    // eslint-disable-next-line no-undef
+    mbeeWhoAmI((err, data) => {
+      if (err) {
+        this.setState({ error: err.responseText });
+      }
+      else {
+        this.setState({ user: data });
+        // Get project data
+        $.ajax({
+          method: 'GET',
+          url: `${url}?minified=true`,
+          statusCode: {
+            200: (project) => {
+              // Initialize variables
+              const username = data.username;
+              const perm = project.permissions[username];
+              const admin = data.admin;
 
-    // Get project data
-    $.ajax({
-      method: 'GET',
-      url: '/api/users/whoami?minified=true',
-      statusCode: {
-        200: (user) => {
-          // Get project data
-          $.ajax({
-            method: 'GET',
-            url: `${url}?minified=true`,
-            statusCode: {
-              200: (project) => {
-                // Initialize variables
-                const username = user.username;
-                const perm = project.permissions[username];
-                const admin = user.admin;
-
-                // Verify if user is admin
-                if ((admin) || (perm === 'admin')) {
-                  // Set admin state
-                  this.setState({ admin: true });
-                  this.setState({ permissions: 'admin' });
-                }
-                else {
-                  // Set permissions
-                  this.setState({ permissions: perm });
-                }
-                // Set states
-                this.setState({ project: project });
-              },
-              401: (err) => {
-                // Throw error and set state
-                this.setState({ error: err.responseJSON.description });
-
-                // Refresh when session expires
-                window.location.reload();
-              },
-              404: (err) => {
-                this.setState({ error: err.responseJSON.description });
+              // Verify if user is admin
+              if ((admin) || (perm === 'admin')) {
+                // Set admin state
+                this.setState({ admin: true });
+                this.setState({ permissions: 'admin' });
               }
-            }
-          });
-        },
-        401: (err) => {
-          // reload the page
-          window.location.reload();
-          // Throw error and set state
-          this.setState({ error: err.responseJSON.description });
+              else {
+                // Set permissions
+                this.setState({ permissions: perm });
+              }
+              // Set states
+              this.setState({ project: project });
+            },
+            401: (error) => {
+              // Throw error and set state
+              this.setState({ error: error.responseText });
 
-          // Refresh when session expires
-          window.location.reload();
-        },
-        404: (err) => {
-          this.setState({ error: err.responseJSON.description });
-        }
+              // Refresh when session expires
+              window.location.reload();
+            },
+            404: (error) => {
+              this.setState({ error: error.responseText });
+            }
+          }
+        });
       }
     });
-  }
-
-  setMountedComponentStates(user, org) {
-    // Initialize variables
-    const username = user.username;
-    const perm = org.permissions[username];
-    const admin = user.admin;
-
-    // Set user state
-    this.setState({ user: user });
-
-    // Verify if user is admin
-    if ((admin) || (perm === 'admin')) {
-      // Set the admin state
-      this.setState({ admin: true });
-      this.setState({ permissions: 'admin' });
-    }
-    else {
-      this.setState({ permissions: perm });
-    }
-
-    // Verify is user has write permissions
-    if (admin || (perm === 'admin') || (perm === 'write')) {
-      this.setState({ write: true });
-    }
-
-    // Set the org state
-    this.setState({ org: org });
   }
 
   render() {
@@ -149,11 +104,15 @@ class ProjectApp extends Component {
     let title;
     let displayPlugins = false;
     const plugins = [];
+    let url;
 
     // Verify if project exists
     if (this.state.project) {
       // Set the title for sidebar
       title = <h2> {this.state.project.name}</h2>;
+      const orgId = this.state.project.org;
+      const projId = this.state.project.id;
+      url = `/api/orgs/${orgId}/projects/${projId}`;
 
       // Verify if plugins in project
       if (this.state.project.custom.integrations) {
@@ -192,22 +151,26 @@ class ProjectApp extends Component {
               ? (<SidebarHeader title='Dashboard'/>)
               : ''
             }
-            <SidebarLink id='Home'
-                         title='Home'
-                         icon='fas fa-home'
-                         routerLink={`${this.props.match.url}`}/>
             <SidebarLink id='Elements'
                          title='Model'
                          icon='fas fa-sitemap'
-                         routerLink={`${this.props.match.url}/elements`}/>
+                         routerLink={`${this.props.match.url}/branches/master/elements`}/>
+            <SidebarLink id='Branches'
+                         title='Branches/Tags'
+                         icon='fas fa-code-branch'
+                         routerLink={`${this.props.match.url}/branches`}/>
             <SidebarLink id='Search'
                          title='Search'
                          icon='fas fa-search'
-                         routerLink={`${this.props.match.url}/search`}/>
+                         routerLink={`${this.props.match.url}/branches/master/search`}/>
             <SidebarLink id='Members'
                          title='Members'
                          icon='fas fa-users'
                          routerLink={`${this.props.match.url}/users`}/>
+            <SidebarLink id='Information'
+                         title='Information'
+                         icon='fas fa-info'
+                         routerLink={`${this.props.match.url}/info`}/>
             {(!displayPlugins)
               ? ''
               : (plugins)
@@ -219,25 +182,32 @@ class ProjectApp extends Component {
               ? <div id='view' className="loading"> {this.state.error || 'Loading your project...'} </div>
               : (
                 <Switch>
-                  { /* Route to project home page */ }
-                  <Route exact path={`${this.props.match.url}/`}
-                         render={ (props) => <InformationPage {...props}
+                  { /* Route to element page */ }
+                  <Route path={`${this.props.match.url}/branches/:branchid/elements`}
+                         render={ (props) => <ProjectElements {...props}
                                                               permissions={this.state.permissions}
-                                                              project={this.state.project} /> } />
+                                                              project={this.state.project}/> } />
+                  <Route path={`${this.props.match.url}/branches/:branchid/search`}
+                         render={ (props) => <Search {...props}
+                                                     project={this.state.project} /> } />
+                  <Route path={`${this.props.match.url}/branches/:branchid`}
+                         render={ (props) => <InformationPage {...props}
+                                                           url={url}
+                                                           branch={true}/> } />
+                  <Route exact path={`${this.props.match.url}/branches`}
+                         render={ (props) => <BranchesTags {...props}
+                                                           permissions={this.state.permissions}
+                                                           project={this.state.project} /> } />
                   { /* Route to members page */ }
-                  <Route path={`${this.props.match.url}/users`}
+                  <Route exact path={`${this.props.match.url}/users`}
                          render={ (props) => <MembersPage {...props}
                                                           project={this.state.project}
                                                           admin={this.state.admin}/> } />
-                  { /* Route to element page */ }
-                  <Route path={`${this.props.match.url}/elements`}
-                         render={ (props) => <ProjectElements {...props}
+                  { /* Route to project home page */ }
+                  <Route exact path={`${this.props.match.url}/info`}
+                         render={ (props) => <InformationPage {...props}
                                                               permissions={this.state.permissions}
-                                                              url={this.state.url}
-                                                              project={this.state.project}/> } />
-                  <Route path={`${this.props.match.url}/search`}
-                         render={ (props) => <Search {...props}
-                                                     project={this.state.project} /> } />
+                                                              project={this.state.project} /> } />
                 </Switch>
               )
           }
@@ -250,5 +220,7 @@ class ProjectApp extends Component {
 
 // Export component
 ReactDOM.render(<Router>
-                    <Route path={'/:orgid/:projectid'} component={ProjectApp} />
+                  <Switch>
+                    <Route path={'/orgs/:orgid/projects/:projectid'} component={ProjectApp} />
+                  </Switch>
                 </Router>, document.getElementById('main'));

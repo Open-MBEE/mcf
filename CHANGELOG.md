@@ -1,10 +1,32 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## [0.8.1] - 2019-05-22
-### Minor Bug Fixes
-* Fixed bug where file names of doc files caused NTFS incompatibility
-* Fixed source field display for element side panel
+## [0.9.0] - 2019-08-05
+### Major Features and Improvements
+* Added the ability to branch models in API and UI
+* Added ability to view other users information in the UI
+* Added support for system admins to create and delete users
+* Added user search API endpoint
+* Changed plugin configuration section to use objects rather than an array.
+  See `example.cfg` for an example
+* Added an advanced search for elements in the UI
+* Added support for sorting results in GET operations
+* Added support for sending .gzip files in all post/patch/put endpoints
+
+### Bug Fixes and Other Changes
+* Removed support for the `logDir` field in the configuration
+* Added additional debug level logging during database calls
+* Added resource consumption info to debug level logs
+* Added additional info level logging on response from API calls
+* Refined UI routes to better align with API structure
+* Added support for referencing projects in the `default` org
+* Updated clean command to delete contents of `data` directory
+* Allow for archived elements to optionally be displayed in the UI
+* Allow for element ids to be hidden from the element tree in the UI
+* Added support for re-inserting data upon a failed PUT request
+* Lowered permissions for PUT requests from system admins to org/project writers
+* Fixed bug which crashed server when a plugin failed to be cloned
+* Fixed bug which did not refresh the element tree upon creation of elements
 
 ## [0.8.0] - 2019-05-13
 ### Major Features and Improvements

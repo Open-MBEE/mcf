@@ -14,8 +14,8 @@
  */
 
 // NPM modules
-const mongoose = require('mongoose');
 const chai = require('chai');
+const mongoose = require('mongoose');
 
 // MBEE modules
 const db = M.require('lib.db');
