@@ -60,6 +60,7 @@ describe(M.getModuleName(module.filename), () => {
   it('should reject when an element ID is too long', idTooLong);
   it('should reject if no id (_id) is provided', idNotProvided);
   it('should reject if no project is provided', projectNotProvided);
+  it('should reject if no branch is provided', branchNotProvided);
 });
 
 /* --------------------( Tests )-------------------- */
@@ -69,9 +70,10 @@ describe(M.getModuleName(module.filename), () => {
 function idTooShort(done) {
   const elemData = Object.assign({}, testData.elements[0]);
   elemData.project = 'org:proj';
+  elemData.branch = 'org:proj:branch';
 
   // Change id to be too short.
-  elemData._id = '01:01:0';
+  elemData._id = '01:01:01:0';
 
   // Create element object
   const elemObject = new Element(elemData);
@@ -102,12 +104,15 @@ function idTooShort(done) {
 function idTooLong(done) {
   const elemData = Object.assign({}, testData.elements[0]);
   elemData.project = 'org:proj';
+  elemData.branch = 'org:proj:branch';
 
   // Change id to be too long.
   elemData._id = '012345678901234567890123456789012345:01234567890123456789'
-    + '0123456789012345:01234567890123456789012345678901234567890123456789'
-    + '0123456789012345678901234567890123456789012345678901234567890123456789'
-    + '012345678901234567890123456789012345678901234567890123456789012';
+    + '0123456789012345:012345678901234567890123456789012345:0123456789012345'
+    + '67890123456789012345678901234567890123456789012345678901234567890123456'
+    + '789012345678901234567890123456789012345678901234567890123456789012345678'
+    + '901234567890123456789012';
+
 
   // Create element object
   const elemObject = new Element(elemData);
@@ -138,6 +143,7 @@ function idTooLong(done) {
 function idNotProvided(done) {
   const elemData = Object.assign({}, testData.elements[0]);
   elemData.project = 'org:proj';
+  elemData.branch = 'org:proj:branch';
 
   // Create element object
   const elemObject = new Element(elemData);
@@ -167,7 +173,9 @@ function idNotProvided(done) {
  */
 function projectNotProvided(done) {
   const elemData = Object.assign({}, testData.elements[0]);
-  elemData._id = `org:proj:${elemData.id}`;
+  elemData._id = `org:proj:branch:${elemData.id}`;
+  elemData.branch = 'org:proj:branch';
+
 
   // Create element object
   const elemObject = new Element(elemData);
@@ -187,6 +195,37 @@ function projectNotProvided(done) {
       // Ensure error message is correct
       chai.expect(error.message).to.equal('Element validation failed: project: '
         + 'Path `project` is required.');
+      done();
+    }
+  });
+}
+
+/**
+ * @description Attempts to create an element with no project.
+ */
+function branchNotProvided(done) {
+  const elemData = Object.assign({}, testData.elements[0]);
+  elemData._id = `org:proj:branch:${elemData.id}`;
+  elemData.project = 'org:proj';
+
+  // Create element object
+  const elemObject = new Element(elemData);
+
+  // Save element
+  elemObject.save()
+  .then(() => {
+    // Should not succeed, force to fail
+    chai.assert.fail(true, false, 'Element created successfully.');
+  })
+  .catch((error) => {
+    // If element created successfully, fail the test
+    if (error.message === 'Element created successfully.') {
+      done(error);
+    }
+    else {
+      // Ensure error message is correct
+      chai.expect(error.message).to.equal('Element validation failed: branch: '
+        + 'Path `branch` is required.');
       done();
     }
   });

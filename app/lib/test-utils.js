@@ -17,11 +17,14 @@
  */
 // Node modules
 const path = require('path');
-const chai = require('chai');
 const fs = require('fs');
+
+// NPM modules
+const chai = require('chai');
 
 // MBEE modules
 const Element = M.require('models.element');
+const Branch = M.require('models.branch');
 const Organization = M.require('models.organization');
 const Project = M.require('models.project');
 const User = M.require('models.user');
@@ -213,10 +216,12 @@ module.exports.createTestOrg = function(adminUser) {
 module.exports.removeTestOrg = function() {
   return new Promise((resolve, reject) => {
     // Create query for deleting items in the orgs
-    const ownedQuery = { _id: { $regex: `^${testData.orgs[0].id}:` } };
+    const ownedQuery = { _id: { $regex: `^${testData.orgs[0].id}${utils.ID_DELIMITER}` } };
 
     // Delete elements
     Element.deleteMany(ownedQuery)
+    // Delete any branches in the org
+    .then(() => Branch.deleteMany(ownedQuery))
     // Delete any projects in the org
     .then(() => Project.deleteMany({ org: testData.orgs[0].id }))
     // Delete the orgs
@@ -237,6 +242,7 @@ module.exports.createTestProject = function(adminUser, orgID) {
       _id: utils.createID(orgID, testData.projects[0].id),
       org: orgID,
       name: testData.projects[0].name,
+      createdBy: adminUser._id,
       custom: null
     });
     newProject.permissions[adminUser._id] = ['read', 'write', 'admin'];
@@ -245,15 +251,76 @@ module.exports.createTestProject = function(adminUser, orgID) {
     .then((_newProj) => {
       createdProject = _newProj;
 
-      const newElement = new Element({
-        _id: utils.createID(orgID, testData.projects[0].id, 'model'),
+      const newBranch = new Branch({
+        _id: utils.createID(orgID, testData.projects[0].id, testData.branches[0].id),
         project: _newProj._id,
+        createdBy: adminUser._id,
+        name: testData.branches[0].name,
+        source: null
+      });
+
+      return newBranch.save();
+    })
+    .then((_newBranch) => {
+      const newElement = new Element({
+        _id: utils.createID(orgID, testData.projects[0].id, testData.branches[0].id, 'model'),
+        project: createdProject._id,
+        branch: _newBranch._id,
+        createdBy: adminUser._id,
         name: 'Model'
       });
 
       return newElement.save();
     })
     .then(() => resolve(createdProject))
+    .catch((error) => reject(error));
+  });
+};
+
+/**
+ * @description Helper function to create a tag in MBEE tests
+ */
+module.exports.createTag = function(adminUser, orgID, projID) {
+  return new Promise((resolve, reject) => {
+    // Create a new tag
+    let createdTag;
+    const newTag = new Branch({
+      _id: utils.createID(orgID, projID, 'tag'),
+      project: projID,
+      createdBy: adminUser._id,
+      name: 'Tagged Branch',
+      tag: true,
+      source: utils.createID(orgID, projID, 'master')
+    });
+
+    return newTag.save()
+    .then((_newBranch) => {
+      createdTag = _newBranch;
+
+      // Create a root element for tag
+      const newElement = new Element({
+        _id: utils.createID(_newBranch._id, 'model'),
+        project: utils.createID(orgID, projID),
+        branch: _newBranch._id,
+        createdBy: adminUser._id,
+        name: 'Model'
+      });
+
+      return newElement.save();
+    })
+    .then(() => {
+      // Create a non root element in the tag
+      const newElement = new Element({
+        _id: utils.createID(createdTag._id, testData.elements[1].id),
+        project: utils.createID(orgID, projID),
+        branch: createdTag._id,
+        createdBy: adminUser._id,
+        name: 'Model'
+      });
+
+      return newElement.save();
+    })
+    .then(() => resolve(createdTag))
     .catch((error) => reject(error));
   });
 };
@@ -288,21 +355,61 @@ module.exports.importTestData = function(filename) {
 module.exports.createRequest = function(user, params, body, method, query = {}) {
   // Error-Check
   if (typeof params !== 'object') {
-    throw M.CustomError('params is not of type object.');
+    throw M.DataFormatError('params is not of type object.', 'warn');
   }
   if (typeof params !== 'object') {
-    throw M.CustomError('body is not of type object.');
+    throw M.DataFormatError('body is not of type object.', 'warn');
   }
 
   return {
     headers: this.getHeaders(),
     method: method,
+    originalUrl: 'ThisIsATest',
     params: params,
     body: body,
+    ip: '::1',
     query: query,
     user: user,
     session: {}
   };
+};
+
+/**
+ * @description Helper function for setting mock request parameters.  Creates a read
+ * stream of a file and gives the stream request-like properties
+ *
+ * @param {Object} user - The user making the request
+ * @param {Object} params - Parameters for API req
+ * @param {Object} body - Body for API req
+ * @param {string} method - API method of req
+ * @param {Object} [query] - query options for API req
+ * @param {string} filepath - The path to the file to create the read stream of
+ * @param {Object} headers - Headers for the API req
+ *
+ * @returns {Object} req - Request Object
+ */
+module.exports.createReadStreamRequest = function(user, params, body, method, query = {},
+  filepath, headers) {
+  // Error-Check
+  if (typeof params !== 'object') {
+    throw M.DataFormatError('params is not of type object.', 'warn');
+  }
+  if (typeof body !== 'object') {
+    throw M.DataFormatError('body is not of type object.', 'warn');
+  }
+
+  const req = fs.createReadStream(filepath);
+  req.user = user;
+  req.params = params;
+  req.body = body;
+  req.method = method;
+  req.query = query;
+  req.headers = this.getHeaders(headers);
+  req.session = {};
+  req.originalUrl = 'ThisIsATest';
+  req.ip = '::1';
+
+  return req;
 };
 
 /**
@@ -313,7 +420,7 @@ module.exports.createRequest = function(user, params, body, method, query = {}) 
 module.exports.createResponse = function(res) {
   // Verifies the response code: 200 OK
   res.status = function status(code) {
-    chai.expect(code).to.equal(200);
+    res.statusCode = code;
     return this;
   };
   // Provides headers to response object
@@ -332,7 +439,7 @@ module.exports.getHeaders = function(contentType = 'application/json', user = te
   const formattedCreds = `${user.username}:${user.password}`;
   const basicAuthHeader = `Basic ${Buffer.from(`${formattedCreds}`).toString('base64')}`;
   return {
-    'Content-Type': contentType,
+    'content-type': contentType,
     authorization: basicAuthHeader
   };
 };
@@ -344,4 +451,35 @@ module.exports.readCaFile = function() {
   if (M.config.test.hasOwnProperty('ca')) {
     return fs.readFileSync(`${M.root}/${M.config.test.ca}`);
   }
+};
+
+/**
+ * @description Tests response logging. This is designed for the 500 tests and
+ * expects the res and req objects to be the mock objects created in those tests.
+ *
+ * @param {number} responseLength - The length of the response in bytes.
+ * @param {Object} req - The request object.
+ * @param {Object} res - The response object.
+ * @param {function} done - The callback function to mark the end of the test.
+ */
+module.exports.testResponseLogging = function(responseLength, req, res, done) {
+  // Get the log file path
+  const filePath = path.join(M.root, 'logs', M.config.log.file);
+
+  // Read the file
+  const fileContents = fs.readFileSync(filePath).toString();
+  // Split the file, and remove an non-response entries, and get the final response
+  const response = fileContents.split('\n').filter(e => e.includes('RESPONSE: ')).pop();
+  // split on spaces
+  const content = response.split('RESPONSE: ')[1].split(' ');
+
+  // Ensure parts of response log are correct
+  chai.expect(content[0]).to.equal((req.ip === '::1') ? '127.0.0.1' : req.ip);
+  chai.expect(content[1]).to.equal((req.user) ? req.user.username : 'anonymous');
+  chai.expect(content[3]).to.equal(`"${req.method}`);
+  chai.expect(content[4]).to.equal(`${req.originalUrl}"`);
+  chai.expect(content[5]).to.equal(res.statusCode.toString());
+  chai.expect(content[6]).to.equal(responseLength.toString());
+
+  done();
 };

@@ -48,6 +48,15 @@ class Stat extends Component {
       icon = '';
       value = '';
     }
+    else if (this.props.label) {
+      icon = '';
+      value = '';
+      classNames = `stats-item bold-name ${this.props.className}`;
+    }
+    else if (this.props.className) {
+      classNames = this.props.className;
+      icon = <i className={this.props.icon}/>;
+    }
     else {
       // Set stat properties
       classNames = (this.props._key === 'empty') ? 'empty-item' : 'stats-item';
@@ -62,8 +71,12 @@ class Stat extends Component {
       <div className={classNames} ref={this.ref} id={this.props._key || this.props.title}>
         {icon}
         {value}
+        {(!this.props.label)
+          ? ''
+          : <span>{this.props.title}</span>
+        }
         {/* Create hover title for icon if not divider element */}
-        {(this.props.divider)
+        {(this.props.label || this.props.divider || this.props.noToolTip)
           ? ''
           : (<UncontrolledTooltip placement='top'
                                  target={this.props._key || this.props.title}

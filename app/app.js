@@ -73,6 +73,9 @@ function initApp() {
     // Trust proxy for IP logging
     app.enable('trust proxy');
 
+    // Remove powered-by from headers
+    app.disable('x-powered-by');
+
     // Configures ejs views/templates
     app.set('view engine', 'ejs');
     app.set('views', path.join(__dirname, 'views'));

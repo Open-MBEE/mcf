@@ -10,151 +10,124 @@
  * @description Defines the custom error class.
  */
 
-module.exports.CustomError = class CustomError extends Error {
+const CustomError = class CustomError extends Error {
 
   /**
    * @description The CustomError constructor. It requires a description
-   * and can optionally take a status and level. If not provided, the status
-   * defaults to 500 and the level to null.
+   * and can optionally take a level.
    *
-   * @param {string} description - The custom error description.
-   * @param {number} status - The HTTP status code. Defaults to 500.
-   * @param {string} level - The errors logger level. If provided, will cause
-   * the logger to log automatically. Defaults to null.
+   * @param {string} message - The custom error description.
+   * @param {string} level - The level to log the error at.
    */
-  constructor(description, status = 500, level = null) {
+  constructor(message, level) {
+    // Call parent constructor
     super();
-    this.status = status;
-    this.message = this.getMessage();
-    this.description = description;
+    this.message = message;
 
-    // Logs the error if specified
     if (level) {
       this.log(level);
     }
+
+    // Ensure to capture the errors stack trace
+    Error.captureStackTrace(this, this.constructor);
   }
 
   /**
-   * @description Returns a HTTP message based on the status code.
+   * @description Logs the error message based on the provided log level.
    *
-   * @return {string} HTTP error message
-   *
-   * <p> +-------------+-------------------------+
-   * <br>| Status Code |         Message         |
-   * <br>+-------------+-------------------------+
-   * <br>| 200         | 'OK'                    |
-   * <br>| 300         | 'Multiple Choices'      |
-   * <br>| 301         | 'Moved Permanently'     |
-   * <br>| 400         | 'Bad Request'           |
-   * <br>| 401         | 'Unauthorized'          |
-   * <br>| 403         | 'Forbidden'             |
-   * <br>| 403         | 'Not Found'             |
-   * <br>| 418         | 'I'm a teapot'          |
-   * <br>| 500         | 'Internal Server Error' |
-   * <br>| 501         | 'Not Implemented'       |
-   * <br>| 503         | 'Service Unavailable'   |
-   * <br>| default     | 'Internal Server Error' |
-   * <br>+-------------+-------------------------+ </p>
+   * @param {string} level - The level to log the error message at.
    */
-  getMessage() {
-    switch (this.status) {
-      case 200:
-        return 'OK';
-      case 300:
-        return 'Multiple Choices';
-      case 301:
-        return 'Moved Permanently';
-      case 400:
-        return 'Bad Request';
-      case 401:
-        return 'Unauthorized';
-      case 403:
-        return 'Forbidden';
-      case 404:
-        return 'Not Found';
-      case 418:
-        return 'I\'m a teapot';
-      case 500:
-        return 'Internal Server Error';
-      case 501:
-        return 'Not Implemented';
-      case 503:
-        return 'Service Unavailable';
-      default:
-        return 'Internal Server Error';
+  log(level) {
+    switch (level) {
+      case 'debug': M.log.debug(this.message); break;
+      case 'verbose': M.log.verbose(this.message); break;
+      case 'info': M.log.info(this.message); break;
+      case 'warn': M.log.warn(this.message); break;
+      case 'error': M.log.error(this.message); break;
+      case 'critical': M.log.critical(this.message); break;
+      default: break;
     }
   }
 
-  /**
-   * @description Logs the error based on the input level.
-   *
-   * @param {string} level - The optional level parameter.
-   */
-  log(level = 'warn') {
-    switch (level.toLowerCase()) {
-      case 'warn':
-        M.log.warn(this.description);
-        break;
-      case 'error':
-        M.log.error(this.description);
-        break;
-      case 'critical':
-        M.log.critical(this.description);
-        break;
-      case 'info':
-        M.log.info(this.description);
-        break;
-      case 'debug':
-        M.log.debug(this.description);
-        break;
-      case 'verbose':
-        M.log.verbose(this.description);
-        break;
-      default:
-        M.log.error(this.description);
-    }
+};
+
+// 400
+const DataFormatError = class DataFormatError extends CustomError {};
+
+// 401
+const AuthorizationError = class AuthorizationError extends CustomError {};
+
+// 403
+const PermissionError = class PermissionError extends CustomError {};
+const OperationError = class OperationError extends CustomError {};
+
+// 404
+const NotFoundError = class NotFoundError extends CustomError {};
+
+// 500
+const ServerError = class ServerError extends CustomError {};
+const DatabaseError = class DatabaseError extends CustomError {};
+
+/**
+ * @description Returns an HTTP status code depending on what error is passed in.
+ *
+ * @param {Object} error - The error to parse and return a status code for.
+ *
+ * @return {number} An HTTP status code.
+ */
+function getStatusCode(error) {
+  // If not an error, throw an error
+  if (!(error instanceof Error)) {
+    throw new M.ServerError('Invalid Error Format');
   }
 
-  /**
-   * @description Returns custom error with status code if matched.
-   * CustomError includes ValidatorError error stack.
-   *
-   * If no CustomError are matched, original error is returned.
-   *
-   * @param {Object} error - Error result
-   */
-  static parseCustomError(error) {
-    // Already a CustomError, reject it
-    if (error instanceof M.CustomError) {
-      return error;
-    }
-
-    // Define and initialize string stack
-    let strStack = '';
-
-    // Extract error, add to stack
-    strStack = strStack.concat(error.stack);
-
-    // Check if ValidatorError array exist
-    if (error.errors) {
-      // Loop through ValidatorError array
-      Object.keys(error.errors).forEach((value) => {
-        // Extract current error, add to stack
-        strStack = strStack.concat(error.errors[value].stack);
-      });
-    }
-
-    // Check for ValidationError
-    if (error.name === 'ValidationError') {
-      const newError = new M.CustomError(error.message, 400, 'warn');
-      newError.stack = strStack;
-      return newError;
-    }
-
-    // Unknown error,default to Internal Server Error
-    const newError = new M.CustomError(error.message, 500, 'warn');
-    newError.stack = strStack;
-    return newError;
+  // Return an HTTP status code based on the error type
+  switch (error.constructor.name) {
+    case 'DataFormatError': return 400;
+    case 'AuthorizationError': return 401;
+    case 'PermissionError': return 403;
+    case 'OperationError': return 403;
+    case 'NotFoundError': return 404;
+    case 'BrewingError': return 418;
+    case 'ServerError': return 500;
+    case 'DatabaseError': return 500;
+    default: return 500;
   }
+}
 
+/**
+ * @description A utility to ensure that all errors get turned into custom errors.
+ * To be used on returned errors in .catch statements
+ *
+ * @param error - the error to check
+ *
+ * @returns {CustomError|ServerError}
+ */
+function captureError(error) {
+  // If the error isn't already a custom error, make it one
+  if (!(error instanceof CustomError)) {
+    // Create a new server error
+    const newErr = new ServerError(error.message, 'warn');
+    // Capture stack trace
+    newErr.stack = error.stack;
+    // Return the new custom error
+    return newErr;
+  }
+  else {
+    return error;
+  }
+}
+
+// Export error Classes and functions
+module.exports = {
+  CustomError,
+  getStatusCode,
+  captureError,
+  DataFormatError,
+  OperationError,
+  AuthorizationError,
+  PermissionError,
+  NotFoundError,
+  ServerError,
+  DatabaseError
 };

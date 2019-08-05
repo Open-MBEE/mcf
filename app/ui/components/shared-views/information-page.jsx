@@ -15,7 +15,7 @@
 
 // React Modules
 import React, { Component } from 'react';
-import { Button, Modal, ModalBody } from 'reactstrap';
+import { Button, Modal, ModalBody, Badge } from 'reactstrap';
 
 // MBEE Modules
 import EditPage from './edit-page.jsx';
@@ -31,6 +31,7 @@ class InformationPage extends Component {
 
     // Initialize state props
     this.state = {
+      data: null,
       modal: false
     };
 
@@ -41,15 +42,49 @@ class InformationPage extends Component {
   // Define toggle function
   handleToggle() {
     // Open or close modal
-    this.setState({ modal: !this.state.modal });
+    this.setState((prevState) => ({ modal: !prevState.modal }));
+  }
+
+  componentDidMount() {
+    if (this.props.branch) {
+      const branchId = this.props.match.params.branchid;
+      const base = `${this.props.url}/branches/${branchId}`;
+      const url = `${base}?minified=true&archived=true`;
+
+      $.ajax({
+        method: 'GET',
+        url: url,
+        statusCode: {
+          200: (data) => {
+            this.setState({ data: data });
+          },
+          401: () => {
+            this.setState({ data: null });
+
+            // Refresh when session expires
+            window.location.reload();
+          },
+          403: (err) => {
+            this.setState({ error: err.responseText });
+          },
+          404: (err) => {
+            this.setState({ error: err.responseText });
+          }
+        }
+      });
+    }
   }
 
   render() {
     // Initialize variables
     let name;
     let id;
-    let orgid = null;
-    let custom;
+    let visibility;
+    let orgid;
+    let projid;
+    let sourceid;
+    let branchName;
+    let custom = {};
     let isButtonDisplayed = false;
     let titleClass = 'workspace-title workspace-title-padding';
 
@@ -59,17 +94,34 @@ class InformationPage extends Component {
       titleClass = 'workspace-title';
     }
 
-
+    // Populate relevant fields
     if (this.props.org) {
       name = this.props.org.name;
       id = this.props.org.id;
       custom = this.props.org.custom;
     }
-    else {
+    else if (this.props.project) {
       name = this.props.project.name;
       id = this.props.project.id;
       orgid = this.props.project.org;
+      visibility = this.props.project.visibility;
       custom = this.props.project.custom;
+    }
+    else if (this.state.data) {
+      const branch = this.state.data;
+      let tag;
+      if (branch.tag) {
+        tag = (<Badge color='primary'>Tag</Badge>);
+      }
+      name = (branch.name)
+        ? (<div> {branch.name} {tag} </div>)
+        : (<div> {branch.id} {tag} </div>);
+      branchName = branch.name;
+      id = branch.id;
+      orgid = branch.org;
+      projid = branch.project;
+      sourceid = branch.source;
+      custom = branch.custom;
     }
 
     return (
@@ -86,7 +138,7 @@ class InformationPage extends Component {
           </ModalBody>
         </Modal>
         <div id='workspace'>
-          <div id='workspace-header' className='workspace-header'>
+          <div id='workspace-header' className='workspace-header header-box-depth'>
             <h2 className={titleClass}>{name}</h2>
             { /* Verify user is an admin */}
             {(!isButtonDisplayed)
@@ -107,16 +159,67 @@ class InformationPage extends Component {
             <div className='main-workspace extra-padding'>
               <table className='table-width'>
                 <tbody>
+                  {(!this.props.branch)
+                    ? ''
+                    : (<tr>
+                        <th style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                          <Button close
+                                 aria-label='Filter'
+                                 size='sm' onClick={this.props.history.goBack}>
+                            <span>
+                              <i className='fas fa-arrow-left' style={{ fontSize: '15px' }}/>
+                            </span>
+                          </Button>
+                        </th>
+                      </tr>)
+
+                  }
                 <tr>
                   <th>ID:</th>
                   <td>{id}</td>
                 </tr>
-                {(orgid === null)
+                {(this.props.project || this.props.branch)
+                  ? (<tr>
+                      <th>Org ID:</th>
+                      <td><a href={`/orgs/${orgid}`}>{orgid}</a></td>
+                     </tr>)
+                  : <tr/>
+                }
+                {(!this.props.project)
                   ? <tr/>
-                  : (<tr>
-                    <th>Org ID:</th>
-                    <td><a href={`/${orgid}`}>{orgid}</a></td>
-                  </tr>)
+                  : (<React.Fragment>
+                      <tr>
+                        <th>Visibility:</th>
+                        <td>{visibility}</td>
+                      </tr>
+                    </React.Fragment>
+                  )
+                }
+                {(!this.props.branch)
+                  ? <tr/>
+                  : (<React.Fragment>
+                      <tr>
+                        <th>Project ID:</th>
+                        <td>
+                          <a href={`/orgs/${orgid}/projects/${projid}/branches/master/elements`}>
+                            {projid}
+                          </a>
+                        </td>
+                      </tr>
+                      <tr>
+                        <th>Name:</th>
+                        <td>{branchName}</td>
+                      </tr>
+                      <tr>
+                        <th>Source Branch:</th>
+                        <td>
+                          <a href={`/orgs/${orgid}/projects/${projid}/branches/${sourceid}`}>
+                            {sourceid}
+                          </a>
+                        </td>
+                      </tr>
+                    </React.Fragment>
+                  )
                 }
                 </tbody>
               </table>

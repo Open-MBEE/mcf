@@ -65,8 +65,8 @@ function handleBasicAuth(req, res, username, password) {
         .catch(ldapErr => reject(ldapErr));
       }
       else {
-        // More than 1 user found or provide not set to ldap/local
-        return reject(new M.CustomError('More than one user found or invalid provider.'));
+        // More than 1 user found or provider not set to ldap/local
+        return reject(new M.ServerError('More than one user found or invalid provider.', 'error'));
       }
     });
   });
@@ -136,6 +136,6 @@ function validatePassword(password, provider) {
     default:
       // Unknown provider, failed validation
       // Explicitly NOT logging error to avoid password logging
-      throw new M.CustomError(`Unknown provider: ${provider}`, 400, 'warn');
+      throw new M.ServerError(`Unknown provider: ${provider}`, 'warn');
   }
 }

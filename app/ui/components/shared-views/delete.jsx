@@ -63,7 +63,7 @@ class Delete extends Component {
             // Set the project options to empty if none found
             this.setState({ projectOpt: [] });
             // Throw error and set state
-            this.setState({ error: err.responseJSON.description });
+            this.setState({ error: err.responseText });
 
             // Refresh when session expires
             window.location.reload();
@@ -71,7 +71,7 @@ class Delete extends Component {
           404: (err) => {
             // Set the project options to empty if none found
             this.setState({ projectOpt: [] });
-            this.setState({ error: err.responseJSON.description });
+            this.setState({ error: err.responseText });
           }
         }
       });
@@ -93,10 +93,19 @@ class Delete extends Component {
     if (this.props.element) {
       const orgid = this.props.element.org;
       const projid = this.props.element.project;
+      const branchid = this.props.element.branch;
       const elemid = this.props.element.id;
 
       // Set url to state options
-      url = `/api/orgs/${orgid}/projects/${projid}/branches/master/elements/${elemid}`;
+      url = `/api/orgs/${orgid}/projects/${projid}/branches/${branchid}/elements/${elemid}`;
+    }
+    else if (this.props.branch) {
+      const orgid = this.props.branch.org;
+      const projid = this.props.branch.project;
+      const branchid = this.props.branch.id;
+
+      // Set url to state options
+      url = `/api/orgs/${orgid}/projects/${projid}/branches/${branchid}`;
     }
     else if (this.props.projects) {
       // Set url to state options
@@ -123,22 +132,22 @@ class Delete extends Component {
       statusCode: {
         200: () => {
           if (this.props.element) {
-            this.props.closeSidePanel(null, true, true);
+            this.props.closeSidePanel(null, [this.props.element.parent]);
             this.props.toggle();
           }
           else {
             // On success, return to the project-views page
-            window.location.replace('/');
+            window.location.reload();
           }
         },
         401: (err) => {
-          this.setState({ error: err.responseJSON.description });
+          this.setState({ error: err.responseText });
 
           // Refresh when session expires
           window.location.reload();
         },
         403: (err) => {
-          this.setState({ error: err.responseJSON.description });
+          this.setState({ error: err.responseText });
         }
       }
     });
@@ -155,6 +164,9 @@ class Delete extends Component {
     }
     else if (this.props.element) {
       title = 'Element';
+    }
+    else if (this.props.branch) {
+      title = 'Branch';
     }
     else {
       title = 'Organization';
@@ -175,9 +187,12 @@ class Delete extends Component {
     else if (this.props.element) {
       name = (<span className='element-name'>
                 {this.props.element.name} {' '}
-          <span className={'element-id'}>({this.props.element.id} : {this.props.element.type})</span>
+          <span className={'element-id'}>({this.props.element.id})</span>
               </span>
       );
+    }
+    else if (this.props.branch) {
+      name = this.props.branch.name ? this.props.branch.name : this.props.branch.id;
     }
 
     // Return the project delete form
@@ -231,7 +246,7 @@ class Delete extends Component {
                 </FormGroup>)
             }
             {/* Verify if project provided */}
-            {(this.props.org || this.props.project || this.props.element)
+            {(this.props.org || this.props.project || this.props.branch || this.props.element)
               ? (<FormGroup>
                   <Label for="id">Do you want to delete {name}?</Label>
                  </FormGroup>)

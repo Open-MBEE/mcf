@@ -192,13 +192,15 @@ the source to the actual path of your plugin. Additionally, ensure enabled is
 set to true.
 
 ```json
-"plugins": [
-  {
-    "name": "demo-mass-rollup",
-    "source": "PATH_TO_YOUR_PLUGIN",
-    "title": "Demo Mass Rollup"
-  }
-],
+{
+  "plugins": [
+    {
+      "name": "demo-mass-rollup",
+      "source": "PATH_TO_YOUR_PLUGIN",
+      "title": "Demo Mass Rollup"
+    }
+  ]
+}
 ```
 
 Now we must create our application's entrypoint. We will define this in an

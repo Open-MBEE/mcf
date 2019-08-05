@@ -18,13 +18,13 @@ const utils = require('./utils');
 const customValidators = M.config.validators || {};
 
 // This ID is used as the common regex for other ID fields in this module
-const id = customValidators.id || '([_a-z0-9])([-_a-z0-9]){0,}';
+const id = customValidators.id || '([_a-z0-9])([-_a-z0-9.]){0,}';
 
 // A list of reserved keywords which cannot be used in ids
 module.exports.reserved = ['css', 'js', 'img', 'doc', 'docs', 'webfonts',
   'login', 'about', 'assets', 'static', 'public', 'api', 'organizations',
   'orgs', 'projects', 'users', 'plugins', 'ext', 'extension', 'search',
-  'whoami', 'profile', 'edit', 'proj', 'elements', 'branch'];
+  'whoami', 'profile', 'edit', 'proj', 'elements', 'branch', 'anonymous'];
 
 /**
  * @description Regular Expressions to validate organization data
@@ -62,6 +62,25 @@ module.exports.project = {
   id: customValidators.project_id || `^${id}${utils.ID_DELIMITER}${id}$`
 };
 
+/**
+ * @description Regular Expressions to validate branch data
+ *
+ * id:
+ *   - MUST start with a lowercase letter, number or '_'
+ *   - MUST only include lowercase letters, numbers, '_' or '-'
+ *   - each segment MUST be of length 1 or more
+ *   Examples:
+ *       - orgid:projid:branchid [valid]
+ *      - orgid:projid:my-branch [valid]
+ *      - orgid:projid:f81d4fae-7dec-11d0-a765-00a0c91e6bf6 [valid]
+ *      - orgid:projid:-branch[invalid - must start with a letter or a number]
+ *      - orgid:projid:myBranch [invalid - cannot use uppercase characters]
+ *      - my-branch [invalid - must contain org and proj segments]
+ */
+module.exports.branch = {
+  id: customValidators.branch_id || `^${id}${utils.ID_DELIMITER}${id}${utils.ID_DELIMITER}${id}$`
+};
+
 
 /**
  * @description Regular Expressions to validate element data
@@ -71,15 +90,15 @@ module.exports.project = {
  *   - MUST only include lowercase letters, numbers, '_' or '-'
  *   - each segment MUST be of length 1 or more
  *   Examples:
- *      - orgid:projid:elementid [valid]
- *      - orgid:projid:my-element [valid]
- *      - orgid:projid:f81d4fae-7dec-11d0-a765-00a0c91e6bf6 [valid]
- *      - orgid:projid:-element [invalid - must start with a letter or a number]
- *      - orgid:projid:myElement [invalid - cannot use uppercase characters]
- *      - my-element [invalid - must contain org and proj segments]
+ *      - orgid:projid:branchid:elementid [valid]
+ *      - orgid:projid:branchid:my-element [valid]
+ *      - orgid:projid:branchid:f81d4fae-7dec-11d0-a765-00a0c91e6bf6 [valid]
+ *      - orgid:projid:branchid:-element [invalid - must start with a letter or a number]
+ *      - orgid:projid:branchid:myElement [invalid - cannot use uppercase characters]
+ *      - my-element [invalid - must contain org, proj, and branch segments]
  */
 module.exports.element = {
-  id: customValidators.element_id || `^${id}${utils.ID_DELIMITER}${id}${utils.ID_DELIMITER}${id}$`
+  id: customValidators.element_id || `^${id}${utils.ID_DELIMITER}${id}${utils.ID_DELIMITER}${id}${utils.ID_DELIMITER}${id}$`
 };
 
 /**

@@ -59,72 +59,62 @@ class HomeApp extends Component {
   }
 
   componentDidMount() {
-    const url = '/api/users/whoami?minified=true';
+    // eslint-disable-next-line no-undef
+    mbeeWhoAmI((err, data) => {
+      if (err) {
+        this.setState({ error: err.responseText });
+      }
+      else {
+        this.setState({ user: data });
+        // Get project data
+        $.ajax({
+          method: 'GET',
+          url: '/api/orgs?populate=projects&minified=true',
+          statusCode: {
+            200: (orgs) => {
+              this.setMountedComponentStates(data, orgs);
+            },
+            401: (error) => {
+              // Throw error and set state
+              this.setState({ error: error.responseText });
 
-    // Get project data
-    $.ajax({
-      method: 'GET',
-      url: url,
-      statusCode: {
-        200: (user) => {
-          // Get project data
-          $.ajax({
-            method: 'GET',
-            url: '/api/orgs?populate=projects&minified=true',
-            statusCode: {
-              200: (orgs) => {
-                this.setMountedComponentStates(user, orgs);
-              },
-              401: (err) => {
-                // Throw error and set state
-                this.setState({ error: err.responseJSON.description });
-
-                // Refresh when session expires
-                window.location.reload();
-              },
-              404: (err) => {
-                this.setState({ error: err.responseJSON.description });
-              }
+              // Refresh when session expires
+              window.location.reload();
+            },
+            404: (error) => {
+              this.setState({ error: error.responseText });
             }
-          });
-        },
-        401: (err) => {
-          // Throw error and set state
-          this.setState({ error: err.responseJSON.description });
-
-          // Refresh when session expires
-          window.location.reload();
-        },
-        404: (err) => {
-          this.setState({ error: err.responseJSON.description });
-        }
+          }
+        });
       }
     });
   }
 
   setMountedComponentStates(user, orgs) {
-    // Set user state
-    this.setState({ user: user });
-
     // Add event listener for window resizing
     window.addEventListener('resize', this.handleResize);
     // Handle initial size of window
     this.handleResize();
 
     // Initialize variables
-    const writePermOrgs = [];
+    let writePermOrgs = [];
 
-    // Loop through orgs
-    orgs.forEach((org) => {
-      // Initialize variables
-      const perm = org.permissions[user.username];
+    if (!user.admin) {
+      // Loop through orgs
+      orgs.forEach((org) => {
+        // Initialize variables
+        const perm = org.permissions[user.username];
 
-      // Verify if user has write or admin permissions
-      if ((perm === 'write') || (perm === 'admin')) {
-        // Push the org to the org permissions
-        writePermOrgs.push(org);
-      }
-    });
+        // Verify if user has write or admin permissions
+        if ((perm === 'write') || (perm === 'admin')) {
+          // Push the org to the org permissions
+          writePermOrgs.push(org);
+        }
+      });
+    }
+    else if (user.admin) {
+      writePermOrgs = orgs;
+    }
 
     // Verify there are orgs
     if (writePermOrgs.length > 0) {
@@ -175,18 +165,28 @@ class HomeApp extends Component {
   render() {
     // Initialize variables
     let titleClass = 'workspace-title workspace-title-padding';
+    let list;
 
     // Loop through all orgs
-    const list = this.state.orgs.map(org => {
-      const username = this.state.user.username;
+    if (this.state.orgs.length > 0) {
+      list = this.state.orgs.map(org => {
+        const username = this.state.user.username;
 
-      if ((org.permissions[username] === 'write') || (org.permissions[username] === 'admin')) {
-        return (<OrgList org={org} key={`org-key-${org.id}`} user={this.state.user} write={this.state.write} admin={this.state.admin}/>);
-      }
-      else {
-        return (<OrgList key={`org-key-${org.id}`} org={org} user={this.state.user} admin={this.state.admin}/>);
-      }
-    });
+        if (!this.state.user.admin) {
+          if ((org.permissions[username] === 'write') || (org.permissions[username] === 'admin')) {
+            return (<OrgList org={org} key={`org-key-${org.id}`} user={this.state.user} write={this.state.write}
+                             admin={this.state.admin}/>);
+          }
+          else {
+            return (<OrgList key={`org-key-${org.id}`} org={org} user={this.state.user} admin={this.state.admin}/>);
+          }
+        }
+        else {
+          return (<OrgList org={org} key={`org-key-${org.id}`} user={this.state.user} write={this.state.write}
+                           admin={this.state.admin}/>);
+        }
+      });
+    }
 
     // Verify user is admin
     if (this.state.admin) {

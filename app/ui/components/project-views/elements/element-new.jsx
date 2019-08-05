@@ -28,6 +28,7 @@ import {
 
 // MBEE Modules
 import validators from '../../../../../build/json/validators';
+import ElementSelector from './element-selector.jsx';
 
 /* eslint-enable no-unused-vars */
 
@@ -52,13 +53,15 @@ class ElementNew extends Component {
       custom: null,
       org: null,
       project: null,
-      branch: 'master',
       error: null
     };
 
     // Bind component function
     this.handleChange = this.handleChange.bind(this);
     this.onSubmit = this.onSubmit.bind(this);
+    this.parentSelectHandler = this.parentSelectHandler.bind(this);
+    this.sourceSelectHandler = this.sourceSelectHandler.bind(this);
+    this.targetSelectHandler = this.targetSelectHandler.bind(this);
   }
 
   componentDidUpdate(prevProps) {
@@ -75,6 +78,10 @@ class ElementNew extends Component {
 
   // Define the submit function
   onSubmit() {
+    if (this.state.error) {
+      this.setState({ error: null });
+    }
+
     // Initialize variables
     const data = {
       id: this.state.id,
@@ -83,10 +90,12 @@ class ElementNew extends Component {
       parent: this.state.parent
     };
 
-    const oid = this.props.project.org;
-    const pid = this.props.project.id;
-    const baseUrl = `/api/orgs/${oid}/projects/${pid}/branches/master`;
-    const url = `${baseUrl}/elements/${data.id}`;
+    if (this.state.source !== null && this.state.target !== null) {
+      data.source = this.state.source;
+      data.target = this.state.target;
+    }
+
+    const url = `${this.props.url}/elements/${data.id}`;
 
     $.ajax({
       method: 'POST',
@@ -95,19 +104,43 @@ class ElementNew extends Component {
       data: JSON.stringify(data),
       statusCode: {
         200: () => {
-          this.props.closeSidePanel(null, true, false);
+          this.props.closeSidePanel(null, [this.state.parent]);
         },
         401: (err) => {
-          this.setState({ error: err.responseJSON.description });
+          this.setState({ error: err.responseText });
 
           // Refresh when session expires
           window.location.reload();
         },
         403: (err) => {
-          this.setState({ error: err.responseJSON.description });
+          this.setState({ error: err.responseText });
         }
       }
     });
+  }
+
+  /**
+   * This function is called when the ElementSelector for the parent field
+   * changes.
+   */
+  parentSelectHandler(_id) {
+    this.setState({ parent: _id });
+  }
+
+  /**
+   * This function is called when the ElementSelector for the source field
+   * changes.
+   */
+  sourceSelectHandler(_id) {
+    this.setState({ source: _id });
+  }
+
+  /**
+   * This function is called when the ElementSelector for the target field
+   * changes.
+   */
+  targetSelectHandler(_id) {
+    this.setState({ target: _id });
   }
 
   render() {
@@ -120,9 +153,16 @@ class ElementNew extends Component {
       idInvalid = true;
       disableSubmit = true;
     }
+
     // Verify parent was selected
     if (this.state.parent === null) {
       // Disable submit
+      disableSubmit = true;
+    }
+
+    // Verify target and source are set
+    if ((!this.state.target && this.state.source)
+      || (!this.state.source && this.state.target)) {
       disableSubmit = true;
     }
 
@@ -178,14 +218,56 @@ class ElementNew extends Component {
           <FormGroup row>
             <Label for="parent" sm={2}>Parent</Label>
             <Col sm={10}>
-              <p id="parent">
-                {this.state.parent || 'Select an element in the model tree.'}
-              </p>
+              <div id="parent" className={'selector-value'}>
+                {this.state.parent || 'Select an element.'}
+                <ElementSelector
+                  currentSelection={this.state.parent}
+                  url={this.props.url}
+                  branch={this.props.branch}
+                  project={this.props.project}
+                  selectedHandler={this.parentSelectHandler} />
+              </div>
             </Col>
+          </FormGroup>
+          <FormGroup row>
+            <Label for='name' sm={2}>Source</Label>
+            <Col sm={10} className={'selector-value'}>
+              {this.state.source || 'null'}
+              <ElementSelector
+                currentSelection={this.state.source}
+                self={this.state.id}
+                url={this.props.url}
+                branch={this.props.branch}
+                project={this.props.project}
+                selectedHandler={this.sourceSelectHandler} />
+            </Col>
+            {(this.state.target && !this.state.source)
+              ? (<div className='warning-label'>*The source needs to be set with the target.</div>)
+              : ''
+            }
+          </FormGroup>
+          {/* Form section for Element target */}
+          <FormGroup row>
+            <Label for='name' sm={2}>Target</Label>
+            <Col sm={10} className={'selector-value'}>
+              {this.state.target || 'null'}
+              <ElementSelector
+                currentSelection={this.state.target}
+                self={this.state.id}
+                branch={this.props.branch}
+                url={this.props.url}
+                project={this.props.project}
+                selectedHandler={this.targetSelectHandler} />
+            </Col>
+            {(!this.state.target && this.state.source)
+              ? (<div className='warning-label'>*The target needs to be set with the source.</div>)
+              : ''
+            }
           </FormGroup>
           <Button className='btn btn'
                   outline color="primary"
-                  disabled={disableSubmit} onClick={this.onSubmit}>
+                  disabled={disableSubmit}
+                  onClick={this.onSubmit}>
             Submit
           </Button>
           <Button className='btn btn'

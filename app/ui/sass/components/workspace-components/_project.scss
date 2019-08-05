@@ -1,15 +1,14 @@
 /**
  * Classification: UNCLASSIFIED
  *
- * @module app.ui.sass.components.workspace-components._project.scss
+ * @module ui.sass.components.workspace-components._project
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
  *
- * @description This defines the project page Sass variables.
+ * @description Defines the project page sass variables
  */
-
 @import '../../utils/_variables';
 
 /******************************************************************************
@@ -38,7 +37,7 @@
 }
 
 .search-form {
-  padding: 80px;
+  padding: 80px 80px 1px;
 
   .form-row {
     width: 100%;
@@ -79,4 +78,105 @@
       overflow: scroll;
     }
   }
+}
+
+/******************************************************************************
+/*                       Adv Search Form Styling                              *
+/******************************************************************************/
+
+.adv-search {
+  padding: 4px 80px;
+  margin-bottom: 20px;
+}
+
+.adv-col {
+  padding: 0px 10px 0px 0px;
+}
+
+#adv-card {
+  padding: 0px;
+  margin-right: 9px;
+}
+
+#adv-card-body {
+  padding: 10px;
+}
+
+#frm-adv-label {
+  padding: 5px 0px 0px 14px;
+  margin: 0px;
+  font-size: 0.9rem;
+}
+
+#btn-grp-adv-filter {
+  margin: 0px 10px 0px 10px;
+}
+
+#adv-separator {
+  border-top: 1px solid rgba(0,0,0,0.125);
+  margin: 12px;
+}
+
+.adv-search-select {
+  padding-right: 10px;
+}
+
+.adv-input-field {
+  border-radius: 0.25rem !important;
+}
+
+.adv-search-row {
+  padding: 5px;
+}
+
+@mixin btn-adv-row-del {
+  padding: 0px;
+  margin-left: 5px;
+  font-size: 1.25rem;
+  background-color: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  outline: none !important;
+  color: gray;
+}
+
+.adv-row-del {
+ @include btn-adv-row-del;
+
+  &:hover, &:focus, &:active {
+    @include btn-adv-row-del;
+  }
+}
+
+@mixin btn-adv-standard {
+  padding: 0px 0px 5px;
+  font-size: 0.875rem;
+  border: none;
+  background-color: Transparent;
+  box-shadow: none;
+  color: $color-primary;
+}
+
+#adv-btns-grp {
+  margin: 0px;
+}
+
+#btn-add-adv-row {
+  @include btn-adv-standard;
+  padding: 6px 0px 0px 0px;
+}
+
+#btn-adv-search-toggle{
+  @include btn-adv-standard;
+
+  &:hover, &:focus, &:active {
+    @include btn-adv-standard;
+  }
+}
+
+#btn-adv-search {
+  float: none;
+  font-size: 0.875rem;
+  margin: 0 auto;
+  width: 200px;
 }

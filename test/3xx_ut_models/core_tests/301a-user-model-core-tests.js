@@ -15,6 +15,7 @@
 
 // Node modules
 const chai = require('chai');
+const crypto = require('crypto');
 
 // MBEE modules
 const User = M.require('models.user');
@@ -76,7 +77,13 @@ function createUser(done) {
   const user = new User(userData);
   // Save user object to the database
   user.save()
-  .then(() => done())
+  .then((savedUser) => {
+    // Create a hash of the password
+    const derivedKey = crypto.pbkdf2Sync(userData.password, userData._id.toString(), 1000, 32, 'sha256');
+    // Ensure that the user password is stored as a hash
+    chai.expect(savedUser.password).to.equal(derivedKey.toString('hex'));
+    done();
+  })
   .catch((error) => {
     M.log.error(error);
     // Expect no error

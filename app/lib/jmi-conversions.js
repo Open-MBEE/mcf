@@ -35,7 +35,7 @@ module.exports.convertJMI = function(from, to, data, field = '_id') {
     return jmi13(data, field);
   }
 
-  throw new M.CustomError('JMI conversion not yet implemented.', 501, 'warn');
+  throw new M.ServerError('JMI conversion not yet implemented.', 'warn');
 };
 
 /**
@@ -52,7 +52,7 @@ function jmi12(data, field) {
     assert.ok(Array.isArray(data), 'Data is not in JMI type 1.');
   }
   catch (msg) {
-    throw new M.CustomError(msg, 400, 'warn');
+    throw new M.DataFormatError(msg, 'warn');
   }
 
   // Initialize return object
@@ -62,8 +62,8 @@ function jmi12(data, field) {
   data.forEach((object) => {
     // Error Check: Ensure there are no duplicate keys
     if (returnObj[object[field]]) {
-      throw new M.CustomError('Invalid object, duplicate keys '
-        + `[${object[field]}] exist.`, 403, 'warn');
+      throw new M.DataFormatError('Invalid object, duplicate keys '
+        + `[${object[field]}] exist.`, 'warn');
     }
     // Create JMI type 2 object
     returnObj[object[field]] = object;
@@ -96,7 +96,7 @@ function jmi13(data, field) {
 
     // If the parent is on the top level, a circular reference exists.
     if (jmi3Obj[parentID]) {
-      throw new M.CustomError('A circular reference exists in the given data.', 403, 'warn');
+      throw new M.DataFormatError('A circular reference exists in the given data.', 'warn');
     }
   });
 

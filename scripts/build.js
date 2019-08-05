@@ -186,7 +186,8 @@ function build(_args) {
           'home-app': path.join(M.root, 'app', 'ui', 'components', 'apps', 'home-app.jsx'),
           'org-app': path.join(M.root, 'app', 'ui', 'components', 'apps', 'org-app.jsx'),
           'project-app': path.join(M.root, 'app', 'ui', 'components', 'apps', 'project-app.jsx'),
-          'profile-app': path.join(M.root, 'app', 'ui', 'components', 'apps', 'profile-app.jsx')
+          'profile-app': path.join(M.root, 'app', 'ui', 'components', 'apps', 'profile-app.jsx'),
+          'admin-console-app': path.join(M.root, 'app', 'ui', 'components', 'apps', 'admin-console-app.jsx')
         },
         output: {
           path: path.join(M.root, 'build', 'public', 'js'),

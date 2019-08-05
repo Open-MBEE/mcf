@@ -45,7 +45,7 @@ module.exports.encrypt = function encrypt(data) {
 module.exports.decrypt = function decrypt(data) {
   if (data === undefined || data.toString() === '') {
     // NOTE: Changed from returning '{}' to throwing an error
-    throw new M.CustomError(`Can't decrypt ${data}. Returning ...`, 400);
+    throw new M.ServerError('Can\'t decrypt data. Returning ...', 'warn');
   }
 
   try {
@@ -66,7 +66,7 @@ module.exports.decrypt = function decrypt(data) {
   catch (error) {
     // Decryption failed, throw an error
     // NOTE: Changed from returning '{}' to throwing an error
-    throw new M.CustomError('Decryption failed.', 400);
+    throw new M.ServerError('Decryption failed.', 'warn');
   }
 };
 

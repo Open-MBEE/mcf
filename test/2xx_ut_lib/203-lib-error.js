@@ -13,6 +13,9 @@
 // Node modules
 const chai = require('chai');
 
+// MBEE modules
+const errors = M.require('lib.errors');
+
 /* --------------------( Main )-------------------- */
 /**
  * The "describe" function is provided by Mocha and provides a way of wrapping
@@ -21,32 +24,49 @@ const chai = require('chai');
  * name of the current file.
  */
 describe(M.getModuleName(module.filename), () => {
-  it('should create an error with no status code', noStatusCode);
-  it('should create a error with a 400 status code', status400);
+  it('should test the getStatusCode() function', getStatusCode);
+  it('should create a new custom error with the same stack trace', capturedError);
 });
 
 /* --------------------( Tests )-------------------- */
 /**
- * @description Creates an error with no status code and verifies the
- * properties on the CustomError object.
+ * @description Tests that the get status code function returns all the proper
+ * status codes for all MBEE errors
  */
-function noStatusCode(done) {
-  const err = new M.CustomError('Database save failed.');
-  chai.expect(err.status).to.equal(500);
-  chai.expect(err.message).to.equal('Internal Server Error');
-  chai.expect(err.description).to.equal('Database save failed.');
+function getStatusCode(done) {
+  // Create all types of errors and get their status codes
+  const format = errors.getStatusCode(new M.DataFormatError('This is a format error.'));
+  const auth = errors.getStatusCode(new M.AuthorizationError('This is an auth error.'));
+  const perm = errors.getStatusCode(new M.PermissionError('This is a permission error.'));
+  const find = errors.getStatusCode(new M.NotFoundError('This is a not found error.'));
+  const server = errors.getStatusCode(new M.ServerError('This is a server error.'));
+  const database = errors.getStatusCode(new M.DatabaseError('This is a database error.'));
+  const normal = errors.getStatusCode(new Error('This is a normal error.'));
+
+  // Ensure status codes are correct
+  chai.expect(format).to.equal(400);
+  chai.expect(auth).to.equal(401);
+  chai.expect(perm).to.equal(403);
+  chai.expect(find).to.equal(404);
+  chai.expect(server).to.equal(500);
+  chai.expect(database).to.equal(500);
+  chai.expect(normal).to.equal(500);
   done();
 }
 
 /**
- * @description Creates an error with a 400 code and verifies the expected
- * properties on the CustomError object.
+ * @description Tests that the captureError function creates a new custom error and preserves
+ * the stack trace
  */
-function status400(done) {
-  const err = new M.CustomError('Project id not provided.', 400);
-  err.log();
-  chai.expect(err.status).to.equal(400);
-  chai.expect(err.message).to.equal('Bad Request');
-  chai.expect(err.description).to.equal('Project id not provided.');
+function capturedError(done) {
+  // Create an error
+  const originalError = new Error();
+  // Run the error through the captureError function
+  const newError = errors.captureError(originalError);
+
+  // Expect the captureError function to turn the error into a customError and preserve the stack
+  chai.expect(originalError instanceof errors.CustomError).to.equal(false);
+  chai.expect(newError.stack).to.equal(originalError.stack);
+  chai.expect(newError instanceof errors.CustomError).to.equal(true);
   done();
 }

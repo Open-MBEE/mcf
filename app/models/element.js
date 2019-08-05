@@ -41,7 +41,6 @@ const utils = M.require('lib.utils');
 
 
 /* ---------------------------( Element Schemas )---------------------------- */
-
 /**
  * @namespace
  *
@@ -66,8 +65,8 @@ const ElementSchema = new mongoose.Schema({
     type: String,
     required: true,
     match: RegExp(validators.element.id),
-    maxlength: [255, 'Too many characters in ID'],
-    minlength: [8, 'Too few characters in ID'],
+    maxlength: [147, 'Too many characters in ID'],
+    minlength: [11, 'Too few characters in ID'],
     validate: {
       validator: function(v) {
         const elemID = utils.parseID(v).pop();
@@ -75,7 +74,7 @@ const ElementSchema = new mongoose.Schema({
         return !validators.reserved.includes(elemID);
       },
       message: 'Element ID cannot include the following words: '
-      + `[${validators.reserved}].`
+        + `[${validators.reserved}].`
     }
   },
   name: {
@@ -85,21 +84,13 @@ const ElementSchema = new mongoose.Schema({
   project: {
     type: String,
     required: true,
-    ref: 'Project',
-    set: function(_proj) {
-      // Check value undefined
-      if (typeof this.project === 'undefined') {
-        // Return value to set it
-        return _proj;
-      }
-      // Check value NOT equal to db value
-      if (_proj !== this.project) {
-        // Immutable field, return error
-        M.log.warn('Assigned project cannot be changed.');
-      }
-      // No change, return the value
-      return this.project;
-    }
+    ref: 'Project'
+  },
+  branch: {
+    type: String,
+    required: true,
+    ref: 'Branch',
+    index: true
   },
   parent: {
     type: String,
@@ -110,12 +101,14 @@ const ElementSchema = new mongoose.Schema({
   source: {
     type: String,
     ref: 'Element',
-    default: null
+    default: null,
+    index: true
   },
   target: {
     type: String,
     ref: 'Element',
-    default: null
+    default: null,
+    index: true
   },
   documentation: {
     type: String,
@@ -136,6 +129,24 @@ ElementSchema.virtual('contains', {
   ref: 'Element',
   localField: '_id',
   foreignField: 'parent',
+  justOne: false,
+  default: []
+});
+
+// Virtual which stores elements that the retrieved element is a source of
+ElementSchema.virtual('sourceOf', {
+  ref: 'Element',
+  localField: '_id',
+  foreignField: 'source',
+  justOne: false,
+  default: []
+});
+
+// Virtual which stores elements that the retrieved element is a target of
+ElementSchema.virtual('targetOf', {
+  ref: 'Element',
+  localField: '_id',
+  foreignField: 'target',
   justOne: false,
   default: []
 });
@@ -179,7 +190,7 @@ ElementSchema.statics.getValidBulkUpdateFields = function() {
  */
 ElementSchema.methods.getValidPopulateFields = function() {
   return ['archivedBy', 'lastModifiedBy', 'createdBy', 'parent', 'source',
-    'target', 'project'];
+    'target', 'project', 'branch', 'sourceOf', 'targetOf', 'contains'];
 };
 
 ElementSchema.statics.getValidPopulateFields = function() {
@@ -241,7 +252,7 @@ ElementSchema.index({
 });
 
 
-/* -----------------------( Organization Properties )------------------------ */
+/* --------------------------( Element Properties )-------------------------- */
 
 // Required for virtual getters
 ElementSchema.set('toJSON', { virtuals: true });

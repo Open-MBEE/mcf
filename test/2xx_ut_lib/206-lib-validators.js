@@ -26,6 +26,7 @@ const validators = M.require('lib.validators');
 describe(M.getModuleName(module.filename), () => {
   it('should verify valid and invalid org ids', verifyOrgID);
   it('should verify valid and invalid project ids', verifyProjectID);
+  it('should verify valid and invalid branch ids', verifyBranchID);
   it('should verify valid and invalid element ids', verifyElementID);
   it('should verify valid and invalid user usernames', verifyUserUsername);
   it('should verify valid and invalid user emails', verifyUserEmail);
@@ -67,12 +68,27 @@ function verifyProjectID(done) {
 }
 
 /**
+ * @description Verifies valid and invalid branch IDs
+ */
+function verifyBranchID(done) {
+  // Valid IDs
+  chai.expect(RegExp(validators.branch.id).test('org:proj:branch1')).to.equal(true);
+  chai.expect(RegExp(validators.branch.id).test('org:proj:3branch-id')).to.equal(true);
+
+  // Invalid IDs
+  chai.expect(RegExp(validators.project.id).test('Branch3')).to.equal(false);
+  chai.expect(RegExp(validators.project.id).test('special*')).to.equal(false);
+  chai.expect(RegExp(validators.project.id).test('')).to.equal(false);
+  done();
+}
+
+/**
  * @description Verifies valid and invalid element ids
  */
 function verifyElementID(done) {
   // Valid IDs
-  chai.expect(RegExp(validators.element.id).test('org:proj:elem3')).to.equal(true);
-  chai.expect(RegExp(validators.element.id).test('org:proj:3elem-id')).to.equal(true);
+  chai.expect(RegExp(validators.element.id).test('org:proj:branch:elem3')).to.equal(true);
+  chai.expect(RegExp(validators.element.id).test('org:proj:branch:3elem-id')).to.equal(true);
 
   // Invalid IDs
   chai.expect(RegExp(validators.element.id).test('Elem3')).to.equal(false);

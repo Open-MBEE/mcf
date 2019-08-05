@@ -34,8 +34,17 @@ module.exports.logRoute = function logRoute(req, res, next) {
  * @param {function} next - Callback to express authentication flow.
  */
 module.exports.logIP = function logIP(req, res, next) {
+  let ip = req.ip;
+  // If IP is ::1, set it equal to 127.0.0.1
+  if (req.ip === '::1') {
+    ip = '127.0.0.1';
+  }
+  // If IP starts with ::ffff:, remove the ::ffff:
+  else if (req.ip.startsWith('::ffff:')) {
+    ip = ip.replace('::ffff:', '');
+  }
   // Log the method, url, and ip address for the request
-  M.log.verbose(`${req.method} "${req.originalUrl}" requested from ${req.ip}`);
+  M.log.verbose(`${req.method} "${req.originalUrl}" requested from ${ip}`);
   next();
 };
 
@@ -54,11 +63,9 @@ module.exports.disableUserAPI = function disableUserAPI(req, res, next) {
     // Create error message '<method> <url> is disabled'
     const message = `${req.method} ${req.originalUrl} is disabled.`;
     // Create custom error 403 Forbidden
-    const error = new M.CustomError(message, 403);
-    // Log custom error
-    M.log.error(error);
+    const error = new M.OperationError(message, 'error');
     // Return error to user
-    return res.status(403).send(error);
+    return res.status(403).send(error.message);
   }
   next();
 };

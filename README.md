@@ -49,7 +49,7 @@ Included documentation:
   - Test Framework Documentation
   - Docker Set Up Documentation
 
-## Reporting Bugs
+## Reporting Vulnerabilities and Bugs
 
-Please report issues on the MBEE GitHub page, or contact us through the MBEE
-community.
+If an issue is identified in MBEE, please email
+[mbee-software.fc-space@lmco.com](mailto:mbee-software.fc-space@lmco.com).
