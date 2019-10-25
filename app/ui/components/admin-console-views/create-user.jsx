@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module ui.components.admin-console-views.create-user
  *
@@ -7,13 +7,17 @@
  *
  * @license MIT
  *
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ *
  * @description This renders the create new local user page.
  */
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
 
-// React Modules
+// React modules
 import React, { Component } from 'react';
 import {
   Form,
@@ -25,7 +29,7 @@ import {
   UncontrolledAlert
 } from 'reactstrap';
 
-// MBEE Modules
+// MBEE modules
 import validators from '../../../../build/json/validators.json';
 
 /* eslint-enable no-unused-vars */
@@ -206,24 +210,24 @@ class CreateUser extends Component {
     // Return the form to create a project
     return (
       <div id='workspace'>
-        <div id='workspace-header' className='workspace-header'>
+        <div className='workspace-header'>
           <h2 className='workspace-title workspace-title-padding'>New Local User</h2>
         </div>
         <div className='extra-padding'>
           {(!this.state.error)
             ? ''
-            : (<UncontrolledAlert color="danger">
+            : (<UncontrolledAlert color='danger'>
               {this.state.error}
             </UncontrolledAlert>)
           }
           <Form>
             {/* Create an input for project id */}
             <FormGroup>
-              <Label for="username">Username*</Label>
-              <Input type="username"
-                     name="username"
-                     id="username"
-                     placeholder="Username"
+              <Label for='username'>Username*</Label>
+              <Input type='username'
+                     name='username'
+                     id='username'
+                     placeholder='Username'
                      value={this.state.username || ''}
                      invalid={usernameInvalid}
                      onChange={this.handleChange}/>
@@ -234,11 +238,11 @@ class CreateUser extends Component {
             </FormGroup>
             {/* Create an input for user name */}
             <FormGroup>
-              <Label for="fname">First Name</Label>
-              <Input type="fname"
-                     name="fname"
-                     id="fname"
-                     placeholder="First Name"
+              <Label for='fname'>First Name</Label>
+              <Input type='fname'
+                     name='fname'
+                     id='fname'
+                     placeholder='First Name'
                      invalid={fnameInvalid}
                      value={this.state.fname || ''}
                      onChange={this.handleChange}/>
@@ -249,12 +253,12 @@ class CreateUser extends Component {
             </FormGroup>
             {/* Create an input for preferred name */}
             <FormGroup>
-              <Label for="preferredname">Preferred Name</Label>
-              <Input type="preferredname"
-                     name="preferredname"
-                     id="preferredname"
+              <Label for='preferredname'>Preferred Name</Label>
+              <Input type='preferredname'
+                     name='preferredname'
+                     id='preferredname'
                      invalid={preferredInvalid}
-                     placeholder="Preferred Name"
+                     placeholder='Preferred Name'
                      value={this.state.preferredname || ''}
                      onChange={this.handleChange}/>
               {/* If invalid name, notify user */}
@@ -264,12 +268,12 @@ class CreateUser extends Component {
             </FormGroup>
             {/* Create an input for user last name */}
             <FormGroup>
-              <Label for="lname">Last Name</Label>
-              <Input type="lname"
-                     name="lname"
-                     id="lname"
+              <Label for='lname'>Last Name</Label>
+              <Input type='lname'
+                     name='lname'
+                     id='lname'
                      invalid={lnameInvalid}
-                     placeholder="Last Name"
+                     placeholder='Last Name'
                      value={this.state.lname || ''}
                      onChange={this.handleChange}/>
               {/* If invalid name, notify user */}
@@ -279,11 +283,11 @@ class CreateUser extends Component {
             </FormGroup>
             {/* Create an input for custom data */}
             <FormGroup>
-              <Label for="email">E-Mail</Label>
-              <Input type="email"
-                     name="email"
-                     id="email"
-                     placeholder="mbee@example.com"
+              <Label for='email'>E-Mail</Label>
+              <Input type='email'
+                     name='email'
+                     id='email'
+                     placeholder='mbee@example.com'
                      value={this.state.email || ''}
                      invalid={emailInvalid}
                      onChange={this.handleChange}/>
@@ -294,11 +298,11 @@ class CreateUser extends Component {
             </FormGroup>
             {/* Create an input for custom data */}
             <FormGroup>
-              <Label for="password">Temporary Password*</Label>
-              <Input type="password"
-                     name="password"
-                     id="password"
-                     placeholder="Password"
+              <Label for='password'>Temporary Password*</Label>
+              <Input type='password'
+                     name='password'
+                     id='password'
+                     placeholder='Password'
                      value={this.state.password || ''}
                      invalid={this.state.passwordInvalid}
                      onChange={this.handleChange}/>
@@ -310,11 +314,11 @@ class CreateUser extends Component {
             </FormGroup>
             {/* Form section for custom data */}
             <FormGroup>
-              <Label for="custom">Custom Data</Label>
-              <Input type="textarea"
-                     name="custom"
-                     id="custom"
-                     placeholder="Custom Data"
+              <Label for='custom'>Custom Data</Label>
+              <Input type='textarea'
+                     name='custom'
+                     id='custom'
+                     placeholder='{}'
                      value={this.state.custom || ''}
                      invalid={customInvalid}
                      onChange={this.handleChange}/>
@@ -325,10 +329,10 @@ class CreateUser extends Component {
             </FormGroup>
             <FormGroup check>
               <Label check>
-                <Input type="checkbox"
-                       name="admin"
-                       id="admin"
-                       placeholder="Admin"
+                <Input type='checkbox'
+                       name='admin'
+                       id='admin'
+                       placeholder='Admin'
                        value={this.state.admin || false}
                        onChange={this.handleChange} />
                 Admin

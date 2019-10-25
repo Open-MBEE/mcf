@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module scripts.test
  *
@@ -7,13 +7,23 @@
  *
  * @license MIT
  *
+ * @owner Connor Doyle
+ *
+ * @author Josh Kaplan
+ * @author Leah De Laurell
+ *
  * @description This file executes the MBEE test suite with Mocha.
  */
 
 // Node modules
 const fs = require('fs');
 const path = require('path');
+
+// NPM modules
 const Mocha = require('mocha');
+require('@babel/register')();        // Transpile react tests to javascript
+require('@babel/polyfill');          // Transpile async await for javascript
+require(path.join(M.root, 'test', '7xx_ui_tests', 'setup.js'));
 
 // If the application is run directly from node, notify the user and fail
 if (module.parent == null) {
@@ -26,18 +36,12 @@ if (module.parent == null) {
 /**
  * @description Runs the collection of test suites script with Mocha.
  * Any command line accepted by Mocha is valid.
+ *
+ * @param {string} _args - Options from the user for how to run the tests.
  */
 function test(_args) {
   printHeader();
-  M.log.verbose('Running tests on mongo instance...');
-  M.log.verbose(`Mongo IP: ${M.config.db.url}:${M.config.db.port}`);
-  M.log.verbose(`Mongo DB: ${M.config.db.name}`);
-
-  // Remove --force from args
-  if (_args.includes('--force')) {
-    const removeInd = _args.indexOf('--force');
-    _args.splice(removeInd, 1);
-  }
+  M.log.verbose(`Running tests with DB strategy: ${M.config.db.strategy}`);
 
   // Default timeout changed to 5000
   // Add default timeout if not provided
@@ -49,13 +53,47 @@ function test(_args) {
   // Add default slow speed if not provided
   if (!_args.includes('--slow')) {
     _args.push('--slow');
-    _args.push('19');
+    _args.push('50');
   }
 
   // Add default grep command to define which tests to run
-  if (!_args.includes('--grep')) {
+  if (!_args.includes('--grep') && !_args.includes('--all')) {
     _args.push('--grep');
-    _args.push('^[1-5]');
+    _args.push('^[1-57]');
+  }
+
+  // Test everything if --all was specified
+  if (_args.includes('--all')) {
+    if (M.env.toLowerCase() === 'production' && !_args.includes('--force')) {
+      // Throw an error if the server is running as production
+      M.log.error('\nWARNING! You are attempting to run tests on a production database.\n\n'
+        + 'This operation could ERASE PRODUCTION DATA PERMANENTLY.\n'
+        + 'If you would still like to perform this action, use the\n'
+        + 'optional parameter --force\n\n'
+        + 'node mbee test --grep "[^[1-8]]" --force\n');
+      process.exit(-1);
+    }
+    else if (_args.includes('--grep')) {
+      // Throw an error if --grep and --all are used together
+      M.log.error('Cannot use arguements --grep and --all together');
+      process.exit(-1);
+    }
+    const removeInd = _args.indexOf('--all');
+    _args.splice(removeInd, 1);
+    _args.push('--grep');
+    _args.push('^[0-9]');
+  }
+
+  // Remove --force from args
+  if (_args.includes('--force')) {
+    const removeInd = _args.indexOf('--force');
+    _args.splice(removeInd, 1);
+  }
+
+  // Remove --suppress-console
+  if (_args.includes('--suppress-console')) {
+    const removeInd = _args.indexOf('--suppress-console');
+    _args.splice(removeInd, 1);
   }
 
   // Allocate options variable for mocha
@@ -100,7 +138,7 @@ function test(_args) {
 
 
 /**
- * Prints the MBEE test framework header.
+ * @description Prints the MBEE test framework header.
  */
 function printHeader() {
   const Y = '\u001b[33m';
@@ -121,7 +159,10 @@ function printHeader() {
 
 /**
  * @description The mocha walk function is responsible for loading .js files into mocha
- * for use during tests
+ * for use during tests.
+ *
+ * @param {string} dir - The directory to read.
+ * @param {object} mochaObj - The mocha object storing all the paths to test.
  */
 function mochaWalk(dir, mochaObj) {
   // Read the current directory and use a callback to filter the results

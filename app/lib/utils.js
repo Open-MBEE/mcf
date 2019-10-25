@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module lib.utils
  *
@@ -7,8 +7,17 @@
  *
  * @license MIT
  *
+ * @owner Connor Doyle
+ *
+ * @author Austin Bieber
+ * @author Connor Doyle
+ * @author Phillip Lee
+ *
  * @description Defines miscellaneous helper functions.
  */
+/* eslint-disable jsdoc/require-description-complete-sentence */
+// Disabled to allow lists in descriptions
+
 
 // Node modules
 const assert = require('assert');
@@ -17,6 +26,31 @@ const zlib = require('zlib');
 
 // MBEE modules
 const publicData = M.require('lib.get-public-data');
+
+// Define mine type to content type look up table
+const mineTypeTable = {
+  '7z': 'application/x-7z-compressed',
+  pdf: 'application/pdf',
+  bin: 'application/octet-stream',
+  bmp: 'image/bmp',
+  css: 'text/css',
+  csv: 'text/csv',
+  json: 'application/json',
+  jpeg: 'image/jpeg',
+  jpg: 'image/jpeg',
+  xls: 'application/vnd.ms-excel',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ppt: 'application/vnd.ms-powerpoint',
+  mp4: 'video/mp4',
+  png: 'image/png',
+  svg: 'image/svg+xml',
+  svd: 'application/vnd.svd',
+  tar: 'application/x-tar',
+  xml: 'application/xml',
+  yaml: 'text/yaml',
+  zip: 'application/zip'
+};
 
 /**
  * @description Provides time unit conversions.
@@ -31,6 +65,7 @@ module.exports.timeConversions = {
 
 /**
  * The string used as the UID delimiter.
+ *
  * @type {string}
  */
 module.exports.ID_DELIMITER = ':';
@@ -39,10 +74,12 @@ module.exports.ID_DELIMITER = ':';
  * @description Defines a render utility wrapper for the Express res.render
  * function to define and pass in default options.
  *
- * @param {Object} req - Request object
- * @param {Object} res - Response object
- * @param {string} name - Name of the template to render
- * @param {Object} params - List of parameters to render
+ * @param {object} req - Request object.
+ * @param {object} res - Response object.
+ * @param {string} name - Name of the template to render.
+ * @param {object} params - List of parameters to render.
+ *
+ * @returns {Function} Returns the response render function with the name and options.
  */
 module.exports.render = function(req, res, name, params) {
   const opts = params || {};
@@ -58,10 +95,10 @@ module.exports.render = function(req, res, name, params) {
  * @description Creates a colon delimited string from any number of arguments.
  * If any items are not strings or other failure occurs, an error is thrown.
  *
- * @param {(...string|string[])} args - An arbitrary number of strings to be
+ * @param {...string|string[]} args - An arbitrary number of strings to be
  * appended or an array of strings.
  *
- * @return {string} Concatenated args with uid delimiter
+ * @returns {string} Concatenated args with uid delimiter.
  */
 module.exports.createID = function(...args) {
   // If passed in an array of strings, set equal to args
@@ -81,28 +118,24 @@ module.exports.createID = function(...args) {
 };
 
 /**
- * @description Splits a UID on the UID delimiter up and returns an array of
- * UID components.
+ * @description Splits a UID on the UID delimiter up and returns an array of UID components.
  *
  * @param {string} uid - The uid.
  *
- * @return {string[]} Split uid
+ * @returns {string[]} Split uid.
  */
 module.exports.parseID = function(uid) {
-  if (!uid.includes(this.ID_DELIMITER)) {
-    throw new M.DataFormatError('Invalid UID.', 'warn');
-  }
   return uid.split(this.ID_DELIMITER);
 };
 
 /**
  * @description Title-cases a string.
  *
- * @param {string} s - The string to be title-cased
+ * @param {string} s - The string to be title-cased.
  * @param {boolean} [keepUpper=false] - Boolean indicating wither or not keep
- * uppercase characters as is
+ * uppercase characters as is.
  *
- * @return {string} The title-cased word
+ * @returns {string} The title-cased word.
  */
 module.exports.toTitleCase = function(s, keepUpper = false) {
   // Check if s NOT string or contains whitespace
@@ -136,8 +169,10 @@ module.exports.toTitleCase = function(s, keepUpper = false) {
  * @description Checks that two objects are equal by stringifying them and
  * comparing the resulting strings.
  *
- * @param {*} a
- * @param {*} b
+ * @param {*} a - The first parameter to be compared.
+ * @param {*} b - The second parameter to be compared.
+ *
+ * @returns {boolean} Returns whether the parameters do or do not share deep equality.
  */
 module.exports.deepEqual = function(a, b) {
   try {
@@ -157,10 +192,12 @@ module.exports.deepEqual = function(a, b) {
  *       string separated commas are converted to arrays
  *          ex. "createdBy, modifiedBy" => {["createdBy", "modifiedBy"]}
  *
- * @param {Object} options - An optional parameter that provides supported
+ * @param {object} options - An optional parameter that provides supported
  * options.
- * @param {Object} validOptions - An object containing valid option as keys and
- * the object's data type as values. ex. populate: 'array'
+ * @param {object} validOptions - An object containing valid option as keys and
+ * the object's data type as values. e.g. populate: 'array'.
+ *
+ * @returns {object} Returns the parsed options object.
  */
 module.exports.parseOptions = function(options, validOptions) {
   // Check option is defined
@@ -190,6 +227,9 @@ module.exports.parseOptions = function(options, validOptions) {
       }
       else if (options[option] === 'false') {
         parsedOptions[option] = false;
+      }
+      else if (!(typeof options[option] === 'boolean')) {
+        throw new M.DataFormatError(`Option ${option} is not a boolean`, 'warn');
       }
     }
     // Check array type
@@ -223,44 +263,55 @@ module.exports.parseOptions = function(options, validOptions) {
  * @description Validates a list of options and returns the desired response in
  * an object.
  *
- * @param {Object} options - The options object passed into the controller.
- * Should contain key/value pairs where the key is the option and the value is
- * the user input
+ * @param {object} options - The options object passed into the controller. Should
+ * contain key/value pairs where the key is the option and the value is
+ * the user input.
  * @param {string[]} validOptions - An array of valid options for that function.
- * @param {Object} model - The model of the controller which called this
+ * @param {object} model - The model of the controller which called this
  * function.
  *
- * @return {Object} An object with key/value pairs formatted for use by the
+ * @returns {object} An object with key/value pairs formatted for use by the
  * controllers.
  */
 module.exports.validateOptions = function(options, validOptions, model) {
-  // Define the object to be returned to the user. Initialize populateString
-  const returnObject = { populateString: '', sort: { $natural: 1 } };
-  // Define valid searchOptions for the org model
-  const orgSearchOptions = ['name', 'createdBy', 'lastModifiedBy', 'archivedBy'];
-  // Define valid searchOptions for the project model
-  const projectSearchOptions = ['name', 'visibility', 'createdBy',
-    'lastModifiedBy', 'archivedBy'];
-  // Define valid searchOptions for the branch model
-  const branchSearchOptions = ['tag', 'source', 'name', 'createdBy',
-    'lastModifiedBy', 'archivedBy'];
-  // Define valid searchOptions for the element model
-  const elemSearchOptions = ['parent', 'source', 'target', 'type', 'name',
-    'createdBy', 'lastModifiedBy', 'archivedBy'];
-  // Define valid searchOptions for the user model
-  const userSearchOptions = ['fname', 'preferredName', 'lname', 'email',
-    'createdBy', 'lastModifiedBy', 'archivedBy'];
-  const requiredElementFields = ['contains', 'sourceOf', 'targetOf'];
+  // Initialize the object to be returned to the user
+  const validatedOptions = { populateString: '', sort: { $natural: 1 } };
 
-  // Add required populate fields to populate string for Element model
-  if (model.modelName === 'Element') {
-    // Set populateString to include require virtuals
-    returnObject.populateString = 'contains sourceOf targetOf ';
+  // Define valid search options depending on the model
+  let validSearchOptions = [];
+  switch (model.modelName) {
+    case 'Organization':
+      validSearchOptions = ['name', 'createdBy', 'lastModifiedBy', 'archived', 'archivedBy'];
+      break;
+    case 'Project':
+      validSearchOptions = ['name', 'visibility', 'createdBy', 'lastModifiedBy', 'archived', 'archivedBy'];
+      break;
+    case 'Branch':
+      validSearchOptions = ['tag', 'source', 'name', 'createdBy', 'lastModifiedBy', 'archived',
+        'archivedBy'];
+      break;
+    case 'Element':
+      validSearchOptions = ['parent', 'source', 'target', 'type', 'name', 'createdBy',
+        'lastModifiedBy', 'archived', 'archivedBy'];
+      // Set populateString to include require virtuals
+      validatedOptions.populateString = 'contains sourceOf targetOf ';
+      break;
+    case 'Artifact':
+      validSearchOptions = ['filename', 'name', 'createdBy', 'lastModifiedBy',
+        'archivedBy'];
+      break;
+    case 'User':
+      validSearchOptions = ['fname', 'preferredName', 'lname', 'email', 'createdBy',
+        'lastModifiedBy', 'archived', 'archivedBy'];
+      break;
+    default:
+      throw new M.DataFormatError('No model provided', 'warn');
   }
+  const requiredElementFields = ['contains', 'sourceOf', 'targetOf'];
 
   // Check if no options provided
   if (!options) {
-    return returnObject;
+    return validatedOptions;
   }
 
   // For each option provided
@@ -268,16 +319,7 @@ module.exports.validateOptions = function(options, validOptions, model) {
     let val = options[opt];
 
     // Special case, ignore these as the controller handles these
-    if ((model.modelName === 'Element'
-      && (elemSearchOptions.includes(opt) || opt.startsWith('custom.')))
-      || (model.modelName === 'Branch'
-      && (branchSearchOptions.includes(opt) || opt.startsWith('custom.')))
-      || (model.modelName === 'User'
-      && (userSearchOptions.includes(opt) || opt.startsWith('custom.')))
-      || (model.modelName === 'Project'
-      && (projectSearchOptions.includes(opt) || opt.startsWith('custom.')))
-      || (model.modelName === 'Organization'
-      && (orgSearchOptions.includes(opt) || opt.startsWith('custom.')))) {
+    if (validSearchOptions.includes(opt) || opt.startsWith('custom.')) {
       // Ignore iteration of loop
       return;
     }
@@ -310,20 +352,21 @@ module.exports.validateOptions = function(options, validOptions, model) {
         // If the field is not a required virtual on the Element model
         if (!(model.modelName === 'Element' && requiredElementFields.includes(p))) {
           // Add field to populateString
-          returnObject.populateString += `${p} `;
+          validatedOptions.populateString += `${p} `;
         }
       });
     }
 
-    // Handle the archived option
-    if (opt === 'archived') {
+    // Handle the includeArchived option
+    if (opt === 'includeArchived') {
       // Ensure value is a boolean
       if (typeof val !== 'boolean') {
-        throw new M.DataFormatError('The option \'archived\' is not a boolean.', 'warn');
+        throw new M.DataFormatError('The option \'includeArchived\' is not a boolean.', 'warn');
       }
-
-      // Set the field archived in the returnObject
-      returnObject.archived = val;
+      // Only set this option if the user is not also specifying 'archived' in the search
+      if (!Object.keys(options).includes('archived')) {
+        validatedOptions.includeArchived = val;
+      }
     }
 
     // Handle the subtree option
@@ -332,9 +375,23 @@ module.exports.validateOptions = function(options, validOptions, model) {
       if (typeof options.subtree !== 'boolean') {
         throw new M.DataFormatError('The option \'subtree\' is not a boolean.', 'warn');
       }
+      // Ensure subtree and rootpath are not both enabled at the same time
+      if (options.rootpath) {
+        throw new M.DataFormatError('Options \'subtree\' and \'rootpath\' cannot be'
+        + ' applied simultaneously', 'warn');
+      }
 
       // Set the subtree option in the returnObject
-      returnObject.subtree = val;
+      validatedOptions.subtree = val;
+    }
+
+    // Handle the rootpath option
+    if (opt === 'rootpath') {
+      // Ensure value is a boolean
+      if (typeof options.rootpath !== 'boolean') {
+        throw new M.DataFormatError('The option \'rootpath\' is not a boolean.', 'warn');
+      }
+      validatedOptions.rootpath = val;
     }
 
     // Handle the fields option
@@ -354,7 +411,7 @@ module.exports.validateOptions = function(options, validOptions, model) {
       val = val.filter(field => field !== '-_id');
 
       // Set the fieldsString option in the returnObject
-      returnObject.fieldsString = val.join(' ');
+      validatedOptions.fieldsString = val.join(' ');
 
       // Handle special case for element virtuals
       if (model.modelName === 'Element') {
@@ -363,7 +420,7 @@ module.exports.validateOptions = function(options, validOptions, model) {
         // For each virtual not specified in fields
         notSpecifiedVirtuals.forEach((virt) => {
           // Remove the virtual from the populateString
-          returnObject.populateString = returnObject.populateString.replace(`${virt} `, '');
+          validatedOptions.populateString = validatedOptions.populateString.replace(`${virt} `, '');
         });
       }
     }
@@ -376,7 +433,7 @@ module.exports.validateOptions = function(options, validOptions, model) {
       }
 
       // Set the limit option in the returnObject
-      returnObject.limit = val;
+      validatedOptions.limit = val;
     }
 
     // Handle the option skip
@@ -392,13 +449,13 @@ module.exports.validateOptions = function(options, validOptions, model) {
       }
 
       // Set the skip option in the returnObject
-      returnObject.skip = val;
+      validatedOptions.skip = val;
     }
 
     // Handle the sort option
     if (opt === 'sort') {
       // Get rid of the default value
-      returnObject.sort = {};
+      validatedOptions.sort = {};
       // initialize sort order
       let order = 1;
       // If the user has specified sorting in reverse order
@@ -411,7 +468,7 @@ module.exports.validateOptions = function(options, validOptions, model) {
         val = '_id';
       }
       // Return the parsed sort option in the format {sort_field: order}
-      returnObject.sort[val] = order;
+      validatedOptions.sort[val] = order;
     }
 
     // Handle the lean option
@@ -422,19 +479,19 @@ module.exports.validateOptions = function(options, validOptions, model) {
       }
 
       // Set the lean option in the returnObject
-      returnObject.lean = val;
+      validatedOptions.lean = val;
     }
   });
 
-  return returnObject;
+  return validatedOptions;
 };
 
 /**
  * @description Handles a data stream containing gzipped data.
  *
- * @param {Object} dataStream - The stream object carrying a gzip file
+ * @param {object} dataStream - The stream object carrying a gzip file.
  *
- * @return {Promise} A promise containing the unzipped data
+ * @returns {Promise<Buffer>} A promise containing the unzipped data.
  */
 module.exports.handleGzip = function(dataStream) {
   // Create the promise to return
@@ -459,4 +516,30 @@ module.exports.handleGzip = function(dataStream) {
       });
     });
   });
+};
+
+/**
+ * @description Looks up the content type based on the file extension.
+ * Defaults to 'application/octet-stream' if no extension is found.
+ *
+ * @param {string} filename - Name of the file.
+ *
+ * @returns {string} - The content type of the file.
+ */
+module.exports.getContentType = function(filename) {
+  // Initialize content type
+  let contentType = 'application/octet-stream';
+
+  // If filename null or has no extensions
+  if (filename === null || !(filename.includes('.'))) {
+    return contentType;
+  }
+  // Extract extension
+  const ext = filename.split('.').pop();
+
+  // Check ext in lookup table
+  if (ext in mineTypeTable) {
+    contentType = mineTypeTable[ext];
+  }
+  return contentType;
 };

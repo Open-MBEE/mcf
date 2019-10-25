@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module ui.components.project-views.elements.element-edit
  *
@@ -7,13 +7,19 @@
  *
  * @license MIT
  *
- * @description This renders the element component
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ * @author Josh Kaplan
+ * @author James Eckstein
+ *
+ * @description This renders the element edit form.
  */
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
 
-// React Modules
+// React modules
 import React, { Component } from 'react';
 import {
   Form,
@@ -26,7 +32,7 @@ import {
   Tooltip
 } from 'reactstrap';
 
-// MBEE Modules
+// MBEE modules
 import ElementSelector from './element-selector.jsx';
 
 /* eslint-enable no-unused-vars */
@@ -75,7 +81,7 @@ class ElementEdit extends Component {
   getElement() {
     // Initialize variables
     const elementId = this.state.id;
-    const url = `${this.props.url}/elements/${elementId}?minified=true&archived=true`;
+    const url = `${this.props.url}/elements/${elementId}?minified=true&includeArchived=true`;
 
     // Get element data
     $.ajax({
@@ -118,6 +124,7 @@ class ElementEdit extends Component {
         401: (err) => {
           // Throw error and set state
           this.setState({ error: err.responseText });
+
           // Refresh when session expires
           window.location.reload();
         },
@@ -168,6 +175,7 @@ class ElementEdit extends Component {
 
   // Define the submit function
   onSubmit() {
+    // Verify error is set to null
     if (this.state.error) {
       this.setState({ error: null });
     }
@@ -181,8 +189,6 @@ class ElementEdit extends Component {
       type: this.state.type,
       parent: this.state.parent,
       archived: this.state.archived,
-      source: this.state.source,
-      target: this.state.target,
       documentation: this.state.documentation,
       custom: JSON.parse(this.state.custom)
     };
@@ -191,10 +197,18 @@ class ElementEdit extends Component {
       doRefresh = true;
     }
 
-    if (this.state.targetNamespace) {
+    // Verify that there is a source and target
+    if (this.state.source !== null && this.state.target !== null) {
+      data.source = this.state.source;
+      data.target = this.state.target;
+    }
+
+    // Verify if there is a targetNamespace and target
+    if (this.state.targetNamespace && this.state.target) {
       data.targetNamespace = this.state.targetNamespace;
     }
-    if (this.state.sourceNamespace) {
+    // Verify if there is a sourceNamespace and source
+    if (this.state.sourceNamespace && this.state.source) {
       data.sourceNamespace = this.state.sourceNamespace;
     }
 
@@ -233,8 +247,10 @@ class ElementEdit extends Component {
   }
 
   /**
-   * This function is called when the ElementSelector for the parent field
+   * @description This function is called when the ElementSelector for the parent field
    * changes.
+   *
+   * @param {string} _id - The selected _id.
    */
   parentSelectHandler(_id) {
     this.setState({ parent: _id });
@@ -270,23 +286,63 @@ class ElementEdit extends Component {
   }
 
   /**
-   * This function is called when the ElementSelector for the source field
+   * @description This function is called when the ElementSelector for the source field
    * changes.
+   *
+   * @param {string} _id - The selected _id.
+   * @param {object} project - The current project.
    */
-  sourceSelectHandler(_id) {
+  sourceSelectHandler(_id, project) {
+    // Verify if project was provided
+    if (project) {
+      // Set the sourceNamespace field
+      this.setState({
+        sourceNamespace: {
+          org: project.org,
+          project: project.id,
+          branch: 'master'
+        }
+      });
+    }
+    else {
+      // Set the sourceNamespace field to null
+      this.setState({ sourceNamespace: null });
+    }
+
     this.setState({ source: _id });
   }
 
   /**
-   * This function is called when the ElementSelector for the target field
+   * @description This function is called when the ElementSelector for the target field
    * changes.
+   *
+   * @param {string} _id - The selected _id.
+   * @param {object} project - The current project.
    */
-  targetSelectHandler(_id) {
+  targetSelectHandler(_id, project) {
+    // Verify if project was provided
+    if (project) {
+      // Set the targetNamespace field
+      this.setState({
+        targetNamespace: {
+          org: project.org,
+          project: project.id,
+          branch: 'master'
+        }
+      });
+    }
+    else {
+      // Set the targetNamespace field  to null
+      this.setState({ targetNamespace: null });
+    }
+
     this.setState({ target: _id });
   }
 
   /**
-   * Renders the component
+   * @description Renders the component.
+   *
+   * @returns {object} Page content.
    */
   render() {
     // // Initialize variables
@@ -355,6 +411,7 @@ class ElementEdit extends Component {
                   <Col sm={10} className={'selector-value'}>
                     {this.state.parent || ''}
                     <ElementSelector
+                      parent={true}
                       self={this.state.id}
                       url={this.props.url}
                       currentSelection={this.state.parent}
@@ -385,6 +442,7 @@ class ElementEdit extends Component {
                   currentSelection={this.state.source}
                   self={this.state.id}
                   url={this.props.url}
+                  differentProject={this.state.sourceNamespace}
                   project={this.props.project}
                   branch={this.props.branch}
                   selectedHandler={this.sourceSelectHandler} />
@@ -404,6 +462,7 @@ class ElementEdit extends Component {
                   self={this.state.id}
                   url={this.props.url}
                   branch={this.props.branch}
+                  differentProject={this.state.targetNamespace}
                   project={this.props.project}
                   selectedHandler={this.targetSelectHandler} />
               </Col>

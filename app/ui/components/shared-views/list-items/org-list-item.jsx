@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module ui.components.shared-views.list-items.org-list-item
  *
@@ -7,16 +7,21 @@
  *
  * @license MIT
  *
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ * @author Jake Ursetta
+ *
  * @description This renders the organization list items.
  */
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
 
-// React Modules
+// React modules
 import React, { Component } from 'react';
 
-// MBEE Modules
+// MBEE modules
 import StatsList from '../../general/stats/stats-list.jsx';
 import Stat from '../../general/stats/stat.jsx';
 /* eslint-enable no-unused-vars */
@@ -62,15 +67,31 @@ class OrgListItem extends Component {
   render() {
     // Initialize variables
     const org = this.props.org;
+    let colorClass;
+
+    // Verify if archived
+    if (org.archived) {
+      // Make it grayed-out
+      colorClass = 'archived-link';
+    }
 
     const stats = (
       // Create the stat list for the organization
       <StatsList>
-        <Stat title='Projects' icon='fas fa-boxes' value={org.projects.length} _key={`org-${org.id}-projects`} />
-        <Stat title='Users' icon='fas fa-users' value={Object.keys(org.permissions).length} _key={`org-${org.id}-users`} />
+        <Stat title='Projects'
+              icon='fas fa-boxes'
+              value={org.projects.length}
+              _key={`org-${org.id}-projects`}
+              className={colorClass}/>
+        <Stat title='Users'
+              icon='fas fa-users'
+              value={Object.keys(org.permissions).length}
+              _key={`org-${org.id}-users`}
+              className={colorClass}/>
         {(!this.props.divider)
           ? <Stat title='' icon='' value='' _key='empty'/>
-          : <Stat divider={this.props.divider} _key={`org-${org.id}-divider`}/>
+          : <Stat divider={this.props.divider}
+                  _key={`org-${org.id}-divider`}/>
         }
       </StatsList>
     );
@@ -79,7 +100,7 @@ class OrgListItem extends Component {
     return (
       <div className={`stats-list-item ${this.props.className}`} ref={this.ref}>
         <div className='list-header'>
-          <a href={this.props.href}>{org.name}</a>
+          <a href={this.props.href} className={colorClass}>{org.name}</a>
         </div>
         {/* Verify width of client, remove stats based on width */}
         {(this.state.width > 600) ? stats : ''}

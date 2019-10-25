@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module ui.components.general.sidebar.sidebar
  *
@@ -7,16 +7,21 @@
  *
  * @license MIT
  *
+ * @owner Leah De Laurell
+ *
+ * @author Jake Ursetta
+ * @author Leah De Laurell
+ *
  * @description This renders the sidebar.
  */
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
 
-// React Modules
+// React modules
 import React, { Component } from 'react';
 
-// MBEE Modules
+// MBEE modules
 import SidebarLink from './sidebar-link.jsx';
 import SidebarHeader from './sidebar-header.jsx';
 

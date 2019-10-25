@@ -1,11 +1,15 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module scripts.migrations.0.8.1
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
+ *
+ * @owner Austin Bieber
+ *
+ * @author Austin Bieber
  *
  * @description Migration script for version 0.8.1. Modifies element IDs to
  * include the branch ID. New format is org:proj:branch:element. Adds a
@@ -18,38 +22,20 @@
 const fs = require('fs');
 const path = require('path');
 
-// NPM modules
-const mongoose = require('mongoose');
-
 // MBEE modules
 const Branch = M.require('models.branch');
 const Element = M.require('models.element');
 const Project = M.require('models.project');
 const utils = M.require('lib.utils');
+const migrate = M.require('lib.migrate');
 
 /**
  * @description Handles the database migration from 0.8.1 to 0.8.0.
+ *
+ * @returns {Promise} Returns an empty promise upon completion.
  */
-module.exports.down = function() {
-  return new Promise((resolve, reject) => {
-    // Get all documents from the server data
-    mongoose.connection.db.collection('server_data').find({}).toArray()
-    .then((serverData) => {
-      // Restrict collection to one document
-      if (serverData.length > 1) {
-        throw new Error('Cannot have more than one document in the server_data collection.');
-      }
-      // If no server data currently exists, create the document
-      if (serverData.length === 0) {
-        return mongoose.connection.db.collection('server_data').insertOne({ version: '0.8.0' });
-      }
-
-      return mongoose.connection.db.collection('server_data')
-      .updateMany({ _id: serverData[0]._id }, { $set: { version: '0.8.0' } });
-    })
-    .then(() => resolve())
-    .catch((error) => reject(error));
-  });
+module.exports.down = async function() {
+  return migrate.shiftVersion('0.8.0');
 };
 
 /**
@@ -57,47 +43,20 @@ module.exports.down = function() {
  * Modifies element IDs to include the branch ID. New format should look like
  * orgid:projectid:branchid:elementid. Adds a master branch for every project
  * which already exists in the database.
+ *
+ * @returns {Promise} Returns an empty promise upon completion.
  */
-module.exports.up = function() {
-  return new Promise((resolve, reject) => {
-    let collectionNames = [];
-    mongoose.connection.db.collections()
-    .then((existingCollections) => {
-      collectionNames = existingCollections.map(c => c.s.name);
-      // If the elements collection exists, run the helper function
-      if (collectionNames.includes('elements')) {
-        return elementHelper();
-      }
-    })
-    .then(() => {
-      // If the project collection exists, run the helper function
-      if (collectionNames.includes('projects')) {
-        return branchHelper();
-      }
-    })
-    // Get all documents from the server data
-    .then(() => mongoose.connection.db.collection('server_data').find({}).toArray())
-    .then((serverData) => {
-      // Restrict collection to one document
-      if (serverData.length > 1) {
-        throw new Error('Cannot have more than one document in the server_data collection.');
-      }
-      // If no server data currently exists, create the document
-      if (serverData.length === 0) {
-        return mongoose.connection.db.collection('server_data').insertOne({ version: '0.8.1' });
-      }
-
-      return mongoose.connection.db.collection('server_data')
-      .updateMany({ _id: serverData[0]._id }, { $set: { version: '0.8.1' } });
-    })
-    .then(() => resolve())
-    .catch((error) => reject(error));
-  });
+module.exports.up = async function() {
+  await elementHelper();
+  await branchHelper();
+  return migrate.shiftVersion('0.8.1');
 };
 
 /**
  * @description Helper function for 0.8.0 to 0.8.1 migration. Handles all
  * updates to the element collection.
+ *
+ * @returns {Promise} Returns an empty promise upon completion.
  */
 function elementHelper() {
   return new Promise((resolve, reject) => {
@@ -109,7 +68,7 @@ function elementHelper() {
     }
 
     // Find all elements, returning only the _id
-    Element.find({}, '_id').lean()
+    Element.find({}, '_id', { lean: true })
     .then((elements) => {
       // Remove any elements which may have already been migrated
       elementIDs = elements.map(e => e._id).filter(e => utils.parseID(e).length === 3);
@@ -133,14 +92,18 @@ function elementHelper() {
 }
 
 /**
- * @description Recursive function for elementHelper()
+ * @description Recursive function for elementHelper().
+ *
+ * @param {string} ids - The ids of elements to search.
+ *
+ * @returns {Promise} Returns an empty promise upon completion.
  */
 function elementHelperRecursive(ids) {
   return new Promise((resolve, reject) => {
     let elems = [];
     let deleted = false;
     let error = '';
-    Element.find({ _id: { $in: ids } }).lean()
+    Element.find({ _id: { $in: ids } }, null, { lean: true })
     .then((foundElements) => {
       elems = foundElements;
       // Write contents to temporary file
@@ -153,7 +116,7 @@ function elementHelperRecursive(ids) {
       });
     })
     // Delete elements from the database
-    .then(() => Element.deleteMany({ _id: { $in: ids } }).lean())
+    .then(() => Element.deleteMany({ _id: { $in: ids } }))
     .then(() => {
       deleted = true;
       // Loop through each element
@@ -228,7 +191,7 @@ function elementHelperRecursive(ids) {
 
         // Reinsert the elements. Use the collection directly to avoid
         // model validation.
-        return Element.collection.insertMany(elemsToInsert);
+        return Element.insertMany(elemsToInsert, { skipValidation: true });
       }
       else {
         return reject(err);
@@ -260,6 +223,8 @@ function elementHelperRecursive(ids) {
 /**
  * @description Helper function for 0.8.0 to 0.8.1 migration. Handles all
  * updates to the branch collection.
+ *
+ * @returns {Promise} Returns an empty promise upon completion.
  */
 function branchHelper() {
   return new Promise((resolve, reject) => {
@@ -271,12 +236,12 @@ function branchHelper() {
     }
 
     // Find all projects
-    Project.find({}).lean()
+    Project.find({}, null, { lean: true })
     .then((foundProjects) => {
       projects = foundProjects;
 
       // Find all branches, in case one already exists
-      return Branch.find({}).lean();
+      return Branch.find({}, null, { lean: true });
     })
     .then((foundBranches) => {
       const projectIDs = [];
@@ -318,7 +283,7 @@ function branchHelper() {
       });
 
       // Create all branches
-      return Branch.insertMany(branchesToCreate, { rawResult: true });
+      return Branch.insertMany(branchesToCreate);
     })
     .then(() => resolve())
     .catch((error) => reject(error));

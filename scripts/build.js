@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module scripts.build
  *
@@ -8,8 +8,15 @@
  *
  * @license MIT
  *
+ * @owner Leah De Laurell
+ *
+ * @author Josh Kaplan
+ * @author Leah De Laurell
+ *
  * @description Creates the necessary static assets used by the MBEE UI.
  */
+/* eslint-disable jsdoc/require-description-complete-sentence */
+// Rule disabled to allow list in description
 
 // Error Check - Check if file was run directly or global M object is undefined
 if (module.parent == null || typeof M === 'undefined') {
@@ -31,12 +38,15 @@ const concat = require('gulp-concat');
 const minify = require('gulp-minify');
 const sass = require('gulp-sass');
 const markdown = require('gulp-markdown');
+const rename = require('gulp-rename');
 const webpack = require('webpack');
+
+// MBEE modules
 const validators = M.require('lib.validators');
 
 /**
  * @description Builds the MBEE static assets by:
- * - Copying dependencies to their final location,
+ * - Copying dependencies to their final location
  * - Compiling Sass into CSS
  * - Building Javascript libraries into client-side code
  * - Building JSDoc documentation.
@@ -50,6 +60,10 @@ const validators = M.require('lib.validators');
  * --all
  *
  * If NO arguments given, defaults to `--all`
+ *
+ * @param {string} _args - Additional options to pass into the build function.
+ *
+ * @returns {Promise} - Returns an empty promise upon completion.
  */
 function build(_args) {
   M.log.info('Building MBEE ...');
@@ -150,7 +164,7 @@ function build(_args) {
   if (args.includes('--all') || args.includes('--jsdoc')) {
     M.log.info('  + Building jsdoc ...');
     // Create JSDoc build command
-    const jsdoc = `${process.argv[0]} node_modules/jsdoc/jsdoc.js`;
+    const jsdoc = `node ${path.join('node_modules', 'jsdoc', 'jsdoc.js')}`;
     const cmd = `${jsdoc} -c ./config/jsdoc.json`;
 
     // Execute JSDoc build command
@@ -162,6 +176,12 @@ function build(_args) {
     M.log.info('  + Building flight manual ...');
     gulp.src('./doc/**/*.md')
     .pipe(markdown())
+    .pipe(gulp.dest('build/fm'));
+
+    // Add database configuration README as an appendix
+    gulp.src('./app/db/*.md')
+    .pipe(markdown())
+    .pipe(rename('appendix-C-database-configuration.html'))
     .pipe(gulp.dest('build/fm'));
   }
 
@@ -182,7 +202,7 @@ function build(_args) {
       webpack({
         mode: mode,
         entry: {
-          navbar: path.join(M.root, 'app', 'ui', 'components', 'apps', 'nav.jsx'),
+          navbar: path.join(M.root, 'app', 'ui', 'components', 'apps', 'nav-app.jsx'),
           'home-app': path.join(M.root, 'app', 'ui', 'components', 'apps', 'home-app.jsx'),
           'org-app': path.join(M.root, 'app', 'ui', 'components', 'apps', 'org-app.jsx'),
           'project-app': path.join(M.root, 'app', 'ui', 'components', 'apps', 'project-app.jsx'),
@@ -203,7 +223,7 @@ function build(_args) {
               loader: 'babel-loader',
               exclude: /node_modules/,
               options: {
-                presets: ['babel-preset-env', 'babel-preset-react']
+                presets: ['@babel/preset-env', '@babel/preset-react']
               }
             }
           ]

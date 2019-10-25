@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module test.600a-up-api-core-tests
  *
@@ -7,11 +7,16 @@
  *
  * @license MIT
  *
+ * @owner Connor Doyle
+ *
+ * @author Josh Kaplan
+ *
  * @description Tests the API functionality. Confirms API and swagger API
  * documentation is up. Testing these endpoints also confirms that server has
  * started.
  */
-// NPM Modules
+
+// NPM modules
 const chai = require('chai');
 const request = require('request');
 
@@ -35,6 +40,8 @@ describe(M.getModuleName(module.filename), () => {
 /* --------------------( Tests )-------------------- */
 /**
  * @description Verifies the API is up and running.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function upTest(done) {
   // Make an API GET request
@@ -55,6 +62,8 @@ function upTest(done) {
 
 /**
  * @description Verifies swagger API documentation is up and running.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function swaggerJSONTest(done) {
   // API GET request swagger documentation

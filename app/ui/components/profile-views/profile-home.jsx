@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module ui.components.profile-views.profile-home
  *
@@ -7,24 +7,29 @@
  *
  * @license MIT
  *
- * @description This renders a user's home page.
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ *
+ * @description This renders a user's profile home page.
  */
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
 
-// React Modules
+// React modules
 import React, { Component } from 'react';
-import { Button, Modal, ModalBody } from 'reactstrap';
+import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
 
-// MBEE Modules
-import ProfileEdit from './profile-edit.jsx';
-import PasswordEdit from './password-edit.jsx';
-import CustomData from '../general/custom-data/custom-data.jsx';
-/* eslint-enable no-unused-vars */
+// MBEE modules
+import Sidebar from '../general/sidebar/sidebar.jsx';
+import SidebarLink from '../general/sidebar/sidebar-link.jsx';
+import Profile from '../profile-views/profile.jsx';
 
-// Define function
+// Define component
 class ProfileHome extends Component {
+
+  /* eslint-enable no-unused-vars */
 
   constructor(props) {
     // Initialize parent props
@@ -32,91 +37,111 @@ class ProfileHome extends Component {
 
     // Initialize state props
     this.state = {
-      modal: false,
-      editPasswordModal: false
+      user: null,
+      otherUser: null,
+      error: null
     };
-
-    // Bind component functions
-    this.handleToggle = this.handleToggle.bind(this);
-    this.togglePasswordModal = this.togglePasswordModal.bind(this);
   }
 
-  // Define toggle function
-  handleToggle() {
-    // Open or close modal
-    this.setState({ modal: !this.state.modal });
+  componentDidMount() {
+    // eslint-disable-next-line no-undef
+    mbeeWhoAmI((err, data) => {
+      if (err) {
+        this.setState({ error: err.responseText });
+      }
+      else {
+        this.setState({ user: data });
 
-    if ((this.state.modal === false) && (this.state.editPasswordModal === true)) {
-      this.togglePasswordModal();
-    }
+        const username = this.props.match.params.username;
+        if (username && (username !== 'projects') && (username !== 'orgs')) {
+          const url = `/api/users/${username}`;
+          $.ajax({
+            method: 'GET',
+            url: `${url}?minified=true&includeArchived=true`,
+            statusCode: {
+              200: (otherUser) => {
+                // Set states
+                this.setState({ otherUser: otherUser });
+              },
+              401: (error) => {
+                // Throw error and set state
+                this.setState({ error: error.responseText });
+              },
+              404: (error) => {
+                this.setState({ error: error.responseText });
+              }
+            }
+          });
+        }
+      }
+    });
   }
-
-  // Define toggle function
-  togglePasswordModal() {
-    // Open or close modal
-    this.setState({ editPasswordModal: !this.state.editPasswordModal });
-  }
-
 
   render() {
-    // Initialize variables
-    const user = this.props.user;
+    let title = 'Loading ...';
+    let routerLink = '/profile';
+    const otherUser = this.state.otherUser;
+    const user = this.state.user;
 
-    // Render user data in table format
+    if (otherUser !== null) {
+      routerLink = `/profile/${otherUser.username}`;
+      if (otherUser.preferredName) {
+        title = `${otherUser.preferredName}'s Profile`;
+      }
+      else if (otherUser.fname) {
+        title = `${otherUser.fname}'s Profile`;
+      }
+      else {
+        title = `${this.state.user.username}'s Profile`;
+      }
+    }
+    else if (user && user.preferredName) {
+      title = `${user.preferredName}'s Profile`;
+    }
+    else if (user && user.fname) {
+      title = `${user.fname}'s Profile`;
+    }
+    else if (user) {
+      title = `${user.username}'s Profile`;
+    }
+
+    // Return user page
     return (
-      <React.Fragment>
-        {/* Modal for editing the information */}
-        <Modal isOpen={this.state.modal} toggle={this.handleToggle}>
-          <ModalBody>
-            {(!this.state.editPasswordModal)
-              ? (<ProfileEdit user={this.props.user}
-                              viewingUser={this.props.viewingUser}
-                              togglePasswordModal={this.togglePasswordModal}
-                              toggle={this.handleToggle}/>)
-              : (<PasswordEdit user={this.props.user}
-                               toggle={this.handleToggle}/>)
-            }
-          </ModalBody>
-        </Modal>
-        <div id='workspace'>
-          <div id='workspace-header' className='workspace-header header-box-depth'>
-            <h2 className='workspace-title'>
-              {user.fname} {user.lname}
-            </h2>
-            <div className='workspace-header-button'>
-              {(!this.props.admin)
-                ? ''
-                : (<Button className='btn'
-                           outline color="secondary"
-                           onClick={this.handleToggle}>
-                    Edit
-                  </Button>)
-              }
-            </div>
-          </div>
-          <div id='workspace-body'>
-            <div className='main-workspace extra-padding'>
-              <table className='table-width'>
-                <tbody>
-                <tr>
-                  <th>Username:</th>
-                  <td>{user.username}</td>
-                </tr>
-                <tr>
-                  <th>Email:</th>
-                  <td>{user.email}</td>
-                </tr>
-                </tbody>
-              </table>
-              <CustomData data={user.custom}/>
-            </div>
-          </div>
+      <Router>
+        <div id='container'>
+          { /* Create the sidebar with sidebar links */ }
+          <Sidebar title={title}>
+            <SidebarLink id='Information'
+                         title='Information'
+                         icon='fas fa-info'
+                         routerLink={routerLink} />
+          </Sidebar>
+          { /* Verify user data exists */ }
+          { // Display loading page or error page if user data is loading or failed to load
+            (!user)
+              ? <div id='view' className="loading"> {this.state.error || 'Loading information...'}</div>
+              : (
+                <Switch>
+                  {/* Verify if user is view their own profile, then return their info  */}
+                  {(otherUser === null)
+                    ? (<Route exact path="/profile" render={(props) => <Profile {...props}
+                                                                  admin={true}
+                                                                  user={this.state.user} /> } />)
+                    : (<Route path={`/profile/${this.props.match.params.username}`}
+                              render={(props) => <Profile {...props}
+                                                          admin={user.admin}
+                                                          viewingUser={user}
+                                                          user={otherUser} /> } />)
+
+                  }
+                </Switch>
+              )
+          }
         </div>
-      </React.Fragment>
+      </Router>
     );
   }
 
 }
 
-// Export function
 export default ProfileHome;

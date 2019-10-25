@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module ui.components.general.sidebar.sidebar-header.jsx
  *
@@ -7,12 +7,18 @@
  *
  * @license MIT
  *
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ *
  * @description This renders a sidebar header.
  */
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
+/* eslint-disable jsdoc/require-jsdoc */
 
+// React modules
 import React from 'react';
 
 /* eslint-enable no-unused-vars */
@@ -27,7 +33,7 @@ function SidebarHeader(props) {
   // Return an empty div if not expanded
   // NOTE: this is necessary
   else {
-    return (<div></div>);
+    return (<div/>);
   }
 }
 

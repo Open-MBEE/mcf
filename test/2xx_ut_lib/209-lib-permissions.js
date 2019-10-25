@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module test.209-lib-permissions
  *
@@ -7,33 +7,40 @@
  *
  * @license MIT
  *
+ * @owner Connor Doyle
+ *
+ * @author James Eckstein
+ * @author Josh Kaplan
+ *
  * @description Tests the permissions library functions.
  */
 
-// Node modules
+// NPM modules
 const chai = require('chai');
 
-// MBEE Modules
+// MBEE modules
 const can = M.require('lib.permissions');
 
 /* --------------------( Test Data )-------------------- */
 // Simulated test objects used across test functions
 const users = [{
-  username: 'test1',
+  _id: 'test1',
   admin: true
 }, {
-  username: 'test2',
+  _id: 'test2',
   admin: false
 }, {
-  username: 'test3',
+  _id: 'test3',
   admin: false
 }];
 
 const orgs = [{
+  _id: 'org1',
   permissions: {
     test1: ['read', 'write', 'admin']
   }
 }, {
+  _id: 'org2',
   permissions: {
     test1: ['read', 'write', 'admin'],
     test2: ['read', 'write', 'admin'],
@@ -42,11 +49,13 @@ const orgs = [{
 }];
 
 const projects = [{
+  _id: 'project1',
   permissions: {
     test1: ['read', 'write', 'admin']
   },
   visibility: 'private'
 }, {
+  _id: 'project2',
   permissions: {
     test1: ['read', 'write', 'admin'],
     test2: ['read', 'write', 'admin'],
@@ -54,6 +63,7 @@ const projects = [{
   },
   visibility: 'private'
 }, {
+  _id: 'project3',
   permissions: {
     test1: ['read', 'write', 'admin'],
     test2: ['read', 'write', 'admin']
@@ -73,50 +83,48 @@ describe(M.getModuleName(module.filename), () => {
   it('should handle user org permissions', verifyOrgPermissions);
   it('should handle user project permissions', verifyProjectPermissions);
   it('should handle user element permissions', verifyElementPermissions);
+  it('should handle user branch permissions', verifyBranchPermissions);
 });
 
 /* --------------------( Tests )-------------------- */
 /**
  * @description Checks that admins can perform all expected actions.
  */
-function verifyAdminPermissions(done) {
+async function verifyAdminPermissions() {
   // Test data
   const user = users[0];
   const org = orgs[0];
   const project = projects[0];
 
   // Org actions
-  chai.expect(can.createOrg(user)).to.equal(true);
-  chai.expect(can.readOrg(user, org)).to.equal(true);
-  chai.expect(can.updateOrg(user, org)).to.equal(true);
-  chai.expect(can.deleteOrg(user)).to.equal(true);
+  chai.expect(can.createOrg.bind(can, user)).to.not.throw(M.PermissionError);
+  chai.expect(can.readOrg.bind(can, user, org)).to.not.throw(M.PermissionError);
+  chai.expect(can.updateOrg.bind(can, user, org)).to.not.throw(M.PermissionError);
+  chai.expect(can.deleteOrg.bind(can, user)).to.not.throw(M.PermissionError);
 
   // Project actions
-  chai.expect(can.createProject(user, org)).to.equal(true);
-  chai.expect(can.readProject(user, org, project)).to.equal(true);
-  chai.expect(can.updateProject(user, org, project)).to.equal(true);
-  chai.expect(can.deleteProject(user, org)).to.equal(true);
+  chai.expect(can.createProject.bind(can, user, org)).to.not.throw(M.PermissionError);
+  chai.expect(can.readProject.bind(can, user, org, project)).to.not.throw(M.PermissionError);
+  chai.expect(can.updateProject.bind(can, user, org, project)).to.not.throw(M.PermissionError);
+  chai.expect(can.deleteProject.bind(can, user, org)).to.not.throw(M.PermissionError);
 
   // Element actions
-  chai.expect(can.createElement(user, org, project)).to.equal(true);
-  chai.expect(can.readElement(user, org, project)).to.equal(true);
-  chai.expect(can.updateElement(user, org, project)).to.equal(true);
-  chai.expect(can.deleteElement(user, org, project)).to.equal(true);
+  chai.expect(can.createElement.bind(can, user, org, project)).to.not.throw(M.PermissionError);
+  chai.expect(can.readElement.bind(can, user, org, project)).to.not.throw(M.PermissionError);
+  chai.expect(can.updateElement.bind(can, user, org, project)).to.not.throw(M.PermissionError);
+  chai.expect(can.deleteElement.bind(can, user, org, project)).to.not.throw(M.PermissionError);
 
   // User actions
-  chai.expect(can.createUser(user)).to.equal(true);
-  chai.expect(can.readUser(user)).to.equal(true);
-  chai.expect(can.updateUser(user)).to.equal(true);
-  chai.expect(can.deleteUser(user)).to.equal(true);
-
-  // Test is done
-  done();
+  chai.expect(can.createUser.bind(can, user)).to.not.throw(M.PermissionError);
+  chai.expect(can.readUser.bind(can, user)).to.not.throw(M.PermissionError);
+  chai.expect(can.updateUser.bind(can, user)).to.not.throw(M.PermissionError);
+  chai.expect(can.deleteUser.bind(can, user)).to.not.throw(M.PermissionError);
 }
 
 /**
- * @description Checks that org permissions are handled as expected
+ * @description Checks that org permissions are handled as expected.
  */
-function verifyOrgPermissions(done) {
+async function verifyOrgPermissions() {
   // Test data
   const user1 = users[1];
   const user2 = users[2];
@@ -124,28 +132,25 @@ function verifyOrgPermissions(done) {
   const org2 = orgs[0];
 
   // User 1 (admin on org1) permissions checks
-  chai.expect(can.createOrg(user1)).to.equal(false);
-  chai.expect(can.readOrg(user1, org1)).to.equal(true);
-  chai.expect(can.updateOrg(user1, org1)).to.equal(true);
-  chai.expect(can.deleteOrg(user1)).to.equal(false);
+  chai.expect(can.createOrg.bind(can, user1)).to.throw(M.PermissionError);
+  chai.expect(can.readOrg.bind(can, user1, org1)).to.not.throw(M.PermissionError);
+  chai.expect(can.updateOrg.bind(can, user1, org1)).to.not.throw(M.PermissionError);
+  chai.expect(can.deleteOrg.bind(can, user1)).to.throw(M.PermissionError);
 
   // User 2 (read access to org1)
-  chai.expect(can.readOrg(user2, org1)).to.equal(true);
-  chai.expect(can.updateOrg(user2, org1)).to.equal(false);
-  chai.expect(can.deleteOrg(user2)).to.equal(false);
+  chai.expect(can.readOrg.bind(can, user2, org1)).to.not.throw(M.PermissionError);
+  chai.expect(can.updateOrg.bind(can, user2, org1)).to.throw(M.PermissionError);
+  chai.expect(can.deleteOrg.bind(can, user2)).to.throw(M.PermissionError);
 
   // User 2 (no access to org2)
-  chai.expect(can.readOrg(user2, org2)).to.equal(false);
-  chai.expect(can.updateOrg(user2, org2)).to.equal(false);
-
-  // Test is done
-  done();
+  chai.expect(can.readOrg.bind(can, user2, org2)).to.throw(M.PermissionError);
+  chai.expect(can.updateOrg.bind(can, user2, org2)).to.throw(M.PermissionError);
 }
 
 /**
  * @description Checks that project permissions are handled as expected.
  */
-function verifyProjectPermissions(done) {
+async function verifyProjectPermissions() {
   // Test data
   const org = orgs[1];
   const project0 = projects[0];
@@ -154,30 +159,27 @@ function verifyProjectPermissions(done) {
   const user1 = users[1];
   const user2 = users[2];
 
-  // Check users can't view projects they're no supposed to
-  chai.expect(can.readProject(user1, org, project0)).to.equal(false);
-  chai.expect(can.updateProject(user1, org, project0)).to.equal(false);
+  // Check users can't view projects they're not supposed to
+  chai.expect(can.readProject.bind(can, user1, org, project0)).to.throw(M.PermissionError);
+  chai.expect(can.updateProject.bind(can, user1, org, project0)).to.throw(M.PermissionError);
 
   // Checking users' permissions on project 1
-  chai.expect(can.readProject(user1, org, project1)).to.equal(true);
-  chai.expect(can.readProject(user2, org, project1)).to.equal(true);
-  chai.expect(can.updateProject(user1, org, project1)).to.equal(true);
-  chai.expect(can.updateProject(user2, org, project1)).to.equal(false);
+  chai.expect(can.readProject.bind(can, user1, org, project1)).to.not.throw(M.PermissionError);
+  chai.expect(can.createProject.bind(can, user1, org, project1)).to.not.throw(M.PermissionError);
+  chai.expect(can.updateProject.bind(can, user1, org, project1)).to.not.throw(M.PermissionError);
+  chai.expect(can.deleteProject.bind(can, user1, org, project1)).to.throw(M.PermissionError);
 
   // Checking users' permission on project 2
-  chai.expect(can.readProject(user1, org, project2)).to.equal(true);
-  chai.expect(can.readProject(user2, org, project2)).to.equal(true);
-  chai.expect(can.updateProject(user1, org, project2)).to.equal(true);
-  chai.expect(can.updateProject(user2, org, project2)).to.equal(false);
-
-  // Test is done
-  done();
+  chai.expect(can.readProject.bind(can, user2, org, project2)).to.not.throw(M.PermissionError);
+  chai.expect(can.createProject.bind(can, user2, org, project2)).to.throw(M.PermissionError);
+  chai.expect(can.updateProject.bind(can, user2, org, project2)).to.throw(M.PermissionError);
+  chai.expect(can.deleteProject.bind(can, user2, org, project2)).to.throw(M.PermissionError);
 }
 
 /**
- * @description Checks that admins can perform all expected actions.
+ * @description Checks that element permissions are handled as expected.
  */
-function verifyElementPermissions(done) {
+async function verifyElementPermissions() {
   // Test data
   const org = orgs[1];
   const project0 = projects[0];
@@ -186,22 +188,48 @@ function verifyElementPermissions(done) {
   const user1 = users[1];
   const user2 = users[2];
 
-  // Check users can't view projects they're no supposed to
-  chai.expect(can.readElement(user1, org, project0)).to.equal(false);
-  chai.expect(can.updateElement(user1, org, project0)).to.equal(false);
+  // Check users can't view project elements they're not supposed to
+  chai.expect(can.readElement.bind(can, user1, org, project0)).to.throw(M.PermissionError);
+  chai.expect(can.updateElement.bind(can, user1, org, project0)).to.throw(M.PermissionError);
 
   // Checking users' permissions on project 1
-  chai.expect(can.readElement(user1, org, project1)).to.equal(true);
-  chai.expect(can.readElement(user2, org, project1)).to.equal(true);
-  chai.expect(can.updateElement(user1, org, project1)).to.equal(true);
-  chai.expect(can.updateElement(user2, org, project1)).to.equal(false);
+  chai.expect(can.readElement.bind(can, user1, org, project1)).to.not.throw(M.PermissionError);
+  chai.expect(can.createElement.bind(can, user1, org, project1)).to.not.throw(M.PermissionError);
+  chai.expect(can.updateElement.bind(can, user1, org, project1)).to.not.throw(M.PermissionError);
+  chai.expect(can.deleteElement.bind(can, user1, org, project1)).to.not.throw(M.PermissionError);
 
   // Checking users' permission on project 2
-  chai.expect(can.readElement(user1, org, project2)).to.equal(true);
-  chai.expect(can.readElement(user2, org, project2)).to.equal(true);
-  chai.expect(can.updateElement(user1, org, project2)).to.equal(true);
-  chai.expect(can.updateElement(user2, org, project2)).to.equal(false);
+  chai.expect(can.readElement.bind(can, user2, org, project2)).to.not.throw(M.PermissionError);
+  chai.expect(can.createElement.bind(can, user2, org, project2)).to.throw(M.PermissionError);
+  chai.expect(can.updateElement.bind(can, user2, org, project2)).to.throw(M.PermissionError);
+  chai.expect(can.deleteElement.bind(can, user2, org, project2)).to.throw(M.PermissionError);
+}
 
-  // Test is done
-  done();
+/**
+ * @description Checks that branch permissions are handled as expected.
+ */
+async function verifyBranchPermissions() {
+  // Test data
+  const org = orgs[1];
+  const project0 = projects[0];
+  const project1 = projects[1];
+  const project2 = projects[2];
+  const user1 = users[1];
+  const user2 = users[2];
+
+  // Check users can't view branches they're not supposed to
+  chai.expect(can.readBranch.bind(can, user1, org, project0)).to.throw(M.PermissionError);
+  chai.expect(can.updateBranch.bind(can, user1, org, project0)).to.throw(M.PermissionError);
+
+  // Checking users' permissions on project 1
+  chai.expect(can.readBranch.bind(can, user1, org, project1)).to.not.throw(M.PermissionError);
+  chai.expect(can.createBranch.bind(can, user1, org, project1)).to.not.throw(M.PermissionError);
+  chai.expect(can.updateBranch.bind(can, user1, org, project1)).to.not.throw(M.PermissionError);
+  chai.expect(can.deleteBranch.bind(can, user1, org, project1)).to.not.throw(M.PermissionError);
+
+  // Checking users' permission on project 2
+  chai.expect(can.readBranch.bind(can, user2, org, project2)).to.not.throw(M.PermissionError);
+  chai.expect(can.createBranch.bind(can, user2, org, project2)).to.throw(M.PermissionError);
+  chai.expect(can.updateBranch.bind(can, user2, org, project2)).to.throw(M.PermissionError);
+  chai.expect(can.deleteBranch.bind(can, user2, org, project2)).to.throw(M.PermissionError);
 }

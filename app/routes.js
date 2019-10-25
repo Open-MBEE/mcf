@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module routes
  *
@@ -7,10 +7,15 @@
  *
  * @license MIT
  *
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ * @author Josh Kaplan
+ *
  * @description Defines the MBEE routes mounted at '/'.
  */
 
-// Node modules
+// NPM modules
 const express = require('express');
 const router = express.Router();
 
@@ -22,7 +27,7 @@ const Validators = M.require('lib.validators');
 
 /* ---------- Unauthenticated Routes ----------*/
 /**
- * @description This renders the swagger doc page for the API routes
+ * @description This renders the swagger doc page for the API routes.
  */
 router.route('/doc/api')
 .get(Middleware.logRoute, UIController.swaggerDoc);
@@ -66,7 +71,7 @@ router.route('/login')
 );
 
 /**
- * @description This renders the home page for logged in users
+ * @description This renders the home page for logged in users.
  **/
 router.route('/')
 .get(
@@ -76,7 +81,8 @@ router.route('/')
 );
 
 /**
- * @description This renders the admin console for admins ONLY.
+ * @description This renders the admin console to view user management
+ * page for admins ONLY.
  **/
 router.route('/admin')
 .get(
@@ -86,7 +92,29 @@ router.route('/admin')
 );
 
 /**
- * @description This renders the user page for logged in users
+ * @description This renders the admin console to view all organizations
+ * for admins ONLY.
+ **/
+router.route('/admin/orgs')
+.get(
+  AuthController.authenticate,
+  Middleware.logRoute,
+  UIController.adminConsole
+);
+
+/**
+ * @description This renders the admin console to view all projects
+ * for admins ONLY.
+ **/
+router.route('/admin/projects')
+.get(
+  AuthController.authenticate,
+  Middleware.logRoute,
+  UIController.adminConsole
+);
+
+/**
+ * @description This renders the user page for logged in users.
  **/
 router.route('/profile')
 .get(
@@ -102,29 +130,9 @@ router.param('username', (req, res, next, username) => {
 });
 
 /**
- * @description This renders the user page for logged in users
+ * @description This renders the user page for logged in users.
  **/
 router.route('/profile/:username')
-.get(
-  AuthController.authenticate,
-  Middleware.logRoute,
-  UIController.profile
-);
-
-/**
- *  @description This renders the user page for logged in users
- **/
-router.route('/profile/orgs')
-.get(
-  AuthController.authenticate,
-  Middleware.logRoute,
-  UIController.profile
-);
-
-/**
- * @description This renders the user page for logged in users
- **/
-router.route('/profile/projects')
 .get(
   AuthController.authenticate,
   Middleware.logRoute,
@@ -171,7 +179,7 @@ router.param('elementid', (req, res, next, branch) => {
 });
 
 /**
- * @description This renders an organization for a user
+ * @description This renders an organization for a user.
  **/
 router.route('/orgs/:orgid')
 .get(
@@ -181,7 +189,7 @@ router.route('/orgs/:orgid')
 );
 
 /**
- * @description This renders an organization's member page for a user
+ * @description This renders an organization's member page for a user.
  **/
 router.route('/orgs/:orgid/users')
 .get(
@@ -191,7 +199,7 @@ router.route('/orgs/:orgid/users')
 );
 
 /**
- * @description This renders an organization's projects page for a user
+ * @description This renders an organization's projects page for a user.
  **/
 router.route('/orgs/:orgid/projects')
 .get(
@@ -201,7 +209,7 @@ router.route('/orgs/:orgid/projects')
 );
 
 /**
- * @description This renders a project for a user
+ * @description This renders a project for a user.
  **/
 router.route('/orgs/:orgid/projects/:projectid/info')
 .get(
@@ -211,7 +219,7 @@ router.route('/orgs/:orgid/projects/:projectid/info')
 );
 
 /**
- * @description This renders a project members page form for a user
+ * @description This renders a project members page form for a user.
  **/
 router.route('/orgs/:orgid/projects/:projectid/users')
 .get(
@@ -221,7 +229,7 @@ router.route('/orgs/:orgid/projects/:projectid/users')
 );
 
 /**
- * @description This renders a project's element page for a user
+ * @description This renders a project's element page for a user.
  **/
 router.route('/orgs/:orgid/projects/:projectid/branches')
 .get(
@@ -231,7 +239,7 @@ router.route('/orgs/:orgid/projects/:projectid/branches')
 );
 
 /**
- * @description This renders a project's element page for a user
+ * @description This renders a project's element page for a user.
  **/
 router.route('/orgs/:orgid/projects/:projectid/branches/:branchid')
 .get(
@@ -241,7 +249,7 @@ router.route('/orgs/:orgid/projects/:projectid/branches/:branchid')
 );
 
 /**
- * @description This renders a project's element page for a user
+ * @description This renders a project's element page for a user.
  **/
 router.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements')
 .get(
@@ -251,7 +259,7 @@ router.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements')
 );
 
 /**
- * @description This renders a project's element page for a user
+ * @description This renders a project's element page for a user.
  **/
 router.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements#:elementid')
 .get(
@@ -261,7 +269,7 @@ router.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements#:elem
 );
 
 /**
- * @description This renders a project's search page for a user
+ * @description This renders a project's search page for a user.
  **/
 router.route('/orgs/:orgid/projects/:projectid/branches/:branchid/search')
 .get(

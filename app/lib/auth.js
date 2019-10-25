@@ -1,11 +1,16 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module lib.auth
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
+ *
+ * @owner Austin Bieber
+ *
+ * @author Josh Kaplan
+ * @author Jake Ursetta
  *
  * @description This file loads and instantiates the authentication strategy
  * defined in the configuration file.
@@ -36,11 +41,14 @@ if (!AuthModule.hasOwnProperty('doLogin')) {
  * This function implements different types of authentication according to
  * the strategy set up in the configuration file.
  *
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {function} next - Callback to express authentication
+ * @param {object} req - Express request object.
+ * @param {object} res - Express response object.
+ * @param {Function} next - Callback to express authentication.
+ *
+ * @returns {Function} Either returns an express response render call to notify the
+ * user of an error or calls the next() callback.
  */
-function authenticate(req, res, next) {
+async function authenticate(req, res, next) {
   // Extract authorization metadata
   const authorization = req.headers.authorization;
   let username = null;
@@ -107,34 +115,34 @@ function authenticate(req, res, next) {
           ? res.status(401).send(error.message)
           : res.redirect('back');
       }
-      // Handle Basic Authentication
-      AuthModule.handleBasicAuth(req, res, username, password)
-      .then(user => {
+      try {
+        // Handle Basic Authentication
+        const user = await AuthModule.handleBasicAuth(req, res, username, password);
         // Successfully authenticated basic auth!
-        M.log.info(`Authenticated [${user.username}] via Basic Auth`);
+        M.log.info(`Authenticated [${user._id}] via Basic Auth`);
 
         // Set user req object
         req.user = user;
-
-        // Move to the next function
-        next();
-      })
-      .catch(err => {
+      }
+      catch (err) {
         // Log the error
         M.log.error(err.stack);
-        error = new M.AuthorizationError('Invalid username or password.', 'warn');
         if (err.message === 'Invalid username or password.') {
-          req.flash('loginError', err.message);
+          error = new M.AuthorizationError(err.message, 'warn');
         }
         else {
-          req.flash('loginError', 'Internal Server Error');
+          error = new M.ServerError('Internal Server Error', 'warn');
         }
+        req.flash('loginError', error.message);
 
         // return proper error for API route or redirect for UI
         return (req.originalUrl.startsWith('/api'))
           ? res.status(401).send(error.message)
           : res.redirect(`/login?next=${req.originalUrl}`);
-      });
+      }
+
+      // Move to the next function
+      next();
     }
 
     /**********************************************************************
@@ -151,19 +159,16 @@ function authenticate(req, res, next) {
       // Convert token to string
       const token = Buffer.from(parts[1], 'utf8').toString();
 
-      // Handle Token Authentication
-      AuthModule.handleTokenAuth(req, res, token)
-      .then(user => {
+      try {
+        // Handle Token Authentication
+        const user = await AuthModule.handleTokenAuth(req, res, token);
         // Successfully authenticated token auth!
-        M.log.info(`Authenticated [${user.username}] via Token Auth`);
+        M.log.info(`Authenticated [${user._id}] via Token Auth`);
 
         // Set user req object
         req.user = user;
-
-        // Move to the next function
-        next();
-      })
-      .catch(err => {
+      }
+      catch (err) {
         if (err.message === 'Invalid username or password.') {
           req.flash('loginError', err.message);
         }
@@ -174,8 +179,12 @@ function authenticate(req, res, next) {
         return (req.originalUrl.startsWith('/api'))
           ? res.status(401).send('Invalid username or password.')
           : res.redirect(`/login?next=${req.originalUrl}`);
-      });
+      }
+
+      // Move to the next function
+      next();
     }
+
     // Other authorization header
     else {
       // return proper error for API route or redirect for UI
@@ -196,19 +205,16 @@ function authenticate(req, res, next) {
     M.log.verbose('Authenticating user via Session Token Auth...');
     const token = req.session.token;
 
-    // Handle Token Authentication
-    AuthModule.handleTokenAuth(req, res, token)
-    .then(user => {
+    try {
+      // Handle Token Authentication
+      const user = await AuthModule.handleTokenAuth(req, res, token);
       // Successfully authenticated token session!
-      M.log.info(`Authenticated [${user.username}] via Session Token Auth`);
+      M.log.info(`Authenticated [${user._id}] via Session Token Auth`);
 
       // Set user req object
       req.user = user;
-
-      // Move to the next function
-      next();
-    })
-    .catch(err => {
+    }
+    catch (err) {
       // log the error
       M.log.warn(err.stack);
       req.flash('loginError', 'Session Expired');
@@ -217,7 +223,10 @@ function authenticate(req, res, next) {
       return (req.originalUrl.startsWith('/api'))
         ? res.status(401).send('Session Expired')
         : res.redirect(`/login?next=${req.originalUrl}`);
-    });
+    }
+
+    // Move to the next function
+    next();
   }
 
   /**********************************************************************
@@ -236,19 +245,16 @@ function authenticate(req, res, next) {
     username = sani.sanitize(req.body.username);
     password = req.body.password;
 
-    // Handle Basic Authentication
-    AuthModule.handleBasicAuth(req, res, username, password)
-    .then(user => {
+    try {
+      // Handle Basic Authentication
+      const user = await AuthModule.handleBasicAuth(req, res, username, password);
       // Successfully authenticate credentials!
-      M.log.info(`Authenticated [${user.username}] via Form Input`);
+      M.log.info(`Authenticated [${user._id}] via Form Input`);
 
       // Set user req object
       req.user = user;
-
-      // Move to the next function. Explicitly set error to null.
-      next(null);
-    })
-    .catch(err => {
+    }
+    catch (err) {
       M.log.error(err.stack);
       req.flash('loginError', 'Invalid username or password.');
 
@@ -257,7 +263,10 @@ function authenticate(req, res, next) {
       return (req.originalUrl.startsWith('/api'))
         ? res.status(401).send('Invalid username or password.')
         : res.redirect('back');
-    });
+    }
+
+    // Move to the next function. Explicitly set error to null.
+    next(null);
   }
 
   // Verify if credentials are empty or null
@@ -277,11 +286,11 @@ function authenticate(req, res, next) {
  * Note: If validatePassword() function is NOT defined in custom strategy then
  * validation will fail.
  *
- * @param {string} password - Password to validate
- * @param {string} provider - the type of authentication strategy (ldap, local,
- * etc.)
+ * @param {string} password - Password to validate.
+ * @param {string} provider - The type of authentication strategy (ldap, local,
+ * etc).
  *
- * @returns {boolean} If password is correctly validated
+ * @returns {boolean} If password is correctly validated.
  */
 function validatePassword(password, provider) {
   // Check if custom validate password rules exist in auth strategy

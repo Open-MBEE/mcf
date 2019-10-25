@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module  test.203-lib-error
  *
@@ -7,10 +7,14 @@
  *
  * @license MIT
  *
+ * @owner Connor Doyle
+ *
+ * @author Austin Bieber
+ *
  * @description This file tests basic CustomError functionality.
  */
 
-// Node modules
+// NPM modules
 const chai = require('chai');
 
 // MBEE modules
@@ -31,9 +35,9 @@ describe(M.getModuleName(module.filename), () => {
 /* --------------------( Tests )-------------------- */
 /**
  * @description Tests that the get status code function returns all the proper
- * status codes for all MBEE errors
+ * status codes for all MBEE errors.
  */
-function getStatusCode(done) {
+async function getStatusCode() {
   // Create all types of errors and get their status codes
   const format = errors.getStatusCode(new M.DataFormatError('This is a format error.'));
   const auth = errors.getStatusCode(new M.AuthorizationError('This is an auth error.'));
@@ -51,14 +55,13 @@ function getStatusCode(done) {
   chai.expect(server).to.equal(500);
   chai.expect(database).to.equal(500);
   chai.expect(normal).to.equal(500);
-  done();
 }
 
 /**
  * @description Tests that the captureError function creates a new custom error and preserves
- * the stack trace
+ * the stack trace.
  */
-function capturedError(done) {
+async function capturedError() {
   // Create an error
   const originalError = new Error();
   // Run the error through the captureError function
@@ -68,5 +71,4 @@ function capturedError(done) {
   chai.expect(originalError instanceof errors.CustomError).to.equal(false);
   chai.expect(newError.stack).to.equal(originalError.stack);
   chai.expect(newError instanceof errors.CustomError).to.equal(true);
-  done();
 }

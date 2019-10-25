@@ -1,11 +1,15 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module test.504a-branch-mock-core-tests
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
+ *
+ * @owner Connor Doyle
+ *
+ * @author Leah De Laurell
  *
  * @description This tests mock requests of the API controller functionality:
  * GET, POST, PATCH, and DELETE branches.
@@ -37,7 +41,7 @@ let projID = null;
  */
 describe(M.getModuleName(module.filename), () => {
   /**
-   * After: Connect to database. Create an admin user, organization, and project
+   * After: Connect to database. Create an admin user, organization, and project.
    */
   before((done) => {
     // Open the database connection
@@ -106,6 +110,8 @@ describe(M.getModuleName(module.filename), () => {
 /* --------------------( Tests )-------------------- */
 /**
  * @description Verifies mock POST request to create a branch.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function postBranch(done) {
   const branchData = testData.branches[1];
@@ -138,8 +144,8 @@ function postBranch(done) {
     chai.expect(createdBranch.source).to.equal(branchData.source);
 
     // Verify additional properties
-    chai.expect(createdBranch.createdBy).to.equal(adminUser.username);
-    chai.expect(createdBranch.lastModifiedBy).to.equal(adminUser.username);
+    chai.expect(createdBranch.createdBy).to.equal(adminUser._id);
+    chai.expect(createdBranch.lastModifiedBy).to.equal(adminUser._id);
     chai.expect(createdBranch.createdOn).to.not.equal(null);
     chai.expect(createdBranch.updatedOn).to.not.equal(null);
     chai.expect(createdBranch.archived).to.equal(false);
@@ -161,6 +167,8 @@ function postBranch(done) {
 
 /**
  * @description Verifies mock POST request to create multiple branches.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function postBranches(done) {
   // Create request object
@@ -206,8 +214,8 @@ function postBranches(done) {
       chai.expect(createdBranch.source).to.equal(branchObj.source);
 
       // Verify additional properties
-      chai.expect(createdBranch.createdBy).to.equal(adminUser.username);
-      chai.expect(createdBranch.lastModifiedBy).to.equal(adminUser.username);
+      chai.expect(createdBranch.createdBy).to.equal(adminUser._id);
+      chai.expect(createdBranch.lastModifiedBy).to.equal(adminUser._id);
       chai.expect(createdBranch.createdOn).to.not.equal(null);
       chai.expect(createdBranch.updatedOn).to.not.equal(null);
       chai.expect(createdBranch.archived).to.equal(false);
@@ -230,6 +238,8 @@ function postBranches(done) {
 
 /**
  * @description Verifies mock GET request to get a branch.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function getBranch(done) {
   const branchData = testData.branches[1];
@@ -262,8 +272,8 @@ function getBranch(done) {
     chai.expect(foundBranch.source).to.equal(branchData.source);
 
     // Verify additional properties
-    chai.expect(foundBranch.createdBy).to.equal(adminUser.username);
-    chai.expect(foundBranch.lastModifiedBy).to.equal(adminUser.username);
+    chai.expect(foundBranch.createdBy).to.equal(adminUser._id);
+    chai.expect(foundBranch.lastModifiedBy).to.equal(adminUser._id);
     chai.expect(foundBranch.createdOn).to.not.equal(null);
     chai.expect(foundBranch.updatedOn).to.not.equal(null);
     chai.expect(foundBranch.archived).to.equal(false);
@@ -285,6 +295,8 @@ function getBranch(done) {
 
 /**
  * @description Verifies mock GET request to get multiple branches.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function getBranches(done) {
   const branchData = [
@@ -328,8 +340,8 @@ function getBranches(done) {
       chai.expect(foundBranch.source).to.equal(branchObj.source);
 
       // Verify additional properties
-      chai.expect(foundBranch.createdBy).to.equal(adminUser.username);
-      chai.expect(foundBranch.lastModifiedBy).to.equal(adminUser.username);
+      chai.expect(foundBranch.createdBy).to.equal(adminUser._id);
+      chai.expect(foundBranch.lastModifiedBy).to.equal(adminUser._id);
       chai.expect(foundBranch.createdOn).to.not.equal(null);
       chai.expect(foundBranch.updatedOn).to.not.equal(null);
       chai.expect(foundBranch.archived).to.equal(false);
@@ -352,6 +364,8 @@ function getBranches(done) {
 
 /**
  * @description Verifies mock GET request to get all branches.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function getAllBranches(done) {
   const branchesData = [
@@ -396,11 +410,11 @@ function getAllBranches(done) {
       chai.expect(foundBranch.project).to.equal(projID);
       if (foundBranch.id !== 'master') {
         chai.expect(foundBranch.source).to.equal(branchObj.source);
-        chai.expect(foundBranch.lastModifiedBy).to.equal(adminUser.username);
+        chai.expect(foundBranch.lastModifiedBy).to.equal(adminUser._id);
       }
 
       // Verify additional properties
-      chai.expect(foundBranch.createdBy).to.equal(adminUser.username);
+      chai.expect(foundBranch.createdBy).to.equal(adminUser._id);
       chai.expect(foundBranch.createdOn).to.not.equal(null);
       chai.expect(foundBranch.updatedOn).to.not.equal(null);
       chai.expect(foundBranch.archived).to.equal(false);
@@ -423,6 +437,8 @@ function getAllBranches(done) {
 
 /**
  * @description Verifies mock PATCH request to update a branch.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function patchBranch(done) {
   const branchData = testData.branches[1];
@@ -459,8 +475,8 @@ function patchBranch(done) {
     chai.expect(updatedBranch.source).to.equal(branchData.source);
 
     // Verify additional properties
-    chai.expect(updatedBranch.createdBy).to.equal(adminUser.username);
-    chai.expect(updatedBranch.lastModifiedBy).to.equal(adminUser.username);
+    chai.expect(updatedBranch.createdBy).to.equal(adminUser._id);
+    chai.expect(updatedBranch.lastModifiedBy).to.equal(adminUser._id);
     chai.expect(updatedBranch.createdOn).to.not.equal(null);
     chai.expect(updatedBranch.updatedOn).to.not.equal(null);
     chai.expect(updatedBranch.archived).to.equal(false);
@@ -482,6 +498,8 @@ function patchBranch(done) {
 
 /**
  * @description Verifies mock PATCH request to update multiple branches.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function patchBranches(done) {
   // Create request object
@@ -531,8 +549,8 @@ function patchBranches(done) {
       chai.expect(updatedBranch.source).to.equal(branchObj.source);
 
       // Verify additional properties
-      chai.expect(updatedBranch.createdBy).to.equal(adminUser.username);
-      chai.expect(updatedBranch.lastModifiedBy).to.equal(adminUser.username);
+      chai.expect(updatedBranch.createdBy).to.equal(adminUser._id);
+      chai.expect(updatedBranch.lastModifiedBy).to.equal(adminUser._id);
       chai.expect(updatedBranch.createdOn).to.not.equal(null);
       chai.expect(updatedBranch.updatedOn).to.not.equal(null);
       chai.expect(updatedBranch.archived).to.equal(false);
@@ -555,6 +573,8 @@ function patchBranches(done) {
 
 /**
  * @description Verifies mock DELETE request to delete a branch.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function deleteBranch(done) {
   // Create request object
@@ -591,6 +611,8 @@ function deleteBranch(done) {
 
 /**
  * @description Verifies mock DELETE request to delete multiple branches.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function deleteBranches(done) {
   // Create request object

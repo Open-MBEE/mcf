@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module ui.components.shared-views.list-items.user-list-item
  *
@@ -7,16 +7,20 @@
  *
  * @license MIT
  *
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ *
  * @description This renders the user list items.
  */
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
 
-// React Modules
+// React modules
 import React, { Component } from 'react';
 
-// MBEE Modules
+// MBEE modules
 import StatsList from '../../general/stats/stats-list.jsx';
 import Stat from '../../general/stats/stat.jsx';
 
@@ -63,7 +67,7 @@ class UserListItem extends Component {
       // Get project data
       $.ajax({
         method: 'GET',
-        url: `${url}?minified=true&archived=true`,
+        url: `${url}?minified=true&includeArchived=true`,
         statusCode: {
           200: (userInfo) => {
             // Set states
@@ -106,7 +110,7 @@ class UserListItem extends Component {
     }
 
     if (this.props.adminLabel && user.admin) {
-      stats = (<StatsList>
+      stats = (<StatsList className='stats-list-member'>
                 <Stat title='Admin'
                       icon='fas fa-check'
                       className={minimizeClass}
@@ -186,7 +190,7 @@ class UserListItem extends Component {
                 className={minimizeClass}
                 label={this.props.label}
                 noToolTip={true}
-                key={`write-${user.username}`}
+                key={`write-${user.username}`}s
                 _key={`write-${user.username}`}/>,
           <Stat title=''
                 icon='fas fa-window-minimize'
@@ -200,7 +204,7 @@ class UserListItem extends Component {
 
       // Return new stat list
       stats = (
-        <StatsList key='statlist-perms'>
+        <StatsList className='stats-list-member' key='statlist-perms'>
           {permChecks}
         </StatsList>);
     }

@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module test.208-lib-jmi-conversions
  *
@@ -7,14 +7,18 @@
  *
  * @license MIT
  *
+ * @owner Connor Doyle
+ *
+ * @author Leah De Laurell
+ *
  * @description Tests the conversion of the MBEE JMI type conversion functions in
  * the library.
  */
 
-// Node modules
+// NPM modules
 const chai = require('chai');
 
-// MBEE Modules
+// MBEE modules
 const convertJMI = M.require('lib.jmi-conversions');
 
 /* --------------------( Test Data )-------------------- */
@@ -38,7 +42,7 @@ describe(M.getModuleName(module.filename), () => {
 /**
  * @description Checks JMI type 2 conversion.
  */
-function convert1to2(done) {
+async function convert1to2() {
   // Initialize test data
   const data = testData.jmi1;
 
@@ -47,13 +51,12 @@ function convert1to2(done) {
 
   // Verify conversion with length of object
   chai.expect(Object.keys(object).length === 5);
-  done();
 }
 
 /**
  * @description Checks JMI type 3 conversion.
  */
-function convert1to3(done) {
+async function convert1to3() {
   // Initialize test data
   const data = testData.jmi1;
 
@@ -63,5 +66,4 @@ function convert1to3(done) {
   // Verify object data
   chai.expect(Object.keys(object).length === 2);
   chai.expect(Object.keys(object[testData.jmi1[0].id].contains).length > 0);
-  done();
 }

@@ -1,11 +1,18 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module controllers.user-controller
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
+ *
+ * @owner Connor Doyle
+ *
+ * @author Josh Kaplan
+ * @author Austin Bieber
+ * @author Connor Doyle
+ * @author Phillip Lee
  *
  * @description Provides an abstraction layer on top of the User model that
  * implements controller logic and behavior for Users.
@@ -24,12 +31,12 @@ module.exports = {
   search
 };
 
-// Node.js Modules
+// Node modules
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-// MBEE Modules
+// MBEE modules
 const Organization = M.require('models.organization');
 const Project = M.require('models.project');
 const User = M.require('models.user');
@@ -39,6 +46,8 @@ const validators = M.require('lib.validators');
 const jmi = M.require('lib.jmi-conversions');
 const utils = M.require('lib.utils');
 const errors = M.require('lib.errors');
+const helper = M.require('lib.controller-utils');
+const permissions = M.require('lib.permissions');
 
 /**
  * @description This function finds one or many users. Depending on the given
@@ -49,10 +58,10 @@ const errors = M.require('lib.errors');
  * @param {(string|string[])} [users] - The users to find. Can either be an
  * array of user ids, a single user id, or not provided, which defaults to every
  * user being found.
- * @param {Object} [options] - A parameter that provides supported options.
+ * @param {object} [options] - A parameter that provides supported options.
  * @param {string[]} [options.populate] - A list of fields to populate on return of
  * the found objects. By default, no fields are populated.
- * @param {boolean} [options.archived = false] - If true, find results will include
+ * @param {boolean} [options.includeArchived = false] - If true, find results will include
  * archived objects.
  * @param {string[]} [options.fields] - An array of fields to return. By default
  * includes the _id and username fields. To NOT include a field, provide a '-'
@@ -64,26 +73,28 @@ const errors = M.require('lib.errors');
  * number of documents to skip returning. For example, if 10 documents are found
  * and skip is 5, the first 5 documents will NOT be returned.
  * @param {string} [options.fname] - A string that will search for matches with
- * the user fname field, or first name
+ * the user fname field, or first name.
  * @param {string} [options.lname] - A string that will search for matches with
- * the user lname field, or last name
+ * the user lname field, or last name.
  * @param {string} [options.preferredName] - A string that will search for matches
- * with the user preferredName field
+ * with the user preferredName field.
  * @param {string} [options.email] - A string that will search for matches with
- * the user email field
+ * the user email field.
  * @param {string} [options.createdBy] - A string that will search for matches for
- * users that were created by a specific person
+ * users that were created by a specific person.
  * @param {string} [options.lastModifiedBy] - A string that will search for matches for
- * users that were last modified by a specific person
+ * users that were last modified by a specific person.
+ * @param {string} [options.archived] - Search only for archived users.  If false,
+ * only returns unarchived users.  Overrides the includeArchived option.
  * @param {string} [options.archivedBy] - A string that will search for matches for
- * users that were archived by a specific person
+ * users that were archived by a specific person.
  * @param {boolean} [options.lean = false] - A boolean value that if true
  * returns raw JSON instead of converting the data to objects.
  * @param {string} [options.sort] - Provide a particular field to sort the results by.
  * You may also add a negative sign in front of the field to indicate sorting in
  * reverse order.
  *
- * @return {Promise} Array of found users' public data objects.
+ * @returns {Promise<object[]>} Array of found users.
  *
  * @example
  * find({User}, ['user1', 'user2'], { populate: 'createdBy' })
@@ -94,8 +105,8 @@ const errors = M.require('lib.errors');
  *   M.log.error(error);
  * });
  */
-function find(requestingUser, users, options) {
-  return new Promise((resolve, reject) => {
+async function find(requestingUser, users, options) {
+  try {
     // Set options if no users were provided, but options were
     if (typeof users === 'object' && users !== null && !Array.isArray(users)) {
       options = users; // eslint-disable-line no-param-reassign
@@ -103,58 +114,49 @@ function find(requestingUser, users, options) {
     }
 
     // Ensure input parameters are correct type
-    try {
-      assert.ok(typeof requestingUser === 'object', 'Requesting user is not an object.');
-      assert.ok(requestingUser !== null, 'Requesting user cannot be null.');
-      // Ensure that requesting user has an _id field
-      assert.ok(requestingUser._id, 'Requesting user is not populated.');
-
-      const userTypes = ['undefined', 'object', 'string'];
-      const optionsTypes = ['undefined', 'object'];
-      assert.ok(userTypes.includes(typeof users), 'Users parameter is an invalid type.');
-      // If users is an object, ensure it's an array of strings
-      if (typeof users === 'object') {
-        assert.ok(Array.isArray(users), 'Users is an object, but not an array.');
-        assert.ok(users.every(u => typeof u === 'string'), 'Users is not an array of strings.');
-      }
-      assert.ok(optionsTypes.includes(typeof options), 'Options parameter is an invalid type.');
-    }
-    catch (err) {
-      throw new M.DataFormatError(err.message, 'warn');
-    }
+    helper.checkParams(requestingUser, options);
+    helper.checkParamsDataType(['undefined', 'object', 'string'], users, 'Users');
 
     // Sanitize input parameters
     const saniUsers = (users !== undefined)
-      ? sani.mongo(JSON.parse(JSON.stringify(users)))
+      ? sani.db(JSON.parse(JSON.stringify(users)))
       : undefined;
 
     // Initialize and ensure options are valid
-    const validOptions = utils.validateOptions(options, ['populate', 'archived',
-      'fields', 'limit', 'skip', 'lean', 'sort'], User);
+    const validatedOptions = utils.validateOptions(options, ['populate',
+      'includeArchived', 'fields', 'limit', 'skip', 'lean', 'sort'], User);
 
     // Define searchQuery
     const searchQuery = { archived: false };
-    // If the archived field is true, remove it from the query
-    if (validOptions.archived) {
+    // If the includeArchived field is true, remove archived from the query; return everything
+    if (validatedOptions.includeArchived) {
       delete searchQuery.archived;
+    }
+    // If the archived field is true, query only for archived elements
+    if (validatedOptions.archived) {
+      searchQuery.archived = true;
     }
 
     // Ensure search options are valid
     if (options) {
       // List of valid search options
       const validSearchOptions = ['fname', 'preferredName', 'lname', 'email', 'createdBy',
-        'lastModifiedBy', 'archivedBy'];
+        'lastModifiedBy', 'archived', 'archivedBy'];
 
       // Check each option for valid search queries
       Object.keys(options).forEach((o) => {
         // If the search option is valid
         if (validSearchOptions.includes(o) || o.startsWith('custom.')) {
+          // Ensure the archived search option is a boolean
+          if (o === 'archived' && typeof options[o] !== 'boolean') {
+            throw new M.DataFormatError(`The option '${o}' is not a boolean.`, 'warn');
+          }
           // Ensure the search option is a string
-          if (typeof options[o] !== 'string') {
+          else if (typeof options[o] !== 'string' && o !== 'archived') {
             throw new M.DataFormatError(`The option '${o}' is not a string.`, 'warn');
           }
           // Add the search option to the searchQuery
-          searchQuery[o] = sani.mongo(options[o]);
+          searchQuery[o] = sani.db(options[o]);
         }
       });
     }
@@ -173,26 +175,18 @@ function find(requestingUser, users, options) {
       throw new M.DataFormatError('Invalid input for finding users.', 'warn');
     }
 
-    // If the lean option is supplied
-    if (validOptions.lean) {
-      // Find the users
-      User.find(searchQuery, validOptions.fieldsString,
-        { limit: validOptions.limit, skip: validOptions.skip })
-      .sort(validOptions.sort)
-      .populate(validOptions.populateString).lean()
-      .then((foundUser) => resolve(foundUser))
-      .catch((error) => reject(error));
-    }
-    else {
-      // Find the users
-      User.find(searchQuery, validOptions.fieldsString,
-        { limit: validOptions.limit, skip: validOptions.skip })
-      .sort(validOptions.sort)
-      .populate(validOptions.populateString)
-      .then((foundUser) => resolve(foundUser))
-      .catch((error) => reject(error));
-    }
-  });
+    // Find and return the users
+    return await User.find(searchQuery, validatedOptions.fieldsString,
+      { limit: validatedOptions.limit,
+        skip: validatedOptions.skip,
+        sort: validatedOptions.sort,
+        populate: validatedOptions.populateString,
+        lean: validatedOptions.lean
+      });
+  }
+  catch (error) {
+    throw errors.captureError(error);
+  }
 }
 
 /**
@@ -202,7 +196,7 @@ function find(requestingUser, users, options) {
  * to the default org prior to being returned from this function.
  *
  * @param {User} requestingUser - The object containing the requesting user.
- * @param {(Object|Object[])} users - Either an array of objects containing user
+ * @param {(object|object[])} users - Either an array of objects containing user
  * data or a single object containing user data to create.
  * @param {string} users.username - The username of the user being created.
  * @param {string} [users.password] - The password of the user being created.
@@ -215,9 +209,9 @@ function find(requestingUser, users, options) {
  * the user will be a system admin.
  * @param {string} [users.provider = 'local'] - The provider which the user is
  * retrieved from.
- * @param {Object} [users.custom] - Any additional key/value pairs for an
+ * @param {object} [users.custom] - Any additional key/value pairs for an
  * object. Must be proper JSON form.
- * @param {Object} [options] - A parameter that provides supported options.
+ * @param {object} [options] - A parameter that provides supported options.
  * @param {string[]} [options.populate] - A list of fields to populate on return of
  * the found objects. By default, no fields are populated.
  * @param {string[]} [options.fields] - An array of fields to return. By default
@@ -226,7 +220,7 @@ function find(requestingUser, users, options) {
  * @param {boolean} [options.lean = false] - A boolean value that if true
  * returns raw JSON instead of converting the data to objects.
  *
- * @return {Promise} Array of created users' users' public data objects.
+ * @returns {Promise<object[]>} Array of created user objects.
  *
  * @example
  * create({User}, [{User1}, {User2}, ...], { populate: 'createdBy' })
@@ -237,37 +231,21 @@ function find(requestingUser, users, options) {
  *   M.log.error(error);
  * });
  */
-function create(requestingUser, users, options) {
-  return new Promise((resolve, reject) => {
+async function create(requestingUser, users, options) {
+  try {
     // Ensure input parameters are correct type
-    try {
-      assert.ok(typeof requestingUser === 'object', 'Requesting user is not an object.');
-      assert.ok(requestingUser !== null, 'Requesting user cannot be null.');
-      // Ensure that requesting user has an _id field
-      assert.ok(requestingUser._id, 'Requesting user is not populated.');
-      assert.ok(requestingUser.admin === true, 'User does not have permissions to create users.');
-      assert.ok(typeof users === 'object', 'Users parameter is not an object.');
-      assert.ok(users !== null, 'Users parameter cannot be null.');
-      // If users is an array, ensure each item inside is an object
-      if (Array.isArray(users)) {
-        assert.ok(users.every(u => typeof u === 'object'), 'Every item in users is not an'
-          + ' object.');
-        assert.ok(users.every(u => u !== null), 'One or more items in users is null.');
-      }
-      const optionsTypes = ['undefined', 'object'];
-      assert.ok(optionsTypes.includes(typeof options), 'Options parameter is an invalid type.');
-    }
-    catch (err) {
-      throw new M.DataFormatError(err.message, 'warn');
-    }
+    helper.checkParams(requestingUser, options);
+    helper.checkParamsDataType('object', users, 'Users');
+
+    // Ensure user has permission to create other users
+    permissions.createUser(requestingUser);
 
     // Sanitize input parameters and create function-wide variables
     const reqUser = JSON.parse(JSON.stringify(requestingUser));
-    const saniUsers = sani.mongo(JSON.parse(JSON.stringify(users)));
-    let createdUsers = [];
+    const saniUsers = sani.db(JSON.parse(JSON.stringify(users)));
 
     // Initialize and ensure options are valid
-    const validOptions = utils.validateOptions(options, ['populate', 'fields',
+    const validatedOptions = utils.validateOptions(options, ['populate', 'fields',
       'lean'], User);
 
     // Define array to store user data
@@ -293,9 +271,9 @@ function create(requestingUser, users, options) {
       'preferredName', 'email', 'admin', 'provider', 'custom', 'archived'];
 
     // Check that each user has a username, and add to arrUsernames
-    try {
-      let index = 1;
-      usersToCreate.forEach((user) => {
+    let index = 1;
+    usersToCreate.forEach((user) => {
+      try {
         // Ensure keys are valid
         Object.keys(user).forEach((k) => {
           assert.ok(validUserKeys.includes(k), `Invalid key [${k}].`);
@@ -307,82 +285,70 @@ function create(requestingUser, users, options) {
         // Check if user with same username is already being created
         assert.ok(!arrUsernames.includes(user.username), 'Multiple users with '
           + `the same username [${user.username}] cannot be created.`);
-        arrUsernames.push(user.username);
-        user._id = user.username;
-        index++;
-      });
-    }
-    catch (err) {
-      throw new M.DataFormatError(err.message, 'warn');
-    }
+      }
+      catch (error) {
+        throw new M.DataFormatError(error.message, 'warn');
+      }
+      arrUsernames.push(user.username);
+      user._id = user.username;
+      index++;
+    });
 
     // Create searchQuery to search for any existing, conflicting users
     const searchQuery = { _id: { $in: arrUsernames } };
 
     // Find any existing, conflicting users
-    User.find(searchQuery, '_id').lean()
-    .then((foundUsers) => {
-      // If there are any foundUsers, there is a conflict
-      if (foundUsers.length > 0) {
-        // Get arrays of the foundUsers's usernames
-        const foundUserUsernames = foundUsers.map(u => u._id);
+    const foundUsers = await User.find(searchQuery, '_id', { lean: true });
+    // If there are any foundUsers, there is a conflict
+    if (foundUsers.length > 0) {
+      // Get arrays of the foundUsers's usernames
+      const foundUserUsernames = foundUsers.map(u => u._id);
 
-        // There are one or more users with conflicting usernames
-        throw new M.OperationError('Users with the following usernames already exist'
-            + ` [${foundUserUsernames.toString()}].`, 'warn');
-      }
+      // There are one or more users with conflicting usernames
+      throw new M.OperationError('Users with the following usernames already exist'
+        + ` [${foundUserUsernames.toString()}].`, 'warn');
+    }
 
-      // For each object of user data, create the user object
-      const userObjects = usersToCreate.map((u) => {
-        const userObj = new User(u);
-        userObj.lastModifiedBy = reqUser._id;
-        userObj.createdBy = reqUser._id;
-        userObj.updatedOn = Date.now();
-        userObj.archivedBy = (userObj.archived) ? reqUser._id : null;
-        userObj.hashPassword();
-        return userObj;
+    // For each object of user data, create the user object
+    const userObjects = usersToCreate.map((u) => {
+      const userObj = User.createDocument(u);
+      userObj.lastModifiedBy = reqUser._id;
+      userObj.createdBy = reqUser._id;
+      userObj.updatedOn = Date.now();
+      userObj.archivedBy = (userObj.archived) ? reqUser._id : null;
+      userObj.archivedOn = (userObj.archived) ? Date.now() : null;
+      userObj.hashPassword();
+      return userObj;
+    });
+
+    // Create the users
+    const createdUsers = await User.insertMany(userObjects);
+
+    // Emit the event users-created
+    EventEmitter.emit('users-created', createdUsers);
+
+    // Find the default organization
+    const defaultOrg = await Organization.findOne({ _id: M.config.server.defaultOrganizationId });
+    // Add each created user to the default org with read/write
+    createdUsers.forEach((user) => {
+      defaultOrg.permissions[user._id] = ['read', 'write'];
+    });
+
+    // Mark the default orgs permissions as modified
+    defaultOrg.markModified('permissions');
+
+    // Save the updated default org
+    await defaultOrg.save();
+
+    // Find and return the created users
+    return await User.find({ _id: { $in: arrUsernames } }, validatedOptions.fieldsString,
+      { populate: validatedOptions.populateString,
+        lean: validatedOptions.lean
       });
-
-
-      // Create the users
-      return User.insertMany(userObjects);
-    })
-    .then((_createdUsers) => {
-      // Set function-wide createdUsers;
-      createdUsers = _createdUsers;
-
-      // Emit the event users-created
-      EventEmitter.emit('users-created', createdUsers);
-
-      // Find the default organization
-      return Organization.findOne({ _id: M.config.server.defaultOrganizationId });
-    })
-    .then((defaultOrg) => {
-      // Add each created user to the default org with read/write
-      createdUsers.forEach((user) => {
-        defaultOrg.permissions[user._id] = ['read', 'write'];
-      });
-
-      // Mark the default orgs permissions as modified
-      defaultOrg.markModified('permissions');
-
-      // Save the updated default org
-      return defaultOrg.save();
-    })
-    .then(() => {
-      // If the lean option is supplied
-      if (validOptions.lean) {
-        return User.find({ _id: { $in: arrUsernames } }, validOptions.fieldsString)
-        .populate(validOptions.populateString).lean();
-      }
-      else {
-        return User.find({ _id: { $in: arrUsernames } }, validOptions.fieldsString)
-        .populate(validOptions.populateString);
-      }
-    })
-    .then((foundCreatedUsers) => resolve(foundCreatedUsers))
-    .catch((error) => reject(errors.captureError(error)));
-  });
+  }
+  catch (error) {
+    throw errors.captureError(error);
+  }
 }
 
 /**
@@ -392,11 +358,11 @@ function create(requestingUser, users, options) {
  * exist in the update object that don't exist in the current custom data,
  * the key/value pair will be added. If the key/value pairs do exist, the value
  * will be changed. If a user is archived, they must first be unarchived before
- * any other updates occur. NOTE: A user cannot archive or unarchive themselves.
- * This function is restricted to system-wide admins ONLY.
+ * any other updates occur. NOTE: A user cannot archive or un-archive
+ * themselves. This function is restricted to system-wide admins ONLY.
  *
  * @param {User} requestingUser - The object containing the requesting user.
- * @param {(Object|Object[])} users - Either an array of objects containing
+ * @param {(object|object[])} users - Either an array of objects containing
  * updates to users, or a single object containing updates.
  * @param {string} users.id - The ID of the user being updated. Field cannot be
  * updated but is required to find user.
@@ -405,7 +371,7 @@ function create(requestingUser, users, options) {
  * @param {string} [users.preferredName] - The updated preferred first name of
  * the user.
  * @param {string} [users.email] - The updated email of the user.
- * @param {Object} [users.custom] - The new custom data object. Please note,
+ * @param {object} [users.custom] - The new custom data object. Please note,
  * updating the custom data object completely replaces the old custom data
  * object.
  * @param {boolean} [users.archived = false] - The updated archived field. If true, the
@@ -413,7 +379,7 @@ function create(requestingUser, users, options) {
  * @param {boolean} [users.admin] - The updated admin field. If true, the
  * user is a system-wide admin. NOTE: Only system-wide admins can update this
  * property.
- * @param {Object} [options] - A parameter that provides supported options.
+ * @param {object} [options] - A parameter that provides supported options.
  * @param {string[]} [options.populate] - A list of fields to populate on return of
  * the found objects. By default, no fields are populated.
  * @param {string[]} [options.fields] - An array of fields to return. By default
@@ -422,7 +388,7 @@ function create(requestingUser, users, options) {
  * @param {boolean} [options.lean = false] - A boolean value that if true
  * returns raw JSON instead of converting the data to objects.
  *
- * @return {Promise} Array of updated users' public data objects.
+ * @returns {Promise<object[]>} Array of updated user objects.
  *
  * @example
  * update({User}, [{Updated User 1}, {Updated User 2}...], { populate: 'createdBy' })
@@ -433,38 +399,20 @@ function create(requestingUser, users, options) {
  *   M.log.error(error);
  * });
  */
-function update(requestingUser, users, options) {
-  return new Promise((resolve, reject) => {
+async function update(requestingUser, users, options) {
+  try {
     // Ensure input parameters are correct type
-    try {
-      assert.ok(typeof requestingUser === 'object', 'Requesting user is not an object.');
-      assert.ok(requestingUser !== null, 'Requesting user cannot be null.');
-      // Ensure that requesting user has an _id field
-      assert.ok(requestingUser._id, 'Requesting user is not populated.');
-      assert.ok(typeof users === 'object', 'Users parameter is not an object.');
-      assert.ok(users !== null, 'Users parameter cannot be null.');
-      // If users is an array, ensure each item inside is an object
-      if (Array.isArray(users)) {
-        assert.ok(users.every(u => typeof u === 'object'), 'Every item in users is not an'
-          + ' object.');
-        assert.ok(users.every(u => u !== null), 'One or more items in users is null.');
-      }
-      const optionsTypes = ['undefined', 'object'];
-      assert.ok(optionsTypes.includes(typeof options), 'Options parameter is an invalid type.');
-    }
-    catch (err) {
-      throw new M.DataFormatError(err.message, 'warn');
-    }
+    helper.checkParams(requestingUser, options);
+    helper.checkParamsDataType('object', users, 'Users');
 
     // Sanitize input parameters and create function-wide variables
-    const saniUsers = sani.mongo(JSON.parse(JSON.stringify(users)));
+    const saniUsers = sani.db(JSON.parse(JSON.stringify(users)));
     const reqUser = JSON.parse(JSON.stringify(requestingUser));
-    let foundUsers = [];
     let usersToUpdate = [];
     const duplicateCheck = {};
 
     // Initialize and ensure options are valid
-    const validOptions = utils.validateOptions(options, ['populate', 'fields',
+    const validatedOptions = utils.validateOptions(options, ['populate', 'fields',
       'lean'], User);
 
     // Check the type of the users parameter
@@ -482,158 +430,148 @@ function update(requestingUser, users, options) {
 
     // Create list of usernames
     const arrUsernames = [];
-    try {
-      let index = 1;
-      usersToUpdate.forEach((user) => {
+
+    let index = 1;
+    usersToUpdate.forEach((user) => {
+      try {
         // Ensure each user has a username and that its a string
         assert.ok(user.hasOwnProperty('username'), `User #${index} does not have a username.`);
         assert.ok(typeof user.username === 'string', `User #${index}'s username is not a string.`);
-        // If a duplicate ID, throw an error
-        if (duplicateCheck[user.username]) {
-          throw new M.DataFormatError(`Multiple objects with the same ID [${user.username}] exist in`
-            + ' the update.', 'warn');
-        }
-        else {
-          duplicateCheck[user.username] = user.username;
-        }
-        arrUsernames.push(user.username);
-        user._id = user.username;
-        index++;
-      });
-    }
-    catch (err) {
-      throw new M.DataFormatError(err.message, 'warn');
-    }
+      }
+      catch (error) {
+        throw new M.DataFormatError(error.message, 'warn');
+      }
+      // If a duplicate ID, throw an error
+      if (duplicateCheck[user.username]) {
+        throw new M.DataFormatError(`Multiple objects with the same ID [${user.username}] exist in`
+          + ' the update.', 'warn');
+      }
+      else {
+        duplicateCheck[user.username] = user.username;
+      }
+      arrUsernames.push(user.username);
+      user._id = user.username;
+      index++;
+    });
 
     // Ensure user cannot update others, unless sys-admin
-    if (!reqUser.admin && (arrUsernames.length > 1 || arrUsernames[0] !== reqUser.username)) {
-      throw new M.PermissionError('Cannot update other users unless admin.', 'warn');
-    }
+    permissions.updateUser(reqUser, arrUsernames[0]);
 
     // Create searchQuery
     const searchQuery = { _id: { $in: arrUsernames } };
+
     // Find the users to update
-    User.find(searchQuery).lean()
-    .then((_foundUsers) => {
-      // Verify the same number of users are found as desired
-      if (_foundUsers.length !== arrUsernames.length) {
-        const foundIDs = _foundUsers.map(u => u._id);
-        const notFound = arrUsernames.filter(u => !foundIDs.includes(u));
-        throw new M.NotFoundError(
-          `The following users were not found: [${notFound.toString()}].`, 'warn'
-        );
+    const foundUsers = await User.find(searchQuery, null, { lean: true });
+    // Verify the same number of users are found as desired
+    if (foundUsers.length !== arrUsernames.length) {
+      const foundIDs = foundUsers.map(u => u._id);
+      const notFound = arrUsernames.filter(u => !foundIDs.includes(u));
+      throw new M.NotFoundError(
+        `The following users were not found: [${notFound.toString()}].`, 'warn'
+      );
+    }
+
+    // Convert usersToUpdate to JMI type 2
+    const jmiType2 = jmi.convertJMI(1, 2, usersToUpdate);
+    const bulkArray = [];
+    // Get array of editable parameters
+    const validFields = User.getValidUpdateFields();
+
+    // For each found user
+    foundUsers.forEach((user) => {
+      const updateUser = jmiType2[user._id];
+      // Remove username and _id field from update object
+      delete updateUser.username;
+      delete updateUser._id;
+
+      // Error Check: if user currently archived, they must first be unarchived
+      if (user.archived && (updateUser.archived === undefined
+        || JSON.parse(updateUser.archived) !== false)) {
+        throw new M.OperationError(`User [${user._id}] is archived. `
+          + 'Archived objects cannot be modified.', 'warn');
       }
-      // Set the function-wide foundUsers
-      foundUsers = _foundUsers;
 
-      // Convert usersToUpdate to JMI type 2
-      const jmiType2 = jmi.convertJMI(1, 2, usersToUpdate);
-      const bulkArray = [];
-      // Get array of editable parameters
-      const validFields = User.getValidUpdateFields();
-
-      // For each found user
-      foundUsers.forEach((user) => {
-        const updateUser = jmiType2[user._id];
-        // Remove username and _id field from update object
-        delete updateUser.username;
-        delete updateUser._id;
-
-
-        // Error Check: if user currently archived, they must first be unarchived
-        if (user.archived && (updateUser.archived === undefined
-          || JSON.parse(updateUser.archived) !== false)) {
-          throw new M.OperationError(`User [${user._id}] is archived. `
-              + 'Archived objects cannot be modified.', 'warn');
+      // For each key in the updated object
+      Object.keys(updateUser).forEach((key) => {
+        // Check if the field is valid to update
+        if (!validFields.includes(key)) {
+          throw new M.OperationError(`User property [${key}] cannot `
+            + 'be changed.', 'warn');
         }
 
-        // For each key in the updated object
-        Object.keys(updateUser).forEach((key) => {
-          // Check if the field is valid to update
-          if (!validFields.includes(key)) {
-            throw new M.OperationError(`User property [${key}] cannot `
-                + 'be changed.', 'warn');
+        // Get validator for field if one exists
+        if (validators.user.hasOwnProperty(key)) {
+          // If validation fails, throw error
+          if (!RegExp(validators.user[key]).test(updateUser[key])) {
+            throw new M.DataFormatError(
+              `Invalid ${key}: [${updateUser[key]}]`, 'warn'
+            );
+          }
+        }
+
+        // If updating the admin key, ensure the requesting user is an admin
+        if (key === 'admin' && !reqUser.admin) {
+          throw new M.PermissionError(`${reqUser._id} does not have`
+            + ' permissions to update the admin field.', 'warn');
+        }
+
+        // If the type of field is mixed
+        if (User.schema.obj[key]
+          && User.schema.obj[key].type.schemaName === 'Mixed') {
+          // Only objects should be passed into mixed data
+          if (typeof updateUser !== 'object') {
+            throw new M.DataFormatError(`${key} must be an object`, 'warn');
+          }
+        }
+        // Set archivedBy if archived field is being changed
+        else if (key === 'archived') {
+          // User cannot archive or un-archive themselves
+          if ((user._id === reqUser._id) && (updateUser[key] !== user.archived)) {
+            throw new M.OperationError('User cannot archive or unarchive themselves', 'warn');
           }
 
-          // Get validator for field if one exists
-          if (validators.user.hasOwnProperty(key)) {
-            // If validation fails, throw error
-            if (!RegExp(validators.user[key]).test(updateUser[key])) {
-              throw new M.DataFormatError(
-                `Invalid ${key}: [${updateUser[key]}]`, 'warn'
-              );
-            }
+          // If the user is being archived
+          if (updateUser[key] && !user[key]) {
+            updateUser.archivedBy = reqUser._id;
+            updateUser.archivedOn = Date.now();
           }
-
-          // If updating the admin key, ensure the requesting user is an admin
-          if (key === 'admin' && !reqUser.admin) {
-            throw new M.PermissionError(`${reqUser.username} does not have`
-              + ' permissions to update the admin field.', 'warn');
+          // If the user is being unarchived
+          else if (!updateUser[key] && user[key]) {
+            updateUser.archivedBy = null;
+            updateUser.archivedOn = null;
           }
-
-          // If the type of field is mixed
-          if (User.schema.obj[key]
-            && User.schema.obj[key].type.schemaName === 'Mixed') {
-            // Only objects should be passed into mixed data
-            if (typeof updateUser !== 'object') {
-              throw new M.DataFormatError(`${key} must be an object`, 'warn');
-            }
-          }
-          // Set archivedBy if archived field is being changed
-          else if (key === 'archived') {
-            // User cannot archive or unarchive themselves
-            if ((user._id === reqUser._id) && (updateUser[key] !== user.archived)) {
-              throw new M.OperationError('User cannot archive or unarchive themselves', 'warn');
-            }
-
-            // If the user is being archived
-            if (updateUser[key] && !user[key]) {
-              updateUser.archivedBy = reqUser._id;
-              updateUser.archivedOn = Date.now();
-            }
-            // If the user is being unarchived
-            else if (!updateUser[key] && user[key]) {
-              updateUser.archivedBy = null;
-              updateUser.archivedOn = null;
-            }
-          }
-        });
-
-        // Update lastModifiedBy field and updatedOn
-        updateUser.lastModifiedBy = reqUser._id;
-        updateUser.updatedOn = Date.now();
-
-        // Update the user
-        bulkArray.push({
-          updateOne: {
-            filter: { _id: user._id },
-            update: updateUser
-          }
-        });
+        }
       });
 
-      // Update all users through a bulk write to the database
-      return User.bulkWrite(bulkArray);
-    })
-    .then(() => {
-      // If the lean option is supplied
-      if (validOptions.lean) {
-        return User.find(searchQuery, validOptions.fieldsString)
-        .populate(validOptions.populateString).lean();
-      }
-      else {
-        return User.find(searchQuery, validOptions.fieldsString)
-        .populate(validOptions.populateString);
-      }
-    })
-    .then((foundUpdatedUsers) => {
-      // Emit the event users-updated
-      EventEmitter.emit('users-updated', foundUpdatedUsers);
+      // Update lastModifiedBy field and updatedOn
+      updateUser.lastModifiedBy = reqUser._id;
+      updateUser.updatedOn = Date.now();
 
-      return resolve(foundUpdatedUsers);
-    })
-    .catch((error) => reject(errors.captureError(error)));
-  });
+      // Update the user
+      bulkArray.push({
+        updateOne: {
+          filter: { _id: user._id },
+          update: updateUser
+        }
+      });
+    });
+
+    // Update all users through a bulk write to the database
+    await User.bulkWrite(bulkArray);
+
+    const foundUpdatedUsers = await User.find(searchQuery, validatedOptions.fieldsString,
+      { populate: validatedOptions.populateString,
+        lean: validatedOptions.lean
+      });
+
+    // Emit the event users-updated
+    EventEmitter.emit('users-updated', foundUpdatedUsers);
+
+    return foundUpdatedUsers;
+  }
+  catch (error) {
+    throw errors.captureError(error);
+  }
 }
 
 /**
@@ -642,7 +580,7 @@ function update(requestingUser, users, options) {
  * This function is restricted to system-wide admins ONLY.
  *
  * @param {User} requestingUser - The object containing the requesting user.
- * @param {(Object|Object[])} users - Either an array of objects containing
+ * @param {(object|object[])} users - Either an array of objects containing
  * updates to users, or a single object containing updates.
  * @param {string} users.id - The ID of the user being updated. Field cannot be
  * updated but is required to find user.
@@ -651,12 +589,12 @@ function update(requestingUser, users, options) {
  * @param {string} [users.preferredName] - The updated preferred first name of
  * the user.
  * @param {string} [users.email] - The updated email of the user.
- * @param {Object} [users.custom] - The additions or changes to existing custom
+ * @param {object} [users.custom] - The additions or changes to existing custom
  * data. If the key/value pair already exists, the value will be changed. If the
  * key/value pair does not exist, it will be added.
  * @param {boolean} [users.archived = false] - The updated archived field. If true, the
  * user will not be able to be found until unarchived.
- * @param {Object} [options] - A parameter that provides supported options.
+ * @param {object} [options] - A parameter that provides supported options.
  * @param {string[]} [options.populate] - A list of fields to populate on return of
  * the found objects. By default, no fields are populated.
  * @param {string[]} [options.fields] - An array of fields to return. By default
@@ -665,7 +603,7 @@ function update(requestingUser, users, options) {
  * @param {boolean} [options.lean = false] - A boolean value that if true
  * returns raw JSON instead of converting the data to objects.
  *
- * @return {Promise} Array of users' public data objects.
+ * @returns {Promise<object[]>} Array of created/replaced user objects.
  *
  * @example
  * createOrReplace({User}, [{User 1}, {User 2}...], { populate: 'createdBy' })
@@ -676,39 +614,20 @@ function update(requestingUser, users, options) {
  *   M.log.error(error);
  * });
  */
-function createOrReplace(requestingUser, users, options) {
-  return new Promise((resolve, reject) => {
+async function createOrReplace(requestingUser, users, options) {
+  try {
     // Ensure input parameters are correct type
-    try {
-      assert.ok(typeof requestingUser === 'object', 'Requesting user is not an object.');
-      assert.ok(requestingUser !== null, 'Requesting user cannot be null.');
-      // Ensure that requesting user has an _id field
-      assert.ok(requestingUser._id, 'Requesting user is not populated.');
-      assert.ok(requestingUser.admin === true, 'User does not have permissions'
-        + 'to replace users.');
-      assert.ok(typeof users === 'object', 'Users parameter is not an object.');
-      assert.ok(users !== null, 'Users parameter cannot be null.');
-      // If users is an array, ensure each item inside is an object
-      if (Array.isArray(users)) {
-        assert.ok(users.every(u => typeof u === 'object'), 'Every item in users is not an'
-          + ' object.');
-        assert.ok(users.every(u => u !== null), 'One or more items in users is null.');
-      }
-      const optionsTypes = ['undefined', 'object'];
-      assert.ok(optionsTypes.includes(typeof options), 'Options parameter is an invalid type.');
-    }
-    catch (err) {
-      throw new M.DataFormatError(err.message, 'warn');
-    }
+    helper.checkParams(requestingUser, options);
+    helper.checkParamsDataType('object', users, 'Users');
+
+    // Ensure user has permission to create or replace users
+    permissions.createUser(requestingUser);
 
     // Sanitize input parameters and create function-wide variables
-    const saniUsers = sani.mongo(JSON.parse(JSON.stringify(users)));
+    const saniUsers = sani.db(JSON.parse(JSON.stringify(users)));
     const duplicateCheck = {};
-    let foundUsers = [];
     let usersToLookup = [];
     let createdUsers = [];
-    let isCreated = false;
-    let isDeleted = false;
     const ts = Date.now();
 
     // Check the type of the users parameter
@@ -726,108 +645,86 @@ function createOrReplace(requestingUser, users, options) {
 
     // Create list of usernames
     const arrUsernames = [];
-    try {
-      let index = 1;
-      usersToLookup.forEach((user) => {
+    let index = 1;
+    usersToLookup.forEach((user) => {
+      try {
         // Ensure each user has a username and that its a string
         assert.ok(user.hasOwnProperty('username'), `User #${index} does not have a username.`);
         assert.ok(typeof user.username === 'string', `User #${index}'s username is not a string.`);
-        // If a duplicate ID, throw an error
-        if (duplicateCheck[user.username]) {
-          throw new M.DataFormatError(`Multiple objects with the same ID [${user.username}] exist in`
-            + ' the update.', 'warn');
-        }
-        else {
-          duplicateCheck[user.username] = user.username;
-        }
-        arrUsernames.push(user.username);
-        index++;
-      });
-    }
-    catch (err) {
-      throw new M.DataFormatError(err.message, 'warn');
-    }
+      }
+      catch (error) {
+        throw new M.DataFormatError(error.message, 'warn');
+      }
+      // If a duplicate ID, throw an error
+      if (duplicateCheck[user.username]) {
+        throw new M.DataFormatError(`Multiple objects with the same ID [${user.username}] exist in`
+          + ' the update.', 'warn');
+      }
+      else {
+        duplicateCheck[user.username] = user.username;
+      }
+      arrUsernames.push(user.username);
+      index++;
+    });
 
     // Create searchQuery
     const searchQuery = { _id: { $in: arrUsernames } };
 
     // Find the users to update
-    User.find(searchQuery).lean()
-    .then((_foundUsers) => {
-      // Set the function-wide foundUsers
-      foundUsers = _foundUsers;
+    const foundUsers = await User.find(searchQuery, null, { lean: true });
 
-      // If data directory doesn't exist, create it
-      if (!fs.existsSync(path.join(M.root, 'data'))) {
-        fs.mkdirSync(path.join(M.root, 'data'));
-      }
+    // If data directory doesn't exist, create it
+    if (!fs.existsSync(path.join(M.root, 'data'))) {
+      fs.mkdirSync(path.join(M.root, 'data'));
+    }
 
-      // Write contents to temporary file
-      return new Promise(function(res, rej) {
-        fs.writeFile(path.join(M.root, 'data', `PUT-backup-users-${ts}.json`),
-          JSON.stringify(_foundUsers), function(err) {
-            if (err) rej(err);
-            else res();
-          });
-      });
-    })
-    .then(() => User.deleteMany({ _id: { $in: foundUsers.map(u => u._id) } }).lean())
-    .then(() => {
-      // Emit the event users-deleted
-      EventEmitter.emit('users-deleted', foundUsers);
+    // Write contents to temporary file
+    fs.writeFileSync(path.join(M.root, 'data', `PUT-backup-users-${ts}.json`),
+      JSON.stringify(foundUsers));
 
-      // Set deleted to true
-      isDeleted = true;
+    await User.deleteMany({ _id: { $in: foundUsers.map(u => u._id) } });
 
+    // Emit the event users-deleted
+    EventEmitter.emit('users-deleted', foundUsers);
+
+    // Try block to create new users after the old ones were deleted
+    try {
       // Create the new users
-      return create(requestingUser, usersToLookup, options);
-    })
-    .then((_createdUsers) => {
-      createdUsers = _createdUsers;
-      // Set created to true
-      isCreated = true;
-
-      // Delete the temporary file.
-      const filePath = path.join(M.root, 'data',
-        `PUT-backup-users-${ts}.json`);
-      if (fs.existsSync(filePath)) {
-        return new Promise(function(res, rej) {
-          fs.unlink(filePath, function(err) {
-            if (err) rej(err);
-            else res();
-          });
-        });
-      }
-    })
-    .then(() => resolve(createdUsers))
-    .catch((error) => new Promise((res) => {
-      // Check if deleted and creation failed
-      if (isDeleted && !isCreated) {
+      createdUsers = await create(requestingUser, usersToLookup, options);
+    }
+    // This will restore the original users if the new ones failed to create
+    catch (error) {
+      throw await new Promise(async (res) => {
         // Reinsert original data
-        User.insertMany(foundUsers)
-        .then(() => new Promise((resInner, rejInner) => {
-          // Remove the file
-          fs.unlink(path.join(M.root, 'data',
-            `PUT-backup-users-${ts}.json`), function(err) {
-            if (err) rejInner(err);
-            else resInner();
-          });
-        }))
-        .then(() => res(errors.captureError(error)))
-        .catch((err) => res(err));
-      }
-      else {
-        // Resolve original error
-        return res(error);
-      }
-    }))
-    .then((error) => {
-      // If an error was returned, reject it.
-      if (error) {
-        return reject(errors.captureError(error));
-      }
-    });
-  });
+        try {
+          await User.insertMany(foundUsers);
+          fs.unlinkSync(path.join(M.root, 'data',
+            `PUT-backup-users-${ts}.json`));
+
+          // Restoration succeeded; pass the original error
+          res(error);
+        }
+        catch (restoreError) {
+          // Pass the new error that occurred while trying to restore old users
+          res(restoreError);
+        }
+      });
+    }
+
+    EventEmitter.emit('users-created', createdUsers);
+
+    // Delete the temporary file.
+    const filePath = path.join(M.root, 'data',
+      `PUT-backup-users-${ts}.json`);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    return createdUsers;
+  }
+  catch (error) {
+    throw errors.captureError(error);
+  }
 }
 
 /**
@@ -838,10 +735,10 @@ function createOrReplace(requestingUser, users, options) {
  * @param {User} requestingUser - The object containing the requesting user.
  * @param {(string|string[])} users - The users to remove. Can either be an
  * array of user ids or a single user id.
- * @param {Object} [options] - A parameter that provides supported options.
+ * @param {object} [options] - A parameter that provides supported options.
  * Currently there are no supported options.
  *
- * @return {Promise} Array of deleted users' usernames.
+ * @returns {Promise<string[]>} Array of deleted users' usernames.
  *
  * @example
  * remove({User}, ['user1', 'user2'])
@@ -852,39 +749,24 @@ function createOrReplace(requestingUser, users, options) {
  *   M.log.error(error);
  * });
  */
-function remove(requestingUser, users, options) {
-  return new Promise((resolve, reject) => {
+async function remove(requestingUser, users, options) {
+  try {
     // Ensure input parameters are correct type
-    try {
-      assert.ok(typeof requestingUser === 'object', 'Requesting user is not an object.');
-      assert.ok(requestingUser !== null, 'Requesting user cannot be null.');
-      // Ensure that requesting user has an _id field
-      assert.ok(requestingUser._id, 'Requesting user is not populated.');
-      assert.ok(requestingUser.admin === true, 'User does not have permissions to delete users.');
-      const userTypes = ['object', 'string'];
-      const optionsTypes = ['undefined', 'object'];
-      assert.ok(userTypes.includes(typeof users), 'Users parameter is an invalid type.');
-      // If users is an object, ensure it's an array of strings
-      if (typeof users === 'object') {
-        assert.ok(Array.isArray(users), 'Users is an object, but not an array.');
-        assert.ok(users.every(u => typeof u === 'string'), 'Users is not an array of strings.');
-      }
-      assert.ok(optionsTypes.includes(typeof options), 'Options parameter is an invalid type.');
-    }
-    catch (err) {
-      throw new M.DataFormatError(err.message, 'warn');
-    }
+    helper.checkParams(requestingUser, options);
+    helper.checkParamsDataType(['object', 'string'], users, 'Users');
 
     // Sanitize input parameters and create function-wide variables
-    const saniUsers = sani.mongo(JSON.parse(JSON.stringify(users)));
+    const saniUsers = sani.db(JSON.parse(JSON.stringify(users)));
     const reqUser = JSON.parse(JSON.stringify(requestingUser));
-    let foundUsers = [];
     let foundUsernames = [];
     let searchedUsernames = [];
 
     // Define searchQuery and memberQuery
     const searchQuery = {};
     const memberQuery = {};
+
+    // Ensure user has permission to delete users
+    permissions.deleteUser(reqUser);
 
     // Check the type of the users parameter
     if (Array.isArray(saniUsers)) {
@@ -903,95 +785,93 @@ function remove(requestingUser, users, options) {
     }
 
     // Find the users to delete
-    User.find(searchQuery)
-    .then((_foundUsers) => {
-      // Set function-wide foundUsers and foundUsernames
-      foundUsers = _foundUsers;
-      foundUsernames = foundUsers.map(u => u._id);
+    const foundUsers = await User.find(searchQuery);
 
-      // Check if all users were found
-      const notFoundUsernames = searchedUsernames.filter(u => !foundUsernames.includes(u));
-      // Some users not found, throw an error
-      if (notFoundUsernames.length > 0) {
-        throw new M.NotFoundError('The following users were not found: '
-          + `[${notFoundUsernames}].`, 'warn');
+    foundUsernames = foundUsers.map(u => u._id);
+
+    // Check if all users were found
+    const notFoundUsernames = searchedUsernames.filter(u => !foundUsernames.includes(u));
+    // Some users not found, throw an error
+    if (notFoundUsernames.length > 0) {
+      throw new M.NotFoundError('The following users were not found: '
+        + `[${notFoundUsernames}].`, 'warn');
+    }
+
+    // Create memberQuery
+    foundUsers.forEach((user) => {
+      memberQuery[`permissions.${user._id}`] = 'read';
+    });
+
+    // Check that user can remove each user
+    foundUsers.forEach((user) => {
+      // If trying to delete the self, throw an error
+      if (user._id === reqUser._id) {
+        throw new M.OperationError('User cannot delete self.', 'warn');
       }
+    });
 
-      // Create memberQuery
-      foundUsers.forEach((user) => {
-        memberQuery[`permissions.${user.username}`] = 'read';
+    // Find any organizations the users were apart of
+    const orgs = await Organization.find(memberQuery);
+
+    const promises = [];
+    // For each org, remove users from permissions lists
+    orgs.forEach((org) => {
+      foundUsernames.forEach((user) => {
+        delete org.permissions[user];
       });
 
-      // Check that user can remove each user
-      foundUsers.forEach((user) => {
-        // If trying to delete the self, throw an error
-        if (user._id === reqUser._id) {
-          throw new M.OperationError('User cannot delete self.', 'warn');
-        }
-      });
+      org.markModified('permissions');
 
-      // Find any organizations the users were apart of
-      return Organization.find(memberQuery);
-    })
-    .then((orgs) => {
-      const promises = [];
-      // For each org, remove users from permissions lists
-      orgs.forEach((org) => {
-        foundUsernames.forEach((user) => {
-          delete org.permissions[user];
-        });
+      // Add save operation to promise array
+      promises.push(org.save());
+    });
 
-        org.markModified('permissions');
+    // Save all orgs and return once all are saved
+    await Promise.all(promises);
 
-        // Add save operation to promise array
-        promises.push(org.save());
-      });
-
-      // Save all orgs and return once all are saved
-      return Promise.all(promises);
-    })
     // Find any projects the users were apart of
-    .then(() => Project.find(memberQuery))
-    .then((projects) => {
-      const promises = [];
-      // For each project, remove users from permissions lists
-      projects.forEach((proj) => {
-        foundUsernames.forEach((user) => {
-          delete proj.permissions[user];
-        });
+    const projects = await Project.find(memberQuery);
 
-        proj.markModified('permissions');
-
-        // Add save operation to promise array
-        promises.push(proj.save());
+    const promises2 = [];
+    // For each project, remove users from permissions lists
+    projects.forEach((proj) => {
+      foundUsernames.forEach((user) => {
+        delete proj.permissions[user];
       });
 
-      // Save all projects and return once all are saved
-      return Promise.all(promises);
-    })
-    // Remove the users
-    .then(() => User.deleteMany(searchQuery).lean())
-    // Return the deleted users
-    .then(() => {
-      // Emit the event users-deleted
-      EventEmitter.emit('users-deleted', foundUsers);
+      proj.markModified('permissions');
 
-      return resolve(foundUsernames);
-    })
-    .catch((error) => reject(errors.captureError(error)));
-  });
+      // Add save operation to promise array
+      promises2.push(proj.save());
+    });
+
+    // Save all projects and return once all are saved
+    await Promise.all(promises2);
+
+    // Remove the users
+    await User.deleteMany(searchQuery);
+
+    // Emit the event users-deleted
+    EventEmitter.emit('users-deleted', foundUsers);
+
+    // Return the deleted users
+    return foundUsernames;
+  }
+  catch (error) {
+    throw errors.captureError(error);
+  }
 }
 
 /**
- * @description A function which searches for users using mongo's built in text
- * search.  Returns any users that match the text search, in order of the best
- * matches to the worst.  Searches the fname, preferredName, and lname fields.
+ * @description A function which searches for users using a text-based search.
+ * Returns any users that match the text search, in order of the best matches to
+ * the worst.  Searches the fname, preferredName, and lname fields.
  *
- * @param {User} requestingUser - The object containing the requesting user
+ * @param {User} requestingUser - The object containing the requesting user.
  * @param {string} query - The text-based query to search the database for.
- * @param {Object} [options] - A parameter that provides supported options.
+ * @param {object} [options] - A parameter that provides supported options.
  * @param {boolean} [options.archived] - A parameter that if true, will return
- * search results containing both archived and nonarchived users.
+ * search results containing both archived and non-archived users.
  * @param {string[]} [options.populate] - A list of fields to populate on return
  * of the found objects.  By default, no fields are populated.
  * @param {number} [options.limit = 0] - A number that specifies the maximum
@@ -1006,10 +886,10 @@ function remove(requestingUser, users, options) {
  * You may also add a negative sign in front of the field to indicate sorting in
  * reverse order.
  *
- * @return {Promise} An array of found users.
+ * @returns {Promise<object[]>} An array of found users.
  *
  * @example
- * search({User}, 'query', {'populate':'createdBy'})
+ * search({User}, 'query', { populate : 'createdBy' })
  * .then(function(users) {
  *   // Do something with the found users
  * })
@@ -1017,18 +897,13 @@ function remove(requestingUser, users, options) {
  *   M.log.error(error);
  * });
  */
-function search(requestingUser, query, options) {
-  return new Promise((resolve, reject) => {
+async function search(requestingUser, query, options) {
+  try {
     // Ensure input parameters are correct type
+    helper.checkParams(requestingUser, options);
+    // Search function only: query must be a string
     try {
-      assert.ok(typeof requestingUser === 'object', 'Requesting user is not an object.');
-      assert.ok(requestingUser !== null, 'Requesting user cannot be null.');
-      // Ensure that requesting user has an _id field
-      assert.ok(requestingUser._id, 'Requesting user is not populated.');
       assert.ok(typeof query === 'string', 'Query is not a string.');
-
-      const optionsTypes = ['undefined', 'object'];
-      assert.ok(optionsTypes.includes(typeof options), 'Options parameter is an invalid type.');
     }
     catch (err) {
       throw new M.DataFormatError(err.message, 'warn');
@@ -1038,60 +913,75 @@ function search(requestingUser, query, options) {
     const searchQuery = { archived: false };
 
     // Validate and set the options
-    const validOptions = utils.validateOptions(options, ['archived', 'populate',
-      'limit', 'skip', 'lean', 'sort'], User);
+    const validatedOptions = utils.validateOptions(options, ['populate',
+      'limit', 'skip', 'lean', 'sort', 'includeArchived'], User);
+
+    // Ensure search options are valid
+    if (options) {
+      // List of valid search options
+      const validSearchOptions = ['fname', 'preferredName', 'lname', 'email', 'createdBy',
+        'lastModifiedBy', 'archived', 'archivedBy'];
+
+      // Check each option for valid search queries
+      Object.keys(options).forEach((o) => {
+        // If the search option is valid
+        if (validSearchOptions.includes(o) || o.startsWith('custom.')) {
+          // Ensure the archived search option is a boolean
+          if (o === 'archived' && typeof options[o] !== 'boolean') {
+            throw new M.DataFormatError(`The option '${o}' is not a boolean.`, 'warn');
+          }
+          // Ensure the search option is a string
+          else if (typeof options[o] !== 'string' && o !== 'archived') {
+            throw new M.DataFormatError(`The option '${o}' is not a string.`, 'warn');
+          }
+          // Add the search option to the searchQuery
+          searchQuery[o] = sani.db(options[o]);
+        }
+      });
+    }
 
     // Add text to search query
     searchQuery.$text = { $search: query };
-    // If the archived field is true, remove it from the query
-    if (validOptions.archived) {
+    // If the includeArchived field is true, remove archived from the query; return everything
+    if (validatedOptions.includeArchived) {
       delete searchQuery.archived;
     }
 
     // Add sorting by metadata
     // If no sorting option was specified ($natural is the default) then remove
     // $natural. $natural does not work with metadata sorting
-    if (validOptions.sort.$natural) {
-      validOptions.sort = { score: { $meta: 'textScore' } };
+    if (validatedOptions.sort.$natural) {
+      validatedOptions.sort = { score: { $meta: 'textScore' } };
     }
     else {
-      validOptions.sort.score = { $meta: 'textScore' };
+      validatedOptions.sort.score = { $meta: 'textScore' };
     }
 
-    // If the lean option is supplied
-    if (validOptions.lean) {
-      // Search for the user
-      User.find(searchQuery, { score: { $meta: 'textScore' } },
-        { limit: validOptions.limit, skip: validOptions.skip })
-      .sort(validOptions.sort)
-      .populate(validOptions.populateString).lean()
-      .then((foundUsers) => resolve(foundUsers))
-      .catch((error) => reject(error));
-    }
-    else {
-      // Search for the user
-      User.find(searchQuery, { score: { $meta: 'textScore' } },
-        { limit: validOptions.limit, skip: validOptions.skip })
-      .sort(validOptions.sort)
-      .populate(validOptions.populateString)
-      .then((foundUsers) => resolve(foundUsers))
-      .catch((error) => reject(errors.captureError(error)));
-    }
-  });
+    return await User.find(searchQuery, { score: { $meta: 'textScore' } },
+      { limit: validatedOptions.limit,
+        skip: validatedOptions.skip,
+        sort: validatedOptions.sort,
+        populate: validatedOptions.populateString,
+        lean: validatedOptions.lean
+      });
+  }
+  catch (error) {
+    throw errors.captureError(error);
+  }
 }
 
 /**
  * @description Updates a users password given that the old password matches the
  * currently stored password.
  *
- * @param {Object} requestingUser - The object containing the requesting user.
+ * @param {object} requestingUser - The object containing the requesting user.
  * This is the users whose password is being changed.
  * @param {string} oldPassword - The old password to confirm.
  * @param {string} newPassword - THe new password the user would like to set.
  * @param {string} confirmPassword - The new password entered a second time
  * to confirm they match.
  *
- * @return {Promise} The updated user public data object.
+ * @returns {Promise<object>} The updated user public data object.
  *
  * @example
  * updatePassword({User}, 'oldPass', 'newPass', 'newPass')
@@ -1102,8 +992,8 @@ function search(requestingUser, query, options) {
  *   M.log.error(error);
  * });
  */
-function updatePassword(requestingUser, oldPassword, newPassword, confirmPassword) {
-  return new Promise((resolve, reject) => {
+async function updatePassword(requestingUser, oldPassword, newPassword, confirmPassword) {
+  try {
     // Ensure input parameters are correct type
     try {
       assert.ok(typeof requestingUser === 'object', 'Requesting user is not an object.');
@@ -1114,7 +1004,8 @@ function updatePassword(requestingUser, oldPassword, newPassword, confirmPasswor
       // Ensure all provided passwords are strings
       assert.ok(typeof oldPassword === 'string', 'Old Password is not a string.');
       assert.ok(typeof newPassword === 'string', 'New Password is not a string.');
-      assert.ok(typeof confirmPassword === 'string', 'Passwords do not match.');
+      assert.ok(typeof confirmPassword === 'string', 'Confirm password is not a string');
+      assert.ok(confirmPassword === newPassword, 'Passwords do not match.');
     }
     catch (err) {
       throw new M.DataFormatError(err.message, 'warn');
@@ -1122,40 +1013,30 @@ function updatePassword(requestingUser, oldPassword, newPassword, confirmPasswor
 
     // Sanitize input parameters and create function-wide variables
     const reqUser = JSON.parse(JSON.stringify(requestingUser));
-    let foundUser = null;
-
-    // Check if newPassword and confirmPassword match
-    if (confirmPassword !== newPassword) {
-      throw new M.DataFormatError('Passwords do not match.', 'warn');
-    }
 
     // Find the requesting user
-    User.findOne({ _id: reqUser._id })
-    .then((user) => {
-      foundUser = user;
+    const foundUser = await User.findOne({ _id: reqUser._id });
 
-      // Ensure the user was found
-      if (user === null) {
-        throw new M.NotFoundError('User not found.', 'warn');
-      }
+    // Ensure the user was found
+    if (foundUser === null) {
+      throw new M.NotFoundError('User not found.', 'warn');
+    }
 
-      // Verify the old password matches
-      return foundUser.verifyPassword(oldPassword);
-    })
-    .then((verified) => {
-      // Ensure old password was verified
-      if (!verified) {
-        throw new M.AuthorizationError('Old password is incorrect.', 'warn');
-      }
+    // Verify the old password matches
+    const verified = await foundUser.verifyPassword(oldPassword);
 
-      // Update password on requesting user
-      foundUser.password = newPassword;
+    // Ensure old password was verified
+    if (!verified) {
+      throw new M.AuthorizationError('Old password is incorrect.', 'warn');
+    }
 
-      // Save the requesting user, forcing pre-save middleware to hash
-      // new password.
-      return foundUser.save();
-    })
-    .then((updatedUser) => resolve(updatedUser))
-    .catch((error) => reject(errors.captureError(error)));
-  });
+    // Update password on requesting user
+    foundUser.password = newPassword;
+
+    // Save the requesting user, forcing pre-save middleware to hash new password
+    return await foundUser.save();
+  }
+  catch (error) {
+    throw errors.captureError(error);
+  }
 }

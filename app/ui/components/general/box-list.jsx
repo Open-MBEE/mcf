@@ -1,22 +1,27 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
- * @module ui.components.profile-views.profile-home
+ * @module ui.components.general.box-list
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
  *
- * @description This renders a user's home page.
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ *
+ * @description This renders a list contained inside a box,
+ * used specifically in the branches and tags page.
  */
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
 
-// React Modules
+// React modules
 import React, { Component } from 'react';
 
-// MBEE Modules
+// MBEE modules
 import { Tooltip } from 'reactstrap';
 import { Link } from 'react-router-dom';
 

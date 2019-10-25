@@ -21,11 +21,13 @@ Node.js; just install packages with NPM to get started. To start up MBEE,
 node version 10.15.0 or greater is required.
 See [nodejs.org](https://nodejs.org/en/) for information on Node.js.
 
-**MongoDB**
-You'll also need an instance of MongoDB. If you don't have a database already
-set up, please see the [MongoDB Installation Tutorial](https://docs.mongodb.com/manual/installation/#tutorial-installation)
-and the [MongoDB Getting Started Guide](https://docs.mongodb.com/manual/tutorial/getting-started/)
-for up-to-date documentation on MongoDB.
+**Database**
+You will also need an instance of a document based database. MongoDB is the
+preferred and only currently supported database, but MBEE does support 
+plug-n-play with different databases, as long as a database strategy has been
+defined. To view more information on the database abstraction layer and
+how to configure existing strategies, please visit 
+[the README in app/db](app/db/README.md).
 
 **Source Code**
 1. Clone the MBEE code by running: `git clone https://github.com/lmco/mbee.git`. 
@@ -53,3 +55,4 @@ Included documentation:
 
 If an issue is identified in MBEE, please email
 [mbee-software.fc-space@lmco.com](mailto:mbee-software.fc-space@lmco.com).
+Refer to **SECURITY.md** for more information as well as the PGP encryption key.

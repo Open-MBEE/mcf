@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module ui.components.org-views.organization-projects
  *
@@ -7,17 +7,23 @@
  *
  * @license MIT
  *
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ * @author Jake Ursetta
+ *
  * @description This renders an organization's projects list.
  */
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
+/* eslint-disable jsdoc/require-jsdoc */
 
-// React Modules
+// React modules
 import React from 'react';
 import { Button, Modal, ModalBody } from 'reactstrap';
 
-// MBEE Modules
+// MBEE modules
 import ListItem from '../general/list/list-item.jsx';
 import List from '../general/list/list.jsx';
 import Create from '../shared-views/create.jsx';
@@ -32,17 +38,43 @@ function OrganizationProjects(props) {
   org.projects.forEach(project => {
     if (!props.user.admin) {
       const username = props.user.username;
-      if (project.permissions[username]) {
+      const perm = project.permissions[username];
+      if (perm === 'admin') {
+        listItems.push(<ListItem key={`proj-key-${project.id}`} className='proj-org-header'>
+                        <a href={`/orgs/${org.id}/project/${project.id}/branches/master/elements`}>
+                          {project.name}
+                        </a>
+                      </ListItem>);
+      }
+      // Verify write permissions and not archived project
+      else if (perm === 'write' && !project.archived) {
+        listItems.push(<ListItem key={`proj-key-${project.id}`} className='proj-org-header'>
+                        <a href={`/orgs/${org.id}/project/${project.id}/branches/master/elements`}>
+                          {project.name}
+                        </a>
+                      </ListItem>);
+      }
+      // Verify read permissions and not archived project
+      else if (perm === 'read' && !project.archived) {
         listItems.push(<ListItem key={`proj-key-${project.id}`} className='proj-org-header'>
                         <a href={`/orgs/${org.id}/project/${project.id}/branches/master/elements`}>
                           {project.name}
                         </a>
                        </ListItem>);
       }
+      // Verify if project is internal and not archived
+      else if (project.visibility === 'internal' && !project.archived) {
+        listItems.push(<ListItem key={`proj-key-${project.id}`} className='proj-org-header'>
+                        <a href={`/orgs/${org.id}/project/${project.id}/branches/master/elements`}>
+                          {project.name}
+                        </a>
+                      </ListItem>);
+      }
     }
     else {
+      const className = project.archived ? 'grayed-out' : '';
       listItems.push(<ListItem key={`proj-key-${project.id}`} className='proj-org-header'>
-                      <a href={`/orgs/${org.id}/projects/${project.id}/branches/master/elements`}>
+                      <a href={`/orgs/${org.id}/projects/${project.id}/branches/master/elements`} className={className}>
                         {project.name}
                       </a>
                      </ListItem>);
@@ -59,7 +91,7 @@ function OrganizationProjects(props) {
         </ModalBody>
       </Modal>
       <div id='workspace'>
-        <div id='workspace-header' className='workspace-header header-box-depth'>
+        <div className='workspace-header header-box-depth'>
            <h2 className='workspace-title workspace-title-padding'>Projects</h2>
           {/* Verify user has write permissions */}
           {(!props.write)

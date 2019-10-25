@@ -1,11 +1,15 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
- * @module ui.components.apps.admin-console-app
+ * @module ui.components.admin-console-views.user-list
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
+ *
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
  *
  * @description This renders the user list.
  */
@@ -13,7 +17,7 @@
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
 
-// React Modules
+// React modules
 import React, { Component } from 'react';
 import {
   Button,
@@ -21,7 +25,7 @@ import {
   ModalBody, UncontrolledTooltip
 } from 'reactstrap';
 
-// MBEE Modules
+// MBEE modules
 import List from '../general/list/list.jsx';
 import UserListItem from '../shared-views/list-items/user-list-item.jsx';
 import CreateUser from './create-user.jsx';
@@ -95,7 +99,7 @@ class UserList extends Component {
     // Get project data
     $.ajax({
       method: 'GET',
-      url: `${url}?minified=true&archived=true`,
+      url: `${url}?minified=true&includeArchived=true`,
       statusCode: {
         200: (users) => {
           const result = users.sort((a, b) => {
@@ -205,22 +209,20 @@ class UserList extends Component {
         </Modal>
         {/* Display the list of users */}
         <div id='workspace' ref={this.ref}>
-          <div id='workspace-header' className='workspace-header header-box-depth'>
+          <div className='workspace-header header-box-depth'>
             <h2 className='workspace-title workspace-title-padding'>
               Users
             </h2>
             {/* Verify user is an admin */}
             <div className='workspace-header-button'>
-              <Button className='btn'
-                      outline color="primary"
+              <Button outline color="primary"
                       onClick={this.handleCreateToggle}>
                 {(this.state.width > 600)
                   ? 'Create'
                   : (<i className='fas fa-plus add-btn'/>)
                 }
               </Button>
-              <Button className='btn'
-                      outline color="danger"
+              <Button outline color="danger"
                       onClick={this.handleDeleteToggle}>
                 {(this.state.width > 600)
                   ? 'Delete'

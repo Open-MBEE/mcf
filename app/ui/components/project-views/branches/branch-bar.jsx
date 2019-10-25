@@ -1,19 +1,24 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
- * @module ui.components.profile-views.profile-home
+ * @module ui.components.project-views.branches.branch-bar
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
  *
- * @description This renders a user's home page.
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ *
+ * @description This renders a branch drop down bar including
+ * the options for the tree filtering display.
  */
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
 
-// React Modules
+// React modules
 import React, { Component } from 'react';
 import {
   Input,
@@ -41,6 +46,7 @@ class BranchBar extends Component {
     };
 
     this.handleChange = this.handleChange.bind(this);
+    this.handleCheck = this.handleCheck.bind(this);
   }
 
   // Handles branch change
@@ -48,10 +54,19 @@ class BranchBar extends Component {
     if (event.target.value !== null) {
       const orgId = this.props.project.org;
       const projId = this.props.project.id;
-      const newUrl = `/orgs/${orgId}/projects/${projId}/branches/${event.target.value}/elements`;
+      let newUrl = `/orgs/${orgId}/projects/${projId}/branches/${event.target.value}`;
+
+      // Update URL endpoint if component is on the Search page
+      newUrl = (this.props.searchForm) ? `${newUrl}/search` : `${newUrl}/elements`;
+
       // Reload the place with new branch
       window.location.replace(newUrl);
     }
+  }
+
+  // Handle checkbox selections
+  handleCheck(event) {
+    this.props.handleCheck(event);
   }
 
   componentDidMount() {
@@ -59,7 +74,7 @@ class BranchBar extends Component {
     const orgId = this.props.project.org;
     const projId = this.props.project.id;
     const base = `/api/orgs/${orgId}/projects/${projId}/branches`;
-    const url = `${base}?archived=true&minified=true`;
+    const url = `${base}?includeArchived=true&minified=true`;
 
     // Grab all branches
     $.ajax({
@@ -111,7 +126,13 @@ class BranchBar extends Component {
             <option className='branch-opts'
                     key={`opt-${branch.id}`}
                     value={branch.id}>
-              {(branch.name.length > 0) ? branch.name : branch.id}
+              {/* Verify branch has a name */}
+              {(branch.name.length > 0)
+                // Display name and id
+                ? `${branch.name} [${branch.id}]`
+                // Display id
+                : branch.id
+              }
             </option>
           );
         }
@@ -121,7 +142,12 @@ class BranchBar extends Component {
             <option className='branch-opts'
                     key={`opt-${branch.id}`}
                     value={branch.id}>
-              {(branch.name.length > 0) ? branch.name : branch.id}
+              {/* Verify tag has a name */}
+              {(branch.name.length > 0)
+                // Display name and id
+                ? `${branch.name} [${branch.id}]`
+                // Display id
+                : branch.id}
             </option>
           );
         }
@@ -167,47 +193,77 @@ class BranchBar extends Component {
                 : (<Badge color='secondary'>Archived</Badge>)
               }
             </div>
-            <div className='options-btn'>
-              <UncontrolledButtonDropdown>
-                <DropdownToggle close
-                                id='toggler'
-                                aria-label='Filter'
-                                className='model-dropdown-btn'
-                                size='sm'>
+            { /* Hide Options on Search Form */ }
+            {(this.props.searchForm)
+              ? ''
+              : <div className='options-btn'>
+                <UncontrolledButtonDropdown>
+                  <DropdownToggle close
+                                  id='toggler'
+                                  aria-label='Filter'
+                                  className='model-dropdown-btn'
+                                  size='sm'>
                   <span>
                     <i className='fas fa-ellipsis-v' style={{ fontSize: '15px' }}/>
                   </span>
-                </DropdownToggle>
-                <DropdownMenu className='options-card'>
-                  <div>
-                    <Label check className='minimize'>
-                      <Input type='checkbox'
-                             name='archived'
-                             id='archived'
-                             checked={this.props.archived}
-                             value={this.state.archived}
-                             onChange={this.props.displayArchElems} />
-                      <div style={{ paddingTop: '3px' }}>
-                        Include archived
-                      </div>
-                    </Label>
-                  </div>
-                  <div>
-                    <Label check className='minimize'>
-                      <Input type='checkbox'
-                             name='archived'
-                             id='archived'
-                             checked={this.props.displayIds}
-                             value={this.props.displayIds}
-                             onChange={this.props.toggleIds} />
-                      <div style={{ paddingTop: '3px' }}>
-                        Toggle IDs
-                      </div>
-                    </Label>
-                  </div>
-                </DropdownMenu>
-              </UncontrolledButtonDropdown>
-            </div>
+                  </DropdownToggle>
+                  <DropdownMenu className='options-card' style={{ minWidth: '11rem' }}>
+                    <div>
+                      <Label check className='minimize'>
+                        <Input type='checkbox'
+                               name='archived'
+                               id='archived'
+                               checked={this.props.archived}
+                               value={this.state.archived}
+                               onChange={this.handleCheck}/>
+                        <div style={{ paddingTop: '3px' }}>
+                          Include archived
+                        </div>
+                      </Label>
+                    </div>
+                    <div>
+                      <Label check className='minimize'>
+                        <Input type='checkbox'
+                               name='displayIds'
+                               id='displayIds'
+                               checked={this.props.displayIds}
+                               value={this.props.displayIds}
+                               onChange={this.handleCheck}/>
+                        <div style={{ paddingTop: '3px' }}>
+                          Toggle IDs
+                        </div>
+                      </Label>
+                    </div>
+                    <div>
+                      <Label check className='minimize'>
+                        <Input type='checkbox'
+                               name='expand'
+                               id='expand'
+                               checked={this.props.expand}
+                               value={this.props.expand}
+                               onChange={this.handleCheck}/>
+                        <div style={{ paddingTop: '3px' }}>
+                          Expand All
+                        </div>
+                      </Label>
+                    </div>
+                    <div>
+                      <Label check className='minimize'>
+                        <Input type='checkbox'
+                               name='collapse'
+                               id='collapse'
+                               checked={this.props.collapse}
+                               value={this.props.collapse}
+                               onChange={this.handleCheck}/>
+                        <div style={{ paddingTop: '3px' }}>
+                          Collapse All
+                        </div>
+                      </Label>
+                    </div>
+                  </DropdownMenu>
+                </UncontrolledButtonDropdown>
+              </div>
+            }
           </div>
         </div>
       </React.Fragment>

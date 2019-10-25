@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module ui.components.admin-console-views.delete-user
  *
@@ -7,13 +7,17 @@
  *
  * @license MIT
  *
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ *
  * @description This renders the delete user page.
  */
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
 
-// React Modules
+// React modules
 import React, { Component } from 'react';
 import {
   Form,
@@ -92,7 +96,6 @@ class DeleteUser extends Component {
   // Define update username
   updateUsername(event) {
     this.setState({ username: event.target.value });
-
     this.doSearch(event.target.value);
   }
 
@@ -163,7 +166,7 @@ class DeleteUser extends Component {
     if (this.state.results === 'Searching ...') {
       searchResults = (
         <div style={{ width: '100%', textAlign: 'center' }}>
-          <Spinner type="grow" color="primary" />
+          <Spinner type='grow' color='primary' />
           <span style={{ paddingLeft: '20px' }}>
             Searching ...
           </span>
@@ -177,7 +180,7 @@ class DeleteUser extends Component {
     // Return the project delete form
     return (
       <div id='workspace'>
-        <div id='workspace-header' className='workspace-header'>
+        <div className='workspace-header'>
           <h2 className='workspace-title workspace-title-padding'>
             Delete User
           </h2>
@@ -185,7 +188,7 @@ class DeleteUser extends Component {
         <div className='extra-padding'>
           {(!this.state.error)
             ? ''
-            : (<UncontrolledAlert color="danger">
+            : (<UncontrolledAlert color='danger'>
               {this.state.error}
             </UncontrolledAlert>)
           }
@@ -204,8 +207,7 @@ class DeleteUser extends Component {
                              onChange={this.updateUsername}/>
                     </Col>
                     <Col md={2} sm={4} xs={6} >
-                      <Button className='btn'
-                              outline color="primary"
+                      <Button outline color='primary'
                               type='submit'
                               onClick={this.doSearch}>
                         Search
@@ -220,7 +222,7 @@ class DeleteUser extends Component {
                 }
               </div>)
               : (<FormGroup>
-                  <Label for="username">Do you want to delete {selectedUser}?</Label>
+                  <Label for='username'>Do you want to delete {selectedUser}?</Label>
                  </FormGroup>)
             }
             {/* Button to submit and delete project */}

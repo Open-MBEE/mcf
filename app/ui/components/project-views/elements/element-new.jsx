@@ -1,19 +1,23 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
- * @module ui.components.elements.element-new
+ * @module ui.components.project-views.elements.element-new
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
  *
- * @description This renders create element component.
+ * @owner James Eckstein
+ *
+ * @author Josh Kaplan
+ *
+ * @description This renders create element form.
  */
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
 
-// React Modules
+// React modules
 import React, { Component } from 'react';
 import {
   Form,
@@ -26,7 +30,7 @@ import {
   UncontrolledAlert
 } from 'reactstrap';
 
-// MBEE Modules
+// MBEE modules
 import validators from '../../../../../build/json/validators';
 import ElementSelector from './element-selector.jsx';
 
@@ -49,7 +53,9 @@ class ElementNew extends Component {
       type: '',
       parent: this.props.parent,
       target: null,
+      targetNamespace: null,
       source: null,
+      sourceNamespace: null,
       custom: null,
       org: null,
       project: null,
@@ -95,6 +101,15 @@ class ElementNew extends Component {
       data.target = this.state.target;
     }
 
+    // Verify if there is a targetNamespace and target
+    if (this.state.targetNamespace && this.state.target) {
+      data.targetNamespace = this.state.targetNamespace;
+    }
+    // Verify if there is a sourceNamespace and source
+    if (this.state.sourceNamespace && this.state.source) {
+      data.sourceNamespace = this.state.sourceNamespace;
+    }
+
     const url = `${this.props.url}/elements/${data.id}`;
 
     $.ajax({
@@ -120,26 +135,58 @@ class ElementNew extends Component {
   }
 
   /**
-   * This function is called when the ElementSelector for the parent field
+   * @description This function is called when the ElementSelector for the parent field
    * changes.
+   *
+   * @param {string} _id - The selected _id.
    */
   parentSelectHandler(_id) {
     this.setState({ parent: _id });
   }
 
   /**
-   * This function is called when the ElementSelector for the source field
+   * @description This function is called when the ElementSelector for the source field
    * changes.
+   *
+   * @param {string} _id - The selected _id.
+   * @param {string} project - The current project.
    */
-  sourceSelectHandler(_id) {
+  sourceSelectHandler(_id, project) {
+    // Verify if project was provided
+    if (project) {
+      // Set the sourceNamespace field
+      this.setState({
+        sourceNamespace: {
+          org: project.org,
+          project: project.id,
+          branch: 'master'
+        }
+      });
+    }
+
     this.setState({ source: _id });
   }
 
   /**
-   * This function is called when the ElementSelector for the target field
+   * @description This function is called when the ElementSelector for the target field
    * changes.
+   *
+   * @param {string} _id - The selected _id.
+   * @param {object} project - The current project.
    */
-  targetSelectHandler(_id) {
+  targetSelectHandler(_id, project) {
+    // Verify if project was provided
+    if (project) {
+      // Set the targetNamespace field
+      this.setState({
+        targetNamespace: {
+          org: project.org,
+          project: project.id,
+          branch: 'master'
+        }
+      });
+    }
+
     this.setState({ target: _id });
   }
 
@@ -221,6 +268,7 @@ class ElementNew extends Component {
               <div id="parent" className={'selector-value'}>
                 {this.state.parent || 'Select an element.'}
                 <ElementSelector
+                  parent={true}
                   currentSelection={this.state.parent}
                   url={this.props.url}
                   branch={this.props.branch}

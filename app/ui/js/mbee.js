@@ -1,16 +1,25 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
- * @module ui.components.project-views.elements.element
+ * @module ui.js.mbee
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
  *
- * @description This are helper functions for the front end.
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ * @author James Eckstein
+ * @author Josh Kaplan
+ *
+ * @description Contains necessary functions for the MBEE UI.
  */
+/* eslint-disable jsdoc/require-description-complete-sentence */
+/* eslint-disable jsdoc/require-jsdoc */
+
 // ESLint disabled for client-side JS for now.
-/* eslint-disable */
+/* eslint-disabled */
 
 $.fn.extend({
   autoResize: function() {
@@ -18,6 +27,7 @@ $.fn.extend({
     $(this).attr('rows', nlines + 1);
   }
 });
+
 
 /**
  * Determines the identity of the current user. If the user is stored in session
@@ -69,4 +79,60 @@ function mbeeWhoAmI(callback) {
       callback(err, null);
     }
   });
+}
+
+/**
+ * @description Given an API parameter string, converts to Proper Case. Conversely, given a Proper
+ * Case string will convert to an API parameter string.
+ * e.g. createdBy <-> Created By, lastModifiedBy <-> Last Modified By
+ *
+ * @param {string} param - API parameter string.
+ * @param {string} caseType - Case to convert to e.g 'Proper Case' vs 'API Parameter Format'.
+ *
+ * @returns {string} - Converted case string.
+ */
+// eslint-disable-next-line no-unused-vars
+function convertCase(param, caseType) {
+  // Check if param is not a string
+  if (typeof param !== 'string' || typeof caseType !== 'string') {
+    // Cannot convert case, return param
+    return param;
+  }
+
+  let convertedCase = '';
+
+  if (caseType === 'proper') {
+    // Convert API params to option values
+    convertedCase = param.split(/(?=[A-Z])/).join(' ');
+    convertedCase = convertedCase.charAt(0).toUpperCase() + convertedCase.slice(1);
+  }
+  else if (caseType === 'api') {
+    // Remove spaces fom string
+    convertedCase = param.split(' ').join('');
+    // Convert first character to lower case
+    convertedCase = convertedCase.charAt(0).toLowerCase() + convertedCase.slice(1);
+  }
+
+  return convertedCase;
+}
+
+/**
+ * @description Decodes an HTML encoded string.
+ *
+ * @param {string} encodedString - HTML encoded string.
+ *
+ * @returns {string} - Decoded string.
+ */
+// eslint-disable-next-line no-unused-vars
+function decodeHTML(encodedString) {
+  // Check if input is string type
+  if (typeof encodedString === 'string') {
+    // Replace HTML escape sequences with corresponding characters
+    return String(encodedString)
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'");
+  }
 }

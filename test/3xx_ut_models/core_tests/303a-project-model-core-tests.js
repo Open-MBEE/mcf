@@ -1,22 +1,32 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
- * @module test.303a-project-model-tests
+ * @module test.303a-project-model-core-tests
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
+ *
+ * @owner Connor Doyle
+ *
+ * @author Josh Kaplan
+ * @author Leah De Laurell
+ * @author Austin Bieber
  *
  * @description This tests the Project Model functionality. The project
  * model tests, create, find, update, and delete projects. THe tests also
  * test the max character limit on the ID field.
  */
 
-// Node modules
+// NPM modules
 const chai = require('chai');
+const chaiAsPromised = require('chai-as-promised');
+
+// Use async chai
+chai.use(chaiAsPromised);
+const should = chai.should(); // eslint-disable-line no-unused-vars
 
 // MBEE modules
-const Org = M.require('models.organization');
 const Project = M.require('models.project');
 const db = M.require('lib.db');
 const utils = M.require('lib.utils');
@@ -25,7 +35,8 @@ const utils = M.require('lib.utils');
 // Variables used across test functions
 const testUtils = M.require('lib.test-utils');
 const testData = testUtils.importTestData('test_data.json');
-let org = null;
+const adminUser = testData.adminUser;
+const org = testData.orgs[0];
 
 /* --------------------( Main )-------------------- */
 /**
@@ -36,26 +47,11 @@ let org = null;
  */
 describe(M.getModuleName(module.filename), () => {
   /**
-   * Before: runs before all tests. Creates a file-global
-   * organization to be used in tests.
+   * Before: runs before all tests. Opens database connection.
    */
   before((done) => {
     db.connect()
-    .then(() => {
-      // Create a parent organization before creating any projects
-      org = new Org({
-        _id: testData.orgs[0].id,
-        name: testData.orgs[0].name
-      });
-
-      // Save the org via the org model
-      return org.save();
-    })
-    .then((retOrg) => {
-      // Set file-global org
-      org = retOrg;
-      done();
-    })
+    .then(() => done())
     .catch((error) => {
       M.log.error(error);
       // Expect no error
@@ -65,12 +61,10 @@ describe(M.getModuleName(module.filename), () => {
   });
 
   /**
-   * After: runs after all tests. Deletes file-global organization.
+   * After: runs after all tests. Closes database connection.
    */
   after((done) => {
-    // Delete the org
-    Org.findOneAndRemove({ _id: org._id })
-    .then(() => db.disconnect())
+    db.disconnect()
     .then(() => done())
     .catch((error) => {
       M.log.error(error);
@@ -92,84 +86,91 @@ describe(M.getModuleName(module.filename), () => {
  * @description Creates a project using the project model and saves it to the
  * database.
  */
-function createProject(done) {
+async function createProject() {
   // Create a project model object
-  const newProject = new Project({
-    _id: utils.createID(org._id, testData.projects[0].id),
+  const newProject = Project.createDocument({
+    _id: utils.createID(org.id, testData.projects[0].id),
     name: testData.projects[0].name,
-    org: org._id
+    org: org.id,
+    permissions: {},
+    visibility: 'private'
   });
-  // Save project model object to database
-  newProject.save()
-  .then(() => done())
-  .catch((error) => {
+
+  // Add the admin user to the permissions
+  newProject.permissions[adminUser.username] = ['read', 'write', 'admin'];
+
+  try {
+    // Save project model object to database
+    await newProject.save();
+  }
+  catch (error) {
     M.log.error(error);
-    // Expect no error
-    chai.expect(error).to.equal(null);
-    done();
-  });
+    // There should be no error
+    should.not.exist(error);
+  }
 }
 
 /**
- * @description Finds a previously created project
+ * @description Finds a previously created project.
  */
-function findProject(done) {
-  // Find the project
-  Project.findOne({ _id: utils.createID(org._id, testData.projects[0].id) })
-  .then((proj) => {
-    // Ensure project data is correct
-    chai.expect(proj.name).to.equal(testData.projects[0].name);
-    done();
-  })
-  .catch((error) => {
+async function findProject() {
+  let proj;
+  try {
+    // Find the project
+    proj = await Project.findOne({ _id: utils.createID(org.id, testData.projects[0].id) });
+  }
+  catch (error) {
     M.log.error(error);
-    // Expect no error
-    chai.expect(error).to.equal(null);
-    done();
-  });
+    // There should be no error
+    should.not.exist(error);
+  }
+  // Ensure project data is correct
+  proj._id.should.equal(utils.createID(org.id, testData.projects[0].id));
+  proj.name.should.equal(testData.projects[0].name);
 }
 
 /**
- * @description Updates a projects name
+ * @description Updates a projects name.
  */
-function updateProject(done) {
-  // Find and update project previously created in createProject test
-  Project.findOneAndUpdate({
-    _id: utils.createID(org._id, testData.projects[0].id) },
-  { name: testData.projects[1].name })
-  // Find previously updated project
-  .then(() => Project.findOne({
-    _id: utils.createID(org._id, testData.projects[0].id)
-  }))
-  .then((proj) => {
-    // Ensure project name was successfully updated
-    chai.expect(proj.name).to.equal(testData.projects[1].name);
-    done();
-  })
-  .catch((error) => {
+async function updateProject() {
+  try {
+    const projID = utils.createID(org.id, testData.projects[0].id);
+    // Update the name of the project created in the createProject() test
+    await Project.updateOne({ _id: projID }, { name: 'Updated Name' });
+
+    // Find the updated project
+    const foundProject = await Project.findOne({ _id: projID });
+
+    // Verify project is updated correctly
+    foundProject._id.should.equal(projID);
+    foundProject.name.should.equal('Updated Name');
+  }
+  catch (error) {
     M.log.error(error);
-    // Expect no error
-    chai.expect(error).to.equal(null);
-    done();
-  });
+    // There should be no error
+    should.not.exist(error);
+  }
 }
 
 /**
  * @description Deletes the project previously created in createProject test.
  */
-function deleteProject(done) {
-  // Find and remove the project previously created in createProject test.
-  Project.findOneAndRemove({ _id: utils.createID(org._id, testData.projects[0].id) })
-  .then(() => Project.find({ _id: utils.createID(org._id, testData.projects[0].id) }))
-  .then((projects) => {
-    // Expect to find no projects
-    chai.expect(projects.length).to.equal(0);
-    done();
-  })
-  .catch((error) => {
+async function deleteProject() {
+  try {
+    const projID = utils.createID(org.id, testData.projects[0].id);
+
+    // Remove the project
+    await Project.deleteMany({ _id: projID });
+
+    // Attempt to find the project
+    const foundProject = await Project.findOne({ _id: projID });
+
+    // foundProject should be null
+    should.not.exist(foundProject);
+  }
+  catch (error) {
     M.log.error(error);
-    // Expect no error
-    chai.expect(error).to.equal(null);
-    done();
-  });
+    // There should be no error
+    should.not.exist(error);
+  }
 }

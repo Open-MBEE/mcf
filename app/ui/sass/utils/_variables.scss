@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module ui.sass.utils._variables
  *
@@ -7,12 +7,18 @@
  *
  * @license MIT
  *
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ * @author Josh Kaplan
+ * @author Jake Ursetta
+ *
  * @description Defines the variables.
  */
 $mbee-color-blue: #007bff;
 $mbee-color-purple: #727cf5;
 
-/* Light theme colors */
+/* LM light theme colors */
 $mbee-background: white;
 $mbee-color: #333333;
 $mbee-font: "Avenir Next", "Helvetica Neue", Helvetica, Arial, "Sans Serif";

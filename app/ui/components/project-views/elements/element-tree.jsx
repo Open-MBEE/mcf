@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module ui.components.project-views.elements.element-tree
  *
@@ -7,19 +7,25 @@
  *
  * @license MIT
  *
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ * @author Josh Kaplan
+ * @author James Eckstein
+ *
  * @description This the element tree wrapper, grabbing the
- *  root model element and then the subtree.
+ * root model element and then pushing to the subtree to
+ * create the elements.
  */
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
 
-// React Modules
+// React modules
 import React, { Component } from 'react';
 
-// MBEE Modules
+// MBEE modules
 import ElementSubtree from './element-subtree.jsx';
-
 /* eslint-enable no-unused-vars */
 
 // Define component
@@ -35,24 +41,15 @@ class ElementTree extends Component {
       id: null,
       treeRoot: null,
       branch: props.branch,
-      childrenOpen: {},
       error: null
     };
 
     // Bind functions
     this.getElement = this.getElement.bind(this);
-    this.setChildOpen = this.setChildOpen.bind(this);
   }
 
   /**
-   * Set the open children state and ids to the object
-   */
-  setChildOpen(id, state) {
-    this.state.childrenOpen[id] = state;
-  }
-
-  /**
-   * This is also considered the refresh function for root
+   * @description This is also considered the refresh function for root
    * element. When an element is deleted or created the
    * elements will be updated.
    */
@@ -61,7 +58,7 @@ class ElementTree extends Component {
     const projId = this.props.project.id;
     const branchId = this.state.branch;
     const base = `/api/orgs/${orgId}/projects/${projId}/branches/${branchId}`;
-    const url = `${base}/elements/model?fields=id,name,contains,type,archived&minified=true&archived=true`;
+    const url = `${base}/elements/model?fields=id,name,contains,type,archived&minified=true&includeArchived=true`;
 
     this.setState({ url: base });
 
@@ -91,22 +88,30 @@ class ElementTree extends Component {
     this.getElement();
   }
 
+  componentDidUpdate(prevProps, prevState, snapshot) {
+    if (prevProps.project !== this.props.project) {
+      this.getElement();
+    }
+  }
+
   render() {
     let tree = null;
+
     if (this.state.treeRoot !== null) {
       tree = <ElementSubtree id='model'
                              url={this.state.url}
                              data={this.state.treeRoot}
                              project={this.props.project}
                              parent={null}
-                             isOpen={true}
                              archived={this.props.archived}
                              setRefreshFunctions={this.props.setRefreshFunctions}
                              displayIds={this.props.displayIds}
-                             childrenOpen={this.state.childrenOpen}
+                             expand={this.props.expand}
+                             collapse={this.props.collapse}
                              linkElements={this.props.linkElements}
-                             setChildOpen={this.setChildOpen}
                              parentRefresh={this.getElement}
+                             unsetCheckbox={this.props.unsetCheckbox}
+                             handleCheck={this.props.handleCheck}
                              clickHandler={this.props.clickHandler}/>;
     }
 

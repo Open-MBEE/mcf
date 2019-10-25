@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module ui.components.general.sidebar.sidebar-link
  *
@@ -7,13 +7,19 @@
  *
  * @license MIT
  *
+ * @owner James Eckstein
+ *
+ * @author Jake Ursetta
+ * @author Leah De Laurell
+ *
  * @description This renders a sidebar link.
  */
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
+/* eslint-disable jsdoc/require-jsdoc */
 
-// React Modules
+// React modules
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { UncontrolledTooltip } from 'reactstrap';
@@ -47,7 +53,7 @@ function SidebarLink(props) {
     </div>
   );
 
-    // Returns the sidebar item as NavLink or href
+  // Returns the sidebar item as NavLink or href
   return (props.routerLink)
     ? <NavLink exact to={props.routerLink}> {sidebarItem} </NavLink>
     : <a href={props.href} target={newTab} onClick={props.onClick}> {sidebarItem} </a>;

@@ -1,11 +1,15 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
- * @module test.305a-element-model-tests
+ * @module test.305a-element-model-core-tests
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
+ *
+ * @owner Connor Doyle
+ *
+ * @author Austin Bieber
  *
  * @description This tests the Element Model functionality. The element
  * model tests create root packages, blocks, and relationships. These tests
@@ -13,14 +17,16 @@
  * also deleted.
  */
 
-// Node modules
+// NPM modules
 const chai = require('chai');
+const chaiAsPromised = require('chai-as-promised');
+
+// Use async chai
+chai.use(chaiAsPromised);
+const should = chai.should(); // eslint-disable-line no-unused-vars
 
 // MBEE modules
 const Element = M.require('models.element');
-const Branch = M.require('models.branch');
-const Org = M.require('models.organization');
-const Project = M.require('models.project');
 const db = M.require('lib.db');
 const utils = M.require('lib.utils');
 
@@ -28,11 +34,9 @@ const utils = M.require('lib.utils');
 // Variables used across test functions
 const testUtils = M.require('lib.test-utils');
 const testData = testUtils.importTestData('test_data.json');
-let org = null;
-let project = null;
-let projID = null;
-let branch = null;
-let branchID = null;
+const org = testData.orgs[0];
+const project = testData.projects[0];
+const branch = testData.branches[0];
 
 /* --------------------( Main )-------------------- */
 /**
@@ -43,55 +47,11 @@ let branchID = null;
  */
 describe(M.getModuleName(module.filename), () => {
   /**
-   * Before: runs before all tests
+   * Before: runs before all tests. Creates database connection.
    */
   before((done) => {
     db.connect()
-    .then(() => {
-      // Create the organization model object
-      const newOrg = new Org({
-        _id: testData.orgs[0].id,
-        name: testData.orgs[0].name
-      });
-
-      // Save the organization model object to the database
-      return newOrg.save();
-    })
-    .then((retOrg) => {
-      // Update organization for test data
-      org = retOrg;
-
-      // Create the project model object
-      const newProject = new Project({
-        _id: utils.createID(org.id, testData.projects[1].id),
-        name: testData.projects[1].name,
-        org: org._id
-      });
-
-      // Save the project model object to the database
-      return newProject.save();
-    })
-    .then((retProj) => {
-      // Update project for test data
-      project = retProj;
-      projID = utils.parseID(project.id).pop();
-      // Create the branch model object
-      const newBranch = new Branch({
-        _id: utils.createID(org.id, projID, testData.branches[0].id),
-        name: testData.branches[0].name,
-        project: project._id
-      });
-
-      // Save the project model object to the database
-      return newBranch.save();
-    })
-    .then((retBranch) => {
-      // Update branch for test data
-      branch = retBranch;
-      branchID = utils.parseID(branch.id).pop();
-
-      done();
-    })
+    .then(() => done())
     .catch((error) => {
       M.log.error(error);
       // Expect no error
@@ -101,12 +61,10 @@ describe(M.getModuleName(module.filename), () => {
   });
 
   /**
-   * After: runs after all tests
+   * After: runs after all tests. Closes database connection.
    */
   after((done) => {
-    // Remove the org created in before()
-    testUtils.removeTestOrg()
-    .then(() => db.disconnect())
+    db.disconnect()
     .then(() => done())
     .catch((error) => {
       M.log.error(error);
@@ -125,104 +83,84 @@ describe(M.getModuleName(module.filename), () => {
 
 /* --------------------( Tests )-------------------- */
 /**
- * @description Creates an element using the element model
+ * @description Creates an element using the element model.
  */
-function createElement(done) {
+async function createElement() {
   // Create new element object
-  const newElement = new Element({
-    _id: utils.createID(org.id, projID, branchID, testData.elements[0].id),
+  const newElement = Element.createDocument({
+    _id: utils.createID(org.id, project.id, branch.id, testData.elements[0].id),
     name: testData.elements[0].name,
-    project: utils.createID(org.id, projID),
+    project: utils.createID(org.id, project.id),
     parent: null,
-    branch: utils.createID(org.id, projID, branchID)
+    branch: utils.createID(org.id, project.id, branch.id)
   });
 
   // Save element object to database
-  newElement.save()
-  .then((createdElement) => {
-    // Check element object saved correctly
-    chai.expect(createdElement._id).to.equal(
-      utils.createID(branch._id, testData.elements[0].id)
-    );
-    chai.expect(createdElement.name).to.equal(testData.elements[0].name);
-    chai.expect(createdElement.project).to.equal(project._id);
-    chai.expect(createdElement.branch).to.equal(branch._id);
-    chai.expect(createdElement.parent).to.equal(null);
-    done();
-  })
-  .catch((error) => {
-    M.log.error(error);
-    // Expect no error
-    chai.expect(error).to.equal(null);
-    done();
-  });
+  const createdElement = await newElement.save();
+  // Check element object saved correctly
+  createdElement._id.should.equal(
+    utils.createID(org.id, project.id, branch.id, testData.elements[0].id)
+  );
+  createdElement.name.should.equal(testData.elements[0].name);
+  createdElement.project.should.equal(utils.createID(org.id, project.id));
+  createdElement.branch.should.equal(utils.createID(org.id, project.id, branch.id));
+  should.equal(createdElement.parent, null);
 }
 
 /**
- * @description Find an element using the element model
+ * @description Find an element using the element model.
  */
-function findElement(done) {
+async function findElement() {
   // Find the element
-  Element.findOne({ _id: utils.createID(branch._id, testData.elements[0].id) })
-  .then((element) => {
-    // Verify found element is correct
-    chai.expect(element.name).to.equal(testData.elements[0].name);
-    done();
-  })
-  .catch((error) => {
-    M.log.error(error);
-    // Expect no error
-    chai.expect(error).to.equal(null);
-    done();
-  });
+  const element = await Element.findOne(
+    { _id: utils.createID(org.id, project.id, branch.id, testData.elements[0].id) }
+  );
+  // Verify found element is correct
+  chai.expect(element.name).to.equal(testData.elements[0].name);
 }
 
 /**
- * @description Update an element using the element model
+ * @description Update an element using the element model.
  */
-function updateElement(done) {
-  // Update the element
-  Element.findOneAndUpdate(
-    { _id: utils.createID(branch._id, testData.elements[0].id) },
-    { name: `${testData.elements[0]}_edit` }
-  )
-  // Find the updated element
-  .then(() => Element.findOne({
-    _id: utils.createID(branch._id, testData.elements[0].id) }))
-  .then((element) => {
-    // Verify the found element was update successfully
-    chai.expect(element.name).to.equal(`${testData.elements[0]}_edit`);
-    done();
-  })
-  .catch((error) => {
+async function updateElement() {
+  try {
+    const elemID = utils.createID(org.id, project.id, branch.id, testData.elements[0].id);
+    // Update the name of the element created in the createElement() test
+    await Element.updateOne({ _id: elemID }, { name: 'Updated Name' });
+
+    // Find the updated element
+    const foundElement = await Element.findOne({ _id: elemID });
+
+    // Verify element is updated correctly
+    foundElement._id.should.equal(elemID);
+    foundElement.name.should.equal('Updated Name');
+  }
+  catch (error) {
     M.log.error(error);
-    // Expect no error
-    chai.expect(error).to.equal(null);
-    done();
-  });
+    // There should be no error
+    should.not.exist(error);
+  }
 }
 
 /**
- * @description Delete an element using the element model
+ * @description Delete an element using the element model.
  */
-function deleteElement(done) {
-  // Create the element ID to remove
-  const elementID = utils.createID(branch._id, testData.elements[0].id);
+async function deleteElement() {
+  try {
+    const elemID = utils.createID(org.id, project.id, branch.id, testData.elements[0].id);
 
-  // Find and delete the element
-  Element.findOneAndRemove({ _id: elementID })
+    // Remove the element
+    await Element.deleteMany({ _id: elemID });
 
-  // Attempt to find the element
-  .then(() => Element.findOne({ _id: elementID }))
-  .then((element) => {
-    // Expect no elements to be found
-    chai.expect(element).to.equal(null);
-    done();
-  })
-  .catch((error) => {
+    // Attempt to find the element
+    const foundElement = await Element.findOne({ _id: elemID });
+
+    // foundElement should be null
+    should.not.exist(foundElement);
+  }
+  catch (error) {
     M.log.error(error);
-    // Expect no error
-    chai.expect(error).to.equal(null);
-    done();
-  });
+    // There should be no error
+    should.not.exist(error);
+  }
 }

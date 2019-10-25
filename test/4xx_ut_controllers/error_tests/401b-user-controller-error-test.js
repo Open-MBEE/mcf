@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module test.401b-user-controller-error-tests
  *
@@ -7,11 +7,21 @@
  *
  * @license MIT
  *
+ * @owner Connor Doyle
+ *
+ * @author Phillip Lee
+ *
  * @description This tests for expected errors within the user controller.
  */
 
 // NPM modules
 const chai = require('chai');
+const chaiAsPromised = require('chai-as-promised');
+
+// Use async chai
+chai.use(chaiAsPromised);
+// Initialize chai should function, used for expecting promise rejections
+const should = chai.should(); // eslint-disable-line no-unused-vars
 
 // MBEE modules
 const UserController = M.require('controllers.user-controller');
@@ -79,15 +89,22 @@ describe(M.getModuleName(module.filename), () => {
   });
 
   /* Execute the tests */
+  // -------------- Find --------------
+  // ------------- Create -------------
+  // ------------- Update -------------
+  // ------------- Replace ------------
   it('should reject put user with invalid username', putInvalidUsername);
   it('should reject put user without username', putWithoutUsername);
+  // ------------- Remove -------------
+  // --------- Update Password --------
+  // ------------- Search -------------
 });
 
 /* --------------------( Tests )-------------------- */
 /**
  * @description Verifies invalid username PUT call does not delete existing users.
  */
-function putInvalidUsername(done) {
+async function putInvalidUsername() {
   // Create the test user objects
   const testUserObj0 = testData.users[1];
   const testUserObj1 = testData.users[2];
@@ -97,61 +114,50 @@ function putInvalidUsername(done) {
     password: 'Password12345!'
   };
 
-  UserController.createOrReplace(adminUser,
-    [testUserObj0, testUserObj1, invalidUserObj])
-  .then(() => {
-    // Should not succeed, force to fail
-    done(new Error('User put successfully.'));
-  })
-  .catch((error) => {
-    // Verify the error message
-    chai.expect(error.message).to.equal('User validation failed: _id: '
-      + 'Path `_id` is invalid (INVALID_NAME).');
+  await UserController.createOrReplace(adminUser, [testUserObj0, testUserObj1, invalidUserObj])
+  .should.eventually.be.rejectedWith(
+    'User validation failed: _id: Invalid username [INVALID_NAME].'
+  );
 
+  let foundUsers;
+  try {
     // Expected error, find valid users
-    return UserController.find(adminUser, [testUserObj0.username, testUserObj1.username]);
-  })
-  .then((foundUsers) => {
-    // Expect to find 2 users
-    chai.expect(foundUsers.length).to.equal(2);
-    done();
-  })
-  .catch((error) => {
-    chai.expect(error.message).to.equal(null);
-    done();
-  });
+    foundUsers = await UserController.find(adminUser,
+      [testUserObj0.username, testUserObj1.username]);
+  }
+  catch (error) {
+    M.log.error(error);
+    // There should be no error
+    should.not.exist(error);
+  }
+  // Expect to find 2 users
+  foundUsers.length.should.equal(2);
 }
 
 /**
  * @description Verifies PUT call without username does not delete existing users.
  * Note: This test should fail prior to deletion of existing users.
  */
-function putWithoutUsername(done) {
+async function putWithoutUsername() {
   // Create the test users
   const testUserObj0 = testData.users[1];
   const testUserObj1 = testData.users[2];
   const invalidUserObj = { fname: 'missing username' };
 
-  UserController.createOrReplace(adminUser,
-    [testUserObj0, testUserObj1, invalidUserObj])
-  .then(() => {
-    // Should not succeed, force to fail
-    done(new Error('User put successfully.'));
-  })
-  .catch((error) => {
-    // Expected error, find valid users
-    UserController.find(adminUser, [testUserObj0.username, testUserObj1.username])
-    .then((foundUsers) => {
-      // Verify the error message
-      chai.expect(error.message).to.equal('User #3 does not have a username.');
+  await UserController.createOrReplace(adminUser, [testUserObj0, testUserObj1, invalidUserObj])
+  .should.eventually.be.rejectedWith('User #3 does not have a username.');
 
-      // Expect to find 2 users
-      chai.expect(foundUsers.length).to.equal(2);
-      done();
-    })
-    .catch((err) => {
-      chai.expect(err.message).to.equal(null);
-      done();
-    });
-  });
+  let foundUsers;
+  try {
+    // Expected error, find valid users
+    foundUsers = await UserController.find(adminUser,
+      [testUserObj0.username, testUserObj1.username]);
+  }
+  catch (error) {
+    M.log.error(error);
+    // There should be no error
+    should.not.exist(error);
+  }
+  // Expect to find 2 users
+  foundUsers.length.should.equal(2);
 }

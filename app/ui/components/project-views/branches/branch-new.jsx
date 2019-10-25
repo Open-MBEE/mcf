@@ -1,19 +1,23 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
- * @module ui.components.shared-views.create
+ * @module ui.components.project-views.branches.branch-new
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
  *
- * @description This renders the new branch form.
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ *
+ * @description This renders the form to create a new branch.
  */
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
 
-// React Modules
+// React modules
 import React, { Component } from 'react';
 import {
   Form,
@@ -25,7 +29,7 @@ import {
   UncontrolledAlert
 } from 'reactstrap';
 
-// MBEE Modules
+// MBEE modules
 import validators from '../../../../../build/json/validators.json';
 
 /* eslint-enable no-unused-vars */
@@ -197,7 +201,7 @@ class CreateBranch extends Component {
     // Return the form to create a project
     return (
       <div id='workspace'>
-        <div id='workspace-header' className='workspace-header'>
+        <div className='workspace-header'>
           <h2 className='workspace-title workspace-title-padding'>
             New Branch
           </h2>

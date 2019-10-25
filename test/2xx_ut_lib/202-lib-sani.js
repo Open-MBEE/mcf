@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module  test.202-lib-sani
  *
@@ -7,10 +7,15 @@
  *
  * @license MIT
  *
+ * @owner Connor Doyle
+ *
+ * @author Leah De Laurell
+ * @author Austin Bieber
+ *
  * @description Tests the sanitization module and each of its functions.
  */
 
-// Node modules
+// NPM modules
 const chai = require('chai');
 
 // MBEE modules
@@ -24,8 +29,6 @@ const sani = M.require('lib.sanitization');
  * name of the current file.
  */
 describe(M.getModuleName(module.filename), () => {
-  it('should remove invalid mongo query keys from objects', mongoSanTest);
-  it('should remove mongo queries if the keys are strings', stringKeyMongoTest);
   it('should sanitize html inputs by user', htmlTest);
   it('should sanitize a JSON object for html input', sanitizeHtmlObject);
   it('should not sanitize the allowed exceptions', sanitizeAllowedCharacters);
@@ -34,30 +37,11 @@ describe(M.getModuleName(module.filename), () => {
 
 /* --------------------( Tests )-------------------- */
 /**
- * @description Loads the sanitization library.
- */
-function mongoSanTest(done) {
-  const mongoSan = sani.mongo({ $lt: 10 });
-  chai.expect(Object.keys(mongoSan).length).to.equal(0);
-  done();
-}
-
-/**
- * @description Tests the html and mongo sanitization with input of
- * html. Expected output to be an empty object
- */
-function stringKeyMongoTest(done) {
-  const mongoStringSan = sani.mongo({ '$<script>': null });
-  chai.expect(Object.keys(mongoStringSan).length).to.equal(0);
-  done();
-}
-
-/**
  * @description Tests the html sanitation with html input.
  * Expected to change the html input.
- * Same thing occurring in a test more than once
+ * Same thing occurring in a test more than once.
  */
-function htmlTest(done) {
+async function htmlTest() {
   const htmlLessThan = sani.html('<script>');
   const htmlQuote = sani.html("'OR 1=1");
   const htmlDoubleQuote = sani.html('"double it up');
@@ -68,13 +52,12 @@ function htmlTest(done) {
   chai.expect(htmlDoubleQuote).to.equal('&quot;double it up');
   chai.expect(htmlNull).to.equal(null);
   chai.expect(htmlBool).to.equal(false);
-  done();
 }
 
 /**
  * @description Test sanitation of a JSON Object.
  */
-function sanitizeHtmlObject(done) {
+async function sanitizeHtmlObject() {
   const data = {
     name: 'First Last',
     fname: '<script>',
@@ -88,27 +71,24 @@ function sanitizeHtmlObject(done) {
   chai.expect(htmlSan.lname).to.equal('&lt;/script&gt;');
   chai.expect(htmlSan.admin).to.equal(true);
   chai.expect(htmlSan.email).to.equal(null);
-  done();
 }
 
 /**
  * @description Should attempt to sanitize &amp; and other allowed exceptions.
  */
-function sanitizeAllowedCharacters(done) {
+async function sanitizeAllowedCharacters() {
   const s = 'this string has &amp;, &lt;, &nbsp; and  but also &sample';
   const expected = 'this string has &amp;, &lt;, &nbsp; and  but also &amp;sample';
   const htmlSan = sani.html(s);
   chai.expect(htmlSan).to.equal(expected);
-  done();
 }
 
 /**
  * @description Should attempt to sanitize ldap special filter chars.
  */
-function sanitizeLDAP(done) {
+async function sanitizeLDAP() {
   const s = 'test1 \\ test2 * test3 ( test4 ) test5 NUL';
   const expected = 'test1 \\2A test2 \\28 test3 \\29 test4 \\5C test5 \\00';
   const ldapSan = sani.ldapFilter(s);
   chai.expect(ldapSan).to.equal(expected);
-  done();
 }

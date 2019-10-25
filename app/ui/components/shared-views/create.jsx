@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module ui.components.shared-views.create
  *
@@ -7,13 +7,17 @@
  *
  * @license MIT
  *
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ *
  * @description This renders the create page.
  */
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
 
-// React Modules
+// React modules
 import React, { Component } from 'react';
 import {
   Form,
@@ -25,7 +29,7 @@ import {
   UncontrolledAlert
 } from 'reactstrap';
 
-// MBEE Modules
+// MBEE modules
 import validators from '../../../../build/json/validators.json';
 
 /* eslint-enable no-unused-vars */
@@ -42,6 +46,7 @@ class Create extends Component {
       org: null,
       name: '',
       id: '',
+      visibility: 'private',
       error: null,
       custom: JSON.stringify({}, null, 2)
     };
@@ -59,6 +64,13 @@ class Create extends Component {
 
   // Define the submit function
   onSubmit() {
+    // Initialize data
+    const data = {
+      id: this.state.id,
+      name: this.state.name,
+      custom: JSON.parse(this.state.custom)
+    };
+
     // Initialize variables
     let url;
     let redirect;
@@ -75,18 +87,13 @@ class Create extends Component {
         url = `/api/orgs/${this.props.org.id}/projects/${this.state.id}`;
         redirect = `/orgs/${this.props.org.id}/projects/${this.state.id}/branches/master/elements`;
       }
+      // Set project visibility
+      data.visibility = this.state.visibility;
     }
     else {
       url = `/api/orgs/${this.state.id}`;
       redirect = `/orgs/${this.state.id}`;
     }
-
-    // Initialize project data
-    const data = {
-      id: this.state.id,
-      name: this.state.name,
-      custom: JSON.parse(this.state.custom)
-    };
 
     $.ajax({
       method: 'POST',
@@ -131,12 +138,7 @@ class Create extends Component {
     let disableSubmit;
 
     if (this.props.project) {
-      if (this.props.org) {
-        title = `New Project in ${this.props.org.name}`;
-      }
-      else {
-        title = 'New Project';
-      }
+      title = (this.props.org) ? `New Project in ${this.props.org.name}` : 'New Project';
       header = 'Project';
     }
     else {
@@ -178,7 +180,7 @@ class Create extends Component {
     // Return the form to create a project
     return (
       <div id='workspace'>
-        <div id='workspace-header' className='workspace-header'>
+        <div className='workspace-header'>
           <h2 className='workspace-title workspace-title-padding'>{title}</h2>
         </div>
         <div className='extra-padding'>
@@ -235,6 +237,21 @@ class Create extends Component {
                 Invalid: A name may only contain letters, numbers, space, or dashes.
               </FormFeedback>
             </FormGroup>
+            {/* Form section for project visibility */}
+            {(!this.props.project)
+              ? ''
+              : (<FormGroup>
+                <Label for="visibility">Visibility</Label>
+                <Input type="select"
+                       name="visibility"
+                       id="visibility"
+                       value={this.state.visibility || ''}
+                       onChange={this.handleChange}>
+                  <option value='internal'>Internal</option>
+                  <option value='private'>Private</option>
+                </Input>
+              </FormGroup>)
+            }
             {/* Create an input for custom data */}
             <FormGroup>
               <Label for="custom">Custom Data</Label>

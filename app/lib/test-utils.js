@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module lib.test-utils.js
  *
@@ -7,9 +7,17 @@
  *
  * @license MIT
  *
+ * @owner Connor Doyle
+ *
+ * @author Phillip Lee
+ * @author Leah De Laurell
+ * @author Connor Doyle
+ * @author Jake Ursetta
+ * @author Austin Bieber
+ *
  * @description Helper function for MBEE test.
- * - Used to create users, organizations, projects, elements in the database.
- * - Assumes database connection already established
+ * Used to create users, organizations, projects, elements in the database.
+ * Assumes database connection already established.
  *
  * This function takes the complexity out of MBEE tests,
  * making MBEE tests easier to read and run.
@@ -23,18 +31,21 @@ const fs = require('fs');
 const chai = require('chai');
 
 // MBEE modules
+const Artifact = M.require('models.artifact');
 const Element = M.require('models.element');
 const Branch = M.require('models.branch');
 const Organization = M.require('models.organization');
 const Project = M.require('models.project');
 const User = M.require('models.user');
 const utils = M.require('lib.utils');
+const ArtifactStrategy = M.require(`artifact.${M.config.artifact.strategy}`);
 const testData = require(path.join(M.root, 'test', 'test_data.json'));
 delete require.cache[require.resolve(path.join(M.root, 'test', 'test_data.json'))];
 
 /**
- * @description Helper function to create test non-admin user in
- * MBEE tests.
+ * @description Helper function to create test non-admin user in MBEE tests.
+ *
+ * @returns {Promise<User>} Returns the newly created user upon completion.
  */
 module.exports.createNonAdminUser = function() {
   return new Promise((resolve, reject) => {
@@ -51,7 +62,7 @@ module.exports.createNonAdminUser = function() {
       }
 
       // Create user
-      const user = new User({
+      const user = User.createDocument({
         _id: testData.users[1].username,
         password: testData.users[1].password,
         fname: testData.users[1].fname,
@@ -84,8 +95,9 @@ module.exports.createNonAdminUser = function() {
 };
 
 /**
- * @description Helper function to create test admin user in
- * MBEE tests.
+ * @description Helper function to create test admin user in MBEE tests.
+ *
+ * @returns {Promise<User>} Returns the newly created admin user upon completion.
  */
 module.exports.createTestAdmin = function() {
   return new Promise((resolve, reject) => {
@@ -102,7 +114,7 @@ module.exports.createTestAdmin = function() {
       }
 
       // Create user
-      const user = new User({
+      const user = User.createDocument({
         _id: testData.adminUser.username,
         password: testData.adminUser.password,
         provider: 'local',
@@ -134,8 +146,9 @@ module.exports.createTestAdmin = function() {
 };
 
 /**
- * @description Helper function to delete test user in
- * MBEE tests.
+ * @description Helper function to delete test user in MBEE tests.
+ *
+ * @returns {Promise<string>} Returns the id of the deleted user.
  */
 module.exports.removeNonAdminUser = function() {
   return new Promise((resolve, reject) => {
@@ -156,14 +169,15 @@ module.exports.removeNonAdminUser = function() {
       orgs[0].markModified('permissions');
       return orgs[0].save();
     })
-    .then(() => resolve(userToDelete.username))
+    .then(() => resolve(userToDelete._id))
     .catch((error) => reject(error));
   });
 };
 
 /**
- * @description Helper function to delete test admin user in
- * MBEE tests.
+ * @description Helper function to delete test admin user in MBEE tests.
+ *
+ * @returns {Promise<string>} Returns the id of the deleted admin user.
  */
 module.exports.removeTestAdmin = function() {
   return new Promise((resolve, reject) => {
@@ -184,19 +198,23 @@ module.exports.removeTestAdmin = function() {
       orgs[0].markModified('permissions');
       return orgs[0].save();
     })
-    .then(() => resolve(userToDelete.username))
+    .then(() => resolve(userToDelete._id))
     .catch((error) => reject(error));
   });
 };
 
 /**
- * @description Helper function to create organization in
- * MBEE tests.
+ * @description Helper function to create a test organization in MBEE tests.
+ *
+ * @param {object} adminUser - The admin user to create the org with.
+ *
+ * @returns {Promise<Organization>} Returns the newly created org upon
+ * completion.
  */
 module.exports.createTestOrg = function(adminUser) {
   return new Promise((resolve, reject) => {
     // Create the new organization
-    const newOrg = new Organization({
+    const newOrg = Organization.createDocument({
       _id: testData.orgs[0].id,
       name: testData.orgs[0].name,
       custom: null
@@ -210,35 +228,47 @@ module.exports.createTestOrg = function(adminUser) {
 };
 
 /**
- * @description Helper function to remove organization in
- * MBEE tests.
+ * @description Helper function to remove organization in MBEE tests.
+ *
+ * @returns {Promise<string>} Returns the id of the deleted org.
  */
-module.exports.removeTestOrg = function() {
-  return new Promise((resolve, reject) => {
-    // Create query for deleting items in the orgs
-    const ownedQuery = { _id: { $regex: `^${testData.orgs[0].id}${utils.ID_DELIMITER}` } };
+module.exports.removeTestOrg = async function() {
+  // Find all projects to delete
+  const projectsToDelete = await Project.find({ org: testData.orgs[0].id },
+    null, { lean: true });
+  const projectIDs = projectsToDelete.map(p => p._id);
 
-    // Delete elements
-    Element.deleteMany(ownedQuery)
-    // Delete any branches in the org
-    .then(() => Branch.deleteMany(ownedQuery))
-    // Delete any projects in the org
-    .then(() => Project.deleteMany({ org: testData.orgs[0].id }))
-    // Delete the orgs
-    .then(() => Organization.deleteMany({ _id: testData.orgs[0].id }))
-    .then((org) => resolve(org))
-    .catch((error) => reject(error));
+  // Delete any artifacts in the org
+  await Artifact.deleteMany({ project: { $in: projectIDs } });
+
+  ArtifactStrategy.clear({
+    orgID: testData.orgs[0].id
   });
+
+  // Delete any elements in the found projects
+  await Element.deleteMany({ project: { $in: projectIDs } });
+  // Delete any branches in the found projects
+  await Branch.deleteMany({ project: { $in: projectIDs } });
+  // Delete any projects in the org
+  await Project.deleteMany({ org: testData.orgs[0].id });
+  // Delete the orgs
+  await Organization.deleteMany({ _id: testData.orgs[0].id });
 };
 
 /**
- * @description Helper function to create project in MBEE tests
+ * @description Helper function to create a test project in MBEE tests.
+ *
+ * @param {object} adminUser - The admin user to create the project with.
+ * @param {string} orgID - The id of the org to create the project on.
+ *
+ * @returns {Promise<Project>} Returns the newly created project upon
+ * completion.
  */
 module.exports.createTestProject = function(adminUser, orgID) {
   return new Promise((resolve, reject) => {
     let createdProject = {};
     // Create the new project
-    const newProject = new Project({
+    const newProject = Project.createDocument({
       _id: utils.createID(orgID, testData.projects[0].id),
       org: orgID,
       name: testData.projects[0].name,
@@ -251,10 +281,13 @@ module.exports.createTestProject = function(adminUser, orgID) {
     .then((_newProj) => {
       createdProject = _newProj;
 
-      const newBranch = new Branch({
+      const newBranch = Branch.createDocument({
         _id: utils.createID(orgID, testData.projects[0].id, testData.branches[0].id),
         project: _newProj._id,
         createdBy: adminUser._id,
+        createdOn: Date.now(),
+        lasModifiedBy: adminUser._id,
+        updatedOn: Date.now(),
         name: testData.branches[0].name,
         source: null
       });
@@ -262,11 +295,14 @@ module.exports.createTestProject = function(adminUser, orgID) {
       return newBranch.save();
     })
     .then((_newBranch) => {
-      const newElement = new Element({
+      const newElement = Element.createDocument({
         _id: utils.createID(orgID, testData.projects[0].id, testData.branches[0].id, 'model'),
         project: createdProject._id,
         branch: _newBranch._id,
         createdBy: adminUser._id,
+        createdOn: Date.now(),
+        lasModifiedBy: adminUser._id,
+        updatedOn: Date.now(),
         name: 'Model'
       });
 
@@ -278,15 +314,21 @@ module.exports.createTestProject = function(adminUser, orgID) {
 };
 
 /**
- * @description Helper function to create a tag in MBEE tests
+ * @description Helper function to create a tag in MBEE tests.
+ *
+ * @param {object} adminUser - The admin user to create the branch with.
+ * @param {string} orgID - The org to create the branch on.
+ * @param {string} projID - The project to create the branch on.
+ *
+ * @returns {Promise<Branch>} Returns a tagged branch.
  */
 module.exports.createTag = function(adminUser, orgID, projID) {
   return new Promise((resolve, reject) => {
     // Create a new tag
     let createdTag;
-    const newTag = new Branch({
+    const newTag = Branch.createDocument({
       _id: utils.createID(orgID, projID, 'tag'),
-      project: projID,
+      project: utils.createID(orgID, projID),
       createdBy: adminUser._id,
       name: 'Tagged Branch',
       tag: true,
@@ -298,7 +340,7 @@ module.exports.createTag = function(adminUser, orgID, projID) {
       createdTag = _newBranch;
 
       // Create a root element for tag
-      const newElement = new Element({
+      const newElement = Element.createDocument({
         _id: utils.createID(_newBranch._id, 'model'),
         project: utils.createID(orgID, projID),
         branch: _newBranch._id,
@@ -310,7 +352,7 @@ module.exports.createTag = function(adminUser, orgID, projID) {
     })
     .then(() => {
       // Create a non root element in the tag
-      const newElement = new Element({
+      const newElement = Element.createDocument({
         _id: utils.createID(createdTag._id, testData.elements[1].id),
         project: utils.createID(orgID, projID),
         branch: createdTag._id,
@@ -326,7 +368,11 @@ module.exports.createTag = function(adminUser, orgID, projID) {
 };
 
 /**
- * @description Helper function to import a copy of test data
+ * @description Helper function to import a copy of test data.
+ *
+ * @param {string} filename - The file to read.
+ *
+ * @returns {object} Returns the imported test data.
  */
 module.exports.importTestData = function(filename) {
   // Clear require cache so a new copy is imported
@@ -344,13 +390,13 @@ module.exports.importTestData = function(filename) {
 /**
  * @description Helper function for setting mock request parameters.
  *
- * @param {Object} user - The user making the request
- * @param {Object} params - Parameters for API req
- * @param {Object} body - Body for API req
- * @param {string} method - API method of req
- * @param {Object} [query] - query options for API req
+ * @param {object} user - The user making the request.
+ * @param {object} params - Parameters for API req.
+ * @param {object} body - Body for API req.
+ * @param {string} method - API method of req.
+ * @param {object} [query] - Query options for API req.
  *
- * @returns {Object} req - Request Object
+ * @returns {object} Request object.
  */
 module.exports.createRequest = function(user, params, body, method, query = {}) {
   // Error-Check
@@ -376,17 +422,17 @@ module.exports.createRequest = function(user, params, body, method, query = {}) 
 
 /**
  * @description Helper function for setting mock request parameters.  Creates a read
- * stream of a file and gives the stream request-like properties
+ * stream of a file and gives the stream request-like properties.
  *
- * @param {Object} user - The user making the request
- * @param {Object} params - Parameters for API req
- * @param {Object} body - Body for API req
- * @param {string} method - API method of req
- * @param {Object} [query] - query options for API req
- * @param {string} filepath - The path to the file to create the read stream of
- * @param {Object} headers - Headers for the API req
+ * @param {object} user - The user making the request.
+ * @param {object} params - Parameters for API req.
+ * @param {object} body - Body for API req.
+ * @param {string} method - API method of req.
+ * @param {object} [query] - Query options for API req.
+ * @param {string} filepath - The path to the file to create the read stream of.
+ * @param {object} headers - Headers for the API req.
  *
- * @returns {Object} req - Request Object
+ * @returns {object} Request object.
  */
 module.exports.createReadStreamRequest = function(user, params, body, method, query = {},
   filepath, headers) {
@@ -415,7 +461,7 @@ module.exports.createReadStreamRequest = function(user, params, body, method, qu
 /**
  * @description Helper function for setting mock response status and header.
  *
- * @param {Object} res - Response Object
+ * @param {object} res - Response Object.
  */
 module.exports.createResponse = function(res) {
   // Verifies the response code: 200 OK
@@ -434,9 +480,11 @@ module.exports.createResponse = function(res) {
  *
  * @param {string} contentType - The content type. Defaults to application/json.
  * @param {object} user - The requesting user. Must contains a username and password.
+ *
+ * @returns {object} Returns an object containing header key-value pairs.
  */
 module.exports.getHeaders = function(contentType = 'application/json', user = testData.adminUser) {
-  const formattedCreds = `${user.username}:${user.password}`;
+  const formattedCreds = `${user.username || user._id}:${user.password}`;
   const basicAuthHeader = `Basic ${Buffer.from(`${formattedCreds}`).toString('base64')}`;
   return {
     'content-type': contentType,
@@ -446,6 +494,8 @@ module.exports.getHeaders = function(contentType = 'application/json', user = te
 
 /**
  * @description Helper function for setting the certificate authorities for each request.
+ *
+ * @returns {object} Returns the result of reading the certificate authority file.
  */
 module.exports.readCaFile = function() {
   if (M.config.test.hasOwnProperty('ca')) {
@@ -458,11 +508,11 @@ module.exports.readCaFile = function() {
  * expects the res and req objects to be the mock objects created in those tests.
  *
  * @param {number} responseLength - The length of the response in bytes.
- * @param {Object} req - The request object.
- * @param {Object} res - The response object.
- * @param {function} done - The callback function to mark the end of the test.
+ * @param {object} req - The request object.
+ * @param {object} res - The response object.
+ * @param {Function} done - The callback function to mark the end of the test.
  */
-module.exports.testResponseLogging = function(responseLength, req, res, done) {
+module.exports.testResponseLogging = async function(responseLength, req, res, done) {
   // Get the log file path
   const filePath = path.join(M.root, 'logs', M.config.log.file);
 
@@ -475,11 +525,33 @@ module.exports.testResponseLogging = function(responseLength, req, res, done) {
 
   // Ensure parts of response log are correct
   chai.expect(content[0]).to.equal((req.ip === '::1') ? '127.0.0.1' : req.ip);
-  chai.expect(content[1]).to.equal((req.user) ? req.user.username : 'anonymous');
+  chai.expect(content[1]).to.equal((req.user) ? req.user._id : 'anonymous');
   chai.expect(content[3]).to.equal(`"${req.method}`);
   chai.expect(content[4]).to.equal(`${req.originalUrl}"`);
   chai.expect(content[5]).to.equal(res.statusCode.toString());
   chai.expect(content[6]).to.equal(responseLength.toString());
 
   done();
+};
+
+/**
+ * @description A helper function to parse the api endpoint string into a http method.
+ *
+ * @param {string} endpoint - The api endpoint string.
+ * @returns {string} Returns a REST method string such as GET or POST.
+ */
+module.exports.parseMethod = function(endpoint) {
+  const regex = /[A-Z]/g;
+  // Find the uppercase letter
+  const uppercase = endpoint.match(regex);
+  if (uppercase || endpoint.includes('search')) {
+    // Split the input based on where the uppercase letter is found
+    const segments = endpoint.split(uppercase);
+    // Return the first word of the input in all caps
+    return segments[0].toUpperCase();
+  }
+  else {
+    // The endpoint is for whoami or searchUsers; they use GET requests
+    return 'GET';
+  }
 };

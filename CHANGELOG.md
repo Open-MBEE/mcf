@@ -1,6 +1,75 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [0.10.0] - 2019-10-28
+### Major Features and Improvements
+* Added basic CRUD operations for artifact documents in the API
+* Added GET, POST and DELETE artifact blob API endpoints
+* Implemented a local artifact storage strategy
+* Implemented a database abstraction layer to support interchangeable databases.
+  Please note this feature is in beta, and still a work in progress
+* Added support for referencing elements in different projects in the UI
+* Increased unit test coverage through addition of first UI unit tests
+* Improved JSON rendering in UI `custom` fields
+* Modified the `archived` option on GET requests. The option has been replaced
+  with `includeArchived`, and the `archived` option now returns all documents
+  which are archived
+* Added a configuration validator, which verifies the running config has all
+  required fields
+  
+### Bug Fixes and Other Changes
+* Added pages for viewing all organizations and projects in the admin console
+* Added `rootpath` option to GET `/elements/:elementid` which returns all
+  parents of the specified element up through the root
+* Added support for disabling the patch user password API endpoint
+* Increased test coverage with addition of 8xx system level tests
+* Added support for locking out local users after 5 failed login attempts in 15
+  minutes. Users become archived, and must be unarchived by admins
+* Increased linter coverage by adding rules for JSDoc headers
+* Removed usage of $or and $regex in database queries to aid in implementation
+  of different database strategies
+* Removed organization and project pages from the profile page on the UI
+  
+### Configuration Changes
+* Added the **required** field `db.strategy` whose value is a string, the name
+  of the selected strategy. Please note that each strategy will have its own
+  required fields in the `db` section
+```json
+{
+  "db": {
+    "strategy": "mongoose-mongodb-strategy"
+  }
+}
+```
+* Added the **required** section `artifact` which contains a single **required**
+  field `artifact.strategy`, whose value is a string, the name of the selected
+  strategy
+```json
+{
+  "artifact": {
+    "strategy": "local-strategy"
+  }
+}
+```
+* Added the optional validator `artifact_id` to the `validators` section
+* Changed the name of the optional field `docker.mongo` to `docker.db`. If this
+  field exists, it must be changed
+* Added optional length validators to the `validators` section. These lengths
+  are the MAX length of the ids
+```json
+{
+  "validators": {
+    "id_length": 36,
+    "org_id_length": 36,
+    "project_id_length": 36,
+    "branch_id_length": 36,
+    "artifact_id_length": 36,
+    "element_id_length": 36,
+    "user_username_length": 36
+  }
+}
+```
+
 ## [0.9.0] - 2019-08-05
 ### Major Features and Improvements
 * Added the ability to branch models in API and UI

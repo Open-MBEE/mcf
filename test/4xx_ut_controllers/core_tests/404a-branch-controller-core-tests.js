@@ -1,11 +1,17 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module test.404a-branch-controller-core-tests
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
+ *
+ * @owner Connor Doyle
+ *
+ * @author Leah De Laurell
+ * @author Austin Bieber
+ * @author Connor Doyle
  *
  * @description This tests the Branch Controller functionality.
  */
@@ -36,7 +42,7 @@ let projID = null;
  */
 describe(M.getModuleName(module.filename), () => {
   /**
-   * After: Connect to database. Create an admin user, organization, and project
+   * After: Connect to database. Create an admin user, organization, and project.
    */
   before((done) => {
     // Open the database connection
@@ -91,21 +97,27 @@ describe(M.getModuleName(module.filename), () => {
   });
 
   /* Execute the tests */
+  // ------------- Create -------------
   it('should create a branch', createBranch);
   it('should create multiple branches', createBranches);
   it('should create a tag', createTag);
+  // -------------- Find --------------
   it('should find a branch', findBranch);
   it('should find multiple branches', findBranches);
   it('should find all branches', findAllBranches);
+  // ------------- Update -------------
   it('should update a branch', updateBranch);
   it('should update multiple branches', updateBranches);
+  // ------------- Remove -------------
   it('should delete a branch', deleteBranch);
   it('should delete multiple branches', deleteBranches);
 });
 
 /* --------------------( Tests )-------------------- */
 /**
- * @description Creates an branch using the branch controller
+ * @description Validates that the Branch Controller can create a branch.
+ *
+ * @param {Function} done - The Mocha callback.
  */
 function createBranch(done) {
   const branchData = testData.branches[1];
@@ -126,8 +138,8 @@ function createBranch(done) {
     chai.expect(createdBranch.tag).to.equal(branchData.tag);
 
     // Verify additional properties
-    chai.expect(createdBranch.createdBy).to.equal(adminUser.username);
-    chai.expect(createdBranch.lastModifiedBy).to.equal(adminUser.username);
+    chai.expect(createdBranch.createdBy).to.equal(adminUser._id);
+    chai.expect(createdBranch.lastModifiedBy).to.equal(adminUser._id);
     chai.expect(createdBranch.archivedBy).to.equal(null);
     chai.expect(createdBranch.createdOn).to.not.equal(null);
     chai.expect(createdBranch.updatedOn).to.not.equal(null);
@@ -143,7 +155,9 @@ function createBranch(done) {
 }
 
 /**
- * @description Creates multiple branches using the branch controller
+ * @description Validates that the Branch Controller can create multiple branches.
+ *
+ * @param {Function} done - The Mocha callback.
  */
 function createBranches(done) {
   const branchDataObjects = [
@@ -175,8 +189,8 @@ function createBranches(done) {
       chai.expect(createdBranch.project).to.equal(utils.createID(org.id, projID));
 
       // Verify additional properties
-      chai.expect(createdBranch.createdBy).to.equal(adminUser.username);
-      chai.expect(createdBranch.lastModifiedBy).to.equal(adminUser.username);
+      chai.expect(createdBranch.createdBy).to.equal(adminUser._id);
+      chai.expect(createdBranch.lastModifiedBy).to.equal(adminUser._id);
       chai.expect(createdBranch.archivedBy).to.equal(null);
       chai.expect(createdBranch.createdOn).to.not.equal(null);
       chai.expect(createdBranch.updatedOn).to.not.equal(null);
@@ -193,7 +207,9 @@ function createBranches(done) {
 }
 
 /**
- * @description Verifies that a tag can be created.
+ * @description Validates that the Branch Controller can create a tag branch.
+ *
+ * @param {Function} done - The Mocha callback.
  */
 function createTag(done) {
   const branchData = testData.branches[7];
@@ -214,8 +230,8 @@ function createTag(done) {
     chai.expect(createdBranch.tag).to.equal(branchData.tag);
 
     // Verify additional properties
-    chai.expect(createdBranch.createdBy).to.equal(adminUser.username);
-    chai.expect(createdBranch.lastModifiedBy).to.equal(adminUser.username);
+    chai.expect(createdBranch.createdBy).to.equal(adminUser._id);
+    chai.expect(createdBranch.lastModifiedBy).to.equal(adminUser._id);
     chai.expect(createdBranch.archivedBy).to.equal(null);
     chai.expect(createdBranch.createdOn).to.not.equal(null);
     chai.expect(createdBranch.updatedOn).to.not.equal(null);
@@ -231,7 +247,9 @@ function createTag(done) {
 }
 
 /**
- * @description Finds an branch via the branch controller
+ * @description Validates that the Branch Controller can find a branch.
+ *
+ * @param {Function} done - The Mocha callback.
  */
 function findBranch(done) {
   const branchData = testData.branches[1];
@@ -251,7 +269,7 @@ function findBranch(done) {
     chai.expect(foundBranch.project).to.equal(utils.createID(org.id, projID));
 
     // Verify additional properties
-    chai.expect(foundBranch.lastModifiedBy).to.equal(adminUser.username);
+    chai.expect(foundBranch.lastModifiedBy).to.equal(adminUser._id);
     chai.expect(foundBranch.archivedBy).to.equal(null);
     chai.expect(foundBranch.createdOn).to.not.equal(null);
     chai.expect(foundBranch.updatedOn).to.not.equal(null);
@@ -267,7 +285,9 @@ function findBranch(done) {
 }
 
 /**
- * @description Finds multiple branches via the branch controller
+ * @description Validates that the Branch Controller can find multiple branches.
+ *
+ * @param {Function} done - The Mocha callback.
  */
 function findBranches(done) {
   const branchDataObjects = [
@@ -302,8 +322,8 @@ function findBranches(done) {
       chai.expect(foundBranch.project).to.equal(utils.createID(org.id, projID));
 
       // Verify additional properties
-      chai.expect(foundBranch.createdBy).to.equal(adminUser.username);
-      chai.expect(foundBranch.lastModifiedBy).to.equal(adminUser.username);
+      chai.expect(foundBranch.createdBy).to.equal(adminUser._id);
+      chai.expect(foundBranch.lastModifiedBy).to.equal(adminUser._id);
       chai.expect(foundBranch.archivedBy).to.equal(null);
       chai.expect(foundBranch.createdOn).to.not.equal(null);
       chai.expect(foundBranch.updatedOn).to.not.equal(null);
@@ -320,8 +340,9 @@ function findBranches(done) {
 }
 
 /**
- * @description Finds all branches on a given project using the branch
- * controller
+ * @description Validates that the Branch Controller can find all the branches on a project.
+ *
+ * @param {Function} done - The Mocha callback.
  */
 function findAllBranches(done) {
   const branchDataObjects = [
@@ -356,8 +377,8 @@ function findAllBranches(done) {
 
       // Verify additional properties
       if (branchID !== utils.createID(org.id, projID, 'master')) {
-        chai.expect(foundBranch.createdBy).to.equal(adminUser.username);
-        chai.expect(foundBranch.lastModifiedBy).to.equal(adminUser.username);
+        chai.expect(foundBranch.createdBy).to.equal(adminUser._id);
+        chai.expect(foundBranch.lastModifiedBy).to.equal(adminUser._id);
       }
       chai.expect(foundBranch.archivedBy).to.equal(null);
       chai.expect(foundBranch.createdOn).to.not.equal(null);
@@ -375,7 +396,9 @@ function findAllBranches(done) {
 }
 
 /**
- * @description Updates a branch using the branch controller
+ * @description Validates that the Branch Controller can update a branch.
+ *
+ * @param {Function} done - The Mocha callback.
  */
 function updateBranch(done) {
   const branchData = testData.branches[1];
@@ -401,8 +424,8 @@ function updateBranch(done) {
     chai.expect(updatedBranch.project).to.equal(utils.createID(org.id, projID));
 
     // Verify additional properties
-    chai.expect(updatedBranch.createdBy).to.equal(adminUser.username);
-    chai.expect(updatedBranch.lastModifiedBy).to.equal(adminUser.username);
+    chai.expect(updatedBranch.createdBy).to.equal(adminUser._id);
+    chai.expect(updatedBranch.lastModifiedBy).to.equal(adminUser._id);
     chai.expect(updatedBranch.archivedBy).to.equal(null);
     chai.expect(updatedBranch.createdOn).to.not.equal(null);
     chai.expect(updatedBranch.updatedOn).to.not.equal(null);
@@ -418,7 +441,9 @@ function updateBranch(done) {
 }
 
 /**
- * @description Updates multiple branches using the branch controller
+ * @description Validates that the Branch Controller can update multiple branches.
+ *
+ * @param {Function} done - The Mocha callback.
  */
 function updateBranches(done) {
   const branchDataObjects = [
@@ -456,8 +481,8 @@ function updateBranches(done) {
       chai.expect(updatedBranch.project).to.equal(utils.createID(org.id, projID));
 
       // Verify additional properties
-      chai.expect(updatedBranch.createdBy).to.equal(adminUser.username);
-      chai.expect(updatedBranch.lastModifiedBy).to.equal(adminUser.username);
+      chai.expect(updatedBranch.createdBy).to.equal(adminUser._id);
+      chai.expect(updatedBranch.lastModifiedBy).to.equal(adminUser._id);
       chai.expect(updatedBranch.archivedBy).to.equal(null);
       chai.expect(updatedBranch.createdOn).to.not.equal(null);
       chai.expect(updatedBranch.updatedOn).to.not.equal(null);
@@ -474,7 +499,9 @@ function updateBranches(done) {
 }
 
 /**
- * @description Deletes a branch using the branch controller
+ * @description Validates that the Branch Controller can delete a branch.
+ *
+ * @param {Function} done - The Mocha callback.
  */
 function deleteBranch(done) {
   const branchData = testData.branches[1];
@@ -505,7 +532,9 @@ function deleteBranch(done) {
 
 
 /**
- * @description Deletes multiple branches using the branch controller
+ * @description Validates that the Branch Controller can delete multiple branches.
+ *
+ * @param {Function} done - The Mocha callback.
  */
 function deleteBranches(done) {
   const branchDataObjects = [

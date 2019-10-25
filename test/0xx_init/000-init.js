@@ -1,11 +1,17 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module test.000-init
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
+ *
+ * @owner Connor Doyle
+ *
+ * @author Leah De Laurell
+ * @author Josh Kaplan
+ * @author Austin Bieber
  *
  * @description This "test" is used to clean out the database before other
  * tests. It SHOULD NOT be run if testing against production databases. It
@@ -14,13 +20,20 @@
  */
 
 // NPM modules
-const mongoose = require('mongoose');
 const chai = require('chai');
 
+// Node.js Modules
+const { execSync } = require('child_process');
+const path = require('path');
+
 // MBEE modules
+const Artifact = M.require('models.artifact');
+const Branch = M.require('models.branch');
 const Element = M.require('models.element');
-const User = M.require('models.user');
 const Organization = M.require('models.organization');
+const Project = M.require('models.project');
+const ServerData = M.require('models.server-data');
+const User = M.require('models.user');
 const db = M.require('lib.db');
 
 /* --------------------( Main )-------------------- */
@@ -56,47 +69,72 @@ describe(M.getModuleName(module.filename), function() {
   });
 
   /**
-   * Execute the tests
+   * Execute the tests.
    */
   it('clean database', cleanDB);
+  it('should initialize the models', initModels);
   it('should create the default org if it doesn\'t exist', createDefaultOrg);
+  it('should clear local artifact storage folder', clearArtifactStorage);
 });
 
 /* --------------------( Tests )-------------------- */
 /**
- * @description Cleans out the database by removing all items from all MongoDB
+ * @description Cleans out the database by removing all items from all
  * collections.
+ *
+ * @returns {Promise} Resolves upon successful deletion of all contents
+ * from the database.
  */
-function cleanDB(done) {
-  mongoose.connection.db.dropDatabase()
-  .then(() => mongoose.connection.db.createCollection('server_data'))
-  .then(() => mongoose.connection.db.collection('server_data')
-  .insertOne({ version: M.schemaVersion }))
-  // Ensure element indexes are created prior to running other tests
-  .then(() => Element.ensureIndexes())
-  // Ensure user indexes are created prior to running other tests
-  .then(() => User.ensureIndexes())
-  .then(() => done())
-  .catch(error => {
+async function cleanDB() {
+  try {
+    await db.clear();
+  }
+  catch (error) {
     M.log.error(error);
     // Expect no error
     chai.expect(error).to.equal(null);
-    done();
-  });
+  }
 }
 
+/**
+ * @description Initializes all models asynchronously. Adds the single server
+ * data document to the database, and ensures the element and user indexes are
+ * created for 4xx search tests.
+ * @async
+ *
+ * @returns {Promise} Resolves upon successful initiation of models.
+ */
+async function initModels() {
+  try {
+    // Initialize all models
+    await Artifact.init();
+    await Branch.init();
+    await Element.init();
+    await Organization.init();
+    await Project.init();
+    await ServerData.init();
+    await User.init();
+
+    // Insert server data
+    await ServerData.insertMany([{ _id: 'server_data', version: M.schemaVersion }]);
+  }
+  catch (error) {
+    M.log.critical('Failed to initialize models.');
+    chai.expect(error.message).to.equal(null);
+  }
+}
 
 /**
- * @description Creates the default org if it doesn't already exist
+ * @description Creates the default org if it doesn't already exist.
  */
-function createDefaultOrg(done) {
-  Organization.findOne({ _id: M.config.server.defaultOrganizationId })
-  .then((org) => {
+async function createDefaultOrg() {
+  try {
+    const org = await Organization.findOne({ _id: M.config.server.defaultOrganizationId });
     // Verify return statement
     chai.expect(org).to.equal(null);
 
     // Create default org object
-    const defOrg = new Organization({
+    const defOrg = Organization.createDocument({
       _id: M.config.server.defaultOrganizationId,
       name: M.config.server.defaultOrganizationName,
       createdBy: null,
@@ -104,13 +142,21 @@ function createDefaultOrg(done) {
     });
 
     // Save the default org
-    return defOrg.save();
-  })
-  .then(() => done())
-  .catch((error) => {
+    await defOrg.save();
+  }
+  catch (error) {
     M.log.error(error);
     // Expect no error
     chai.expect(error.message).to.equal(null);
-    done();
-  });
+  }
+}
+
+/**
+ * @description Clears the local artifact storage folder.
+ */
+function clearArtifactStorage() {
+  const artifactPath = path.join(M.root, '/storage');
+  // Remove artifacts
+  const rmd = (process.platform === 'win32') ? 'RMDIR /S /Q' : 'rm -rf';
+  execSync(`${rmd} ${artifactPath}/*`);
 }

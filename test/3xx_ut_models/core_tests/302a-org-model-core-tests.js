@@ -1,11 +1,17 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
- * @module test.302a-org-model-tests
+ * @module test.302a-org-model-core-tests
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
+ *
+ * @owner Connor Doyle
+ *
+ * @author Josh Kaplan
+ * @author Leah De Laurell
+ * @author Austin Bieber
  *
  * @description Tests the organization model by performing various actions
  * such as a create, archive, and delete. The test Does NOT test the
@@ -16,17 +22,20 @@
 
 // NPM modules
 const chai = require('chai');
+const chaiAsPromised = require('chai-as-promised');
+
+// Use async chai
+chai.use(chaiAsPromised);
+const should = chai.should(); // eslint-disable-line no-unused-vars
 
 // MBEE modules
 const Org = M.require('models.organization');
 const db = M.require('lib.db');
 
-// Variables used across test functions
-let userAdmin = null;
-
 /* --------------------( Test Data )-------------------- */
 const testUtils = M.require('lib.test-utils');
 const testData = testUtils.importTestData('test_data.json');
+const adminUser = testData.adminUser;
 
 /* --------------------( Main )-------------------- */
 /**
@@ -37,17 +46,11 @@ const testData = testUtils.importTestData('test_data.json');
  */
 describe(M.getModuleName(module.filename), () => {
   /**
-   * Before: runs before all tests. Open database connection and creates admin
-   * user.
+   * Before: runs before all tests. Opens database connection.
    */
   before((done) => {
     db.connect()
-    // Create admin user
-    .then(() => testUtils.createTestAdmin())
-    .then((user) => {
-      userAdmin = user;
-      done();
-    })
+    .then(() => done())
     .catch((error) => {
       M.log.error(error);
       // Expect no error
@@ -57,13 +60,10 @@ describe(M.getModuleName(module.filename), () => {
   });
 
   /**
-   * After: runs after all tests. Deletes admin user and close database
-   * connection.
+   * After: runs after all tests. Closes database connection.
    */
   after((done) => {
-    // Remove admin user
-    testUtils.removeTestAdmin()
-    .then(() => db.disconnect())
+    db.disconnect()
     .then(() => done())
     .catch((error) => {
       M.log.error(error);
@@ -77,8 +77,6 @@ describe(M.getModuleName(module.filename), () => {
   it('should create an organization', createOrg);
   it('should find an organization', findOrg);
   it('should update an organization', updateOrg);
-  it('should get all permissions of an organization', findOrgPermissions);
-  it('should archive an organization', archiveOrg);
   it('should delete an organization', deleteOrg);
 });
 
@@ -86,131 +84,86 @@ describe(M.getModuleName(module.filename), () => {
 /**
  * @description Creates an organization using the Organization model.
  */
-function createOrg(done) {
+async function createOrg() {
   // Create an organization from the Organization model object
-  const org = new Org({
+  const org = Org.createDocument({
     _id: testData.orgs[0].id,
     name: testData.orgs[0].name,
-    permissions: {
-      admin: [userAdmin._id],
-      write: [userAdmin._id],
-      read: [userAdmin._id]
-    }
+    permissions: {}
   });
-  // Save the Organization model object to the database
-  org.save()
-  .then(() => done())
-  .catch((error) => {
+
+  // Add the admin user to the permissions
+  org.permissions[adminUser.username] = ['read', 'write', 'admin'];
+
+  try {
+    // Save the Organization model object to the database
+    await org.save();
+  }
+  catch (error) {
     M.log.error(error);
-    // Expect no error
-    chai.expect(error).to.equal(null);
-    done();
-  });
+    // There should be no error
+    should.not.exist(error);
+  }
 }
 
 /**
- * @description Finds an organization using the Organization Model
+ * @description Finds an organization using the Organization Model.
  */
-function findOrg(done) {
-  // Find the created organization from the previous createOrg() test
-  Org.findOne({ _id: testData.orgs[0].id })
-  .then((org) => {
+async function findOrg() {
+  try {
+    // Find the created organization from the previous createOrg() test
+    const org = await Org.findOne({ _id: testData.orgs[0].id });
+
     // Verify correct org is returned
-    chai.expect(org.id).to.equal(testData.orgs[0].id);
-    chai.expect(org._id).to.equal(testData.orgs[0].id);
-    chai.expect(org.name).to.equal(testData.orgs[0].name);
-    done();
-  })
-  .catch((error) => {
+    org._id.should.equal(testData.orgs[0].id);
+    org.name.should.equal(testData.orgs[0].name);
+  }
+  catch (error) {
     M.log.error(error);
-    // Expect no error
-    chai.expect(error).to.equal(null);
-    done();
-  });
+    // There should be no error
+    should.not.exist(error);
+  }
 }
 
 /**
- * @description Updates an organization using the Organization Model
+ * @description Updates an organization using the Organization Model.
  */
-function updateOrg(done) {
-  // Find and update the org created in the previous createOrg() test
-  Org.findOne({ _id: testData.orgs[0].id })
-  .then((foundOrg) => {
-    foundOrg.name = testData.orgs[0].name;
-    return foundOrg.save();
-  })
-  .then((updatedOrg) => {
+async function updateOrg() {
+  try {
+    // Update the name of the org created in the createOrg() test
+    await Org.updateOne({ _id: testData.orgs[0].id }, { name: 'Updated Name' });
+
+    // Find the updated org
+    const foundOrg = await Org.findOne({ _id: testData.orgs[0].id });
+
     // Verify org is updated correctly
-    chai.expect(updatedOrg.id).to.equal(testData.orgs[0].id);
-    chai.expect(updatedOrg.name).to.equal(testData.orgs[0].name);
-    done();
-  })
-  .catch((error) => {
+    foundOrg._id.should.equal(testData.orgs[0].id);
+    foundOrg.name.should.equal('Updated Name');
+  }
+  catch (error) {
     M.log.error(error);
-    // Expect no error
-    chai.expect(error).to.equal(null);
-    done();
-  });
-}
-
-/**
- * @description Finds permissions an organization using the Organization Model.
- */
-function findOrgPermissions(done) {
-  // Finds permissions on the org created in the previous createOrg() test
-  Org.findOne({ _id: testData.orgs[0].id })
-  .then((org) => {
-    // Confirming user permissions are in organization
-    chai.expect(org.permissions.write[0].toString()).to.equal(userAdmin._id.toString());
-    done();
-  })
-  .catch((error) => {
-    M.log.error(error);
-    // Expect no error
-    chai.expect(error).to.eqaul(null);
-    done();
-  });
-}
-
-/**
- * @description Archives the organization previously created in createOrg().
- */
-function archiveOrg(done) {
-  // Find the previously created organization from createOrg.
-  Org.findOne({ _id: testData.orgs[0].id })
-  .then((org) => {
-    // Set the archived field of the organization to true
-    org.archived = true;
-    // Save the updated organization object to the database
-    return org.save();
-  })
-  // Find the previously updated organization
-  .then((org) => Org.findOne({ _id: org.id }))
-  .then((org) => {
-    // Verify the organization has been archived.
-    chai.expect(org.archivedOn).to.not.equal(null);
-    chai.expect(org.archived).to.equal(true);
-    done();
-  })
-  .catch((error) => {
-    M.log.error(error);
-    // Expect no error
-    chai.expect(error).to.equal(null);
-    done();
-  });
+    // There should be no error
+    should.not.exist(error);
+  }
 }
 
 /**
  * @description Deletes the previously created organization from createOrg.
  */
-function deleteOrg(done) {
-  // find and remove the organization
-  Org.findOneAndRemove({ _id: testData.orgs[0].id })
-  .then(() => done())
-  .catch((error) => {
+async function deleteOrg() {
+  try {
+    // Remove the org
+    await Org.deleteMany({ _id: testData.orgs[0].id });
+
+    // Attempt to find the org
+    const foundOrg = await Org.findOne({ _id: testData.orgs[0].id });
+
+    // foundOrg should be null
+    should.not.exist(foundOrg);
+  }
+  catch (error) {
     M.log.error(error);
-    // Expect no error
-    chai.expect(error).to.equal(null);
-    done();
-  });
+    // There should be no error
+    should.not.exist(error);
+  }
 }
