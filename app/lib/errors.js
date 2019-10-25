@@ -1,11 +1,15 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module lib.errors
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
+ *
+ * @owner Austin Bieber
+ *
+ * @author Austin Bieber
  *
  * @description Defines the custom error class.
  */
@@ -68,12 +72,15 @@ const NotFoundError = class NotFoundError extends CustomError {};
 const ServerError = class ServerError extends CustomError {};
 const DatabaseError = class DatabaseError extends CustomError {};
 
+// 501
+const NotImplementedError = class NotImplementedError extends CustomError {};
+
 /**
  * @description Returns an HTTP status code depending on what error is passed in.
  *
- * @param {Object} error - The error to parse and return a status code for.
+ * @param {object} error - The error to parse and return a status code for.
  *
- * @return {number} An HTTP status code.
+ * @returns {number} An HTTP status code.
  */
 function getStatusCode(error) {
   // If not an error, throw an error
@@ -91,17 +98,18 @@ function getStatusCode(error) {
     case 'BrewingError': return 418;
     case 'ServerError': return 500;
     case 'DatabaseError': return 500;
+    case 'NotImplementedError': return 501;
     default: return 500;
   }
 }
 
 /**
  * @description A utility to ensure that all errors get turned into custom errors.
- * To be used on returned errors in .catch statements
+ * To be used on returned errors in .catch statements.
  *
- * @param error - the error to check
+ * @param {object} error - The error to check.
  *
- * @returns {CustomError|ServerError}
+ * @returns {CustomError|ServerError} An instance of either the MBEE CustomError or ServerError.
  */
 function captureError(error) {
   // If the error isn't already a custom error, make it one
@@ -129,5 +137,6 @@ module.exports = {
   PermissionError,
   NotFoundError,
   ServerError,
-  DatabaseError
+  DatabaseError,
+  NotImplementedError
 };

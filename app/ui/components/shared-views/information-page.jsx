@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module ui.components.shared-views.information-page
  *
@@ -7,17 +7,22 @@
  *
  * @license MIT
  *
- * @description This renders an organization or project home page.
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ *
+ * @description This renders an organization or project
+ * information page.
  */
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
 
-// React Modules
+// React modules
 import React, { Component } from 'react';
 import { Button, Modal, ModalBody, Badge } from 'reactstrap';
 
-// MBEE Modules
+// MBEE modules
 import EditPage from './edit-page.jsx';
 import CustomData from '../general/custom-data/custom-data.jsx';
 
@@ -49,7 +54,7 @@ class InformationPage extends Component {
     if (this.props.branch) {
       const branchId = this.props.match.params.branchid;
       const base = `${this.props.url}/branches/${branchId}`;
-      const url = `${base}?minified=true&archived=true`;
+      const url = `${base}?minified=true&includeArchived=true`;
 
       $.ajax({
         method: 'GET',
@@ -96,12 +101,20 @@ class InformationPage extends Component {
 
     // Populate relevant fields
     if (this.props.org) {
-      name = this.props.org.name;
       id = this.props.org.id;
       custom = this.props.org.custom;
+      const archived = (<Badge color='secondary' style={{ marginLeft: '10px' }}>Archived</Badge>);
+      // Verify if archived org, then place badge on information page next to name
+      name = (this.props.org.archived)
+        ? (<div> {this.props.org.name} {archived} </div>)
+        : (<div> {this.props.org.name} </div>);
     }
     else if (this.props.project) {
-      name = this.props.project.name;
+      const archived = (<Badge color='secondary' style={{ marginLeft: '10px' }}>Archived</Badge>);
+      // Verify if archived project, then place badge on information page next to name
+      name = (this.props.project.archived)
+        ? (<div> {this.props.project.name} {' '} {archived} </div>)
+        : (<div> {this.props.project.name} </div>);
       id = this.props.project.id;
       orgid = this.props.project.org;
       visibility = this.props.project.visibility;
@@ -138,7 +151,7 @@ class InformationPage extends Component {
           </ModalBody>
         </Modal>
         <div id='workspace'>
-          <div id='workspace-header' className='workspace-header header-box-depth'>
+          <div className='workspace-header header-box-depth'>
             <h2 className={titleClass}>{name}</h2>
             { /* Verify user is an admin */}
             {(!isButtonDisplayed)
@@ -160,7 +173,7 @@ class InformationPage extends Component {
               <table className='table-width'>
                 <tbody>
                   {(!this.props.branch)
-                    ? ''
+                    ? <tr/>
                     : (<tr>
                         <th style={{ display: 'flex', justifyContent: 'flex-start' }}>
                           <Button close

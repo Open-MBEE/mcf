@@ -1,0 +1,52 @@
+/**
+ * @classification UNCLASSIFIED
+ *
+ * @module ui.sass.pages._project
+ *
+ * @copyright Copyright (C) 2018, Lockheed Martin Corporation
+ *
+ * @license MIT
+ *
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ *
+ * @description Defines the project page sass variables
+ */
+
+// MBEE modules
+@import '../utils/_variables';
+
+.branch-link {
+  color: $mbee-navbar-color;
+
+  &:hover {
+    color: lighten($mbee-navbar-color, 20);
+    text-decoration: none;
+  }
+}
+
+.model-dropdown-btn {
+  &:active {
+    border: none;
+    outline: none;
+  }
+  &:focus {
+    border: none;
+    outline: none;
+  }
+}
+
+.proj-org-header {
+  a {
+    width: 10%;
+
+    &:hover {
+      color: lighten($mbee-navbar-color, 20);
+    }
+  }
+
+  &:hover {
+    background: #f7f7f7;
+  }
+}

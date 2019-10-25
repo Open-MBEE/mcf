@@ -193,13 +193,13 @@ set to true.
 
 ```json
 {
-  "plugins": [
-    {
-      "name": "demo-mass-rollup",
-      "source": "PATH_TO_YOUR_PLUGIN",
-      "title": "Demo Mass Rollup"
-    }
-  ]
+    "plugins": [
+      {
+        "name": "demo-mass-rollup",
+        "source": "PATH_TO_YOUR_PLUGIN",
+        "title": "Demo Mass Rollup"
+      }
+    ]
 }
 ```
 

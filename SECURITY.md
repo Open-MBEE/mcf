@@ -10,19 +10,81 @@
   - [Configuration JSON File](#configuration-json-file)
   - [HTTPS](#https)
   - [Server Secret Key](#server-secret-key)
-  - [MongoDB](#mongodb)
   - [Authentication](#authentication)
 
-## Reporting Bugs
 
-If an issue is identified in MBEE, please email
+## Reporting Vulnerabilities and Bugs
+If an issue is identified in the open source version MBEE, please email
 [mbee-software.fc-space@lmco.com](mailto:mbee-software.fc-space@lmco.com).
+This will notify the Lockheed Martin MBEE Software Engineering team of the
+issue. Your email will be acknowledged within 1 business day and a more detailed
+follow-up will be provided within 5 business days.
+
+When disclosing a vulnerability, please provide the following information:
+
+- Server information: any environment details that can be provided about the 
+instance of MBEE on which the vulnerability was identified on.
+- The MBEE version (can be retrieved from the MBEE `/about` page)
+- Whether or not the original source code has been modified. Details about any modifications
+can be helpful, if that information can be provided.
+- A detailed description of the issue (the more detail, the better) so our team
+can quickly reproduce the issue.
+- Organization(s) impacted/affected.
+
+If your disclosure is of a sensitive nature, you may choose to encrypt your 
+report using the following GPG public key:
+
+```
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+mQENBFzS4/QBCACtj/64Ok3X+XWmlzo/5bCz+fj2jLgQt8YgX4wxQTXbDmlXY7in
+FQoD0foTC2BkB4royg01leZlnd5HfYh5Nz0WxUzw9zPZoaitsrUxzWcQHT0323G1
+c2Oclb28RK/JVIF7w9EF6wlL4+ZfJ+ZJ7WtUEcseAPMvFlYOx9eOPa5guyvUk9eV
+tWxt/67ki0/kfIFN6LtS35X6K44qDAFURAramIFOrODmkNcWQNFkm39Eg3ygHnUS
+eqlTlPwvzG7bVI2hmFf6+IDoqQuMleN3r5fbWmHkZVg1q9gvBJ0+X6OVquEnHz8F
+ZE39fa9Vl+UREH/55yO4xApTQDhRuVozkzXZABEBAAG0L21iZWUtc29mdHdhcmUg
+PG1iZWUtc29mdHdhcmUuZmMtc3BhY2VAbG1jby5jb20+iQFUBBMBCAA+FiEEoVqm
+0EvHGIs7jWRzgW7AYu0iZGAFAlzS4/QCGwMFCQPCZwAFCwkIBwIGFQgJCgsCBBYC
+AwECHgECF4AACgkQgW7AYu0iZGD1mgf9FdZFoEgDUeyQPkbXAjV0AGbTXp9VUdPU
+zVacT9zIxyeFvQpA8uP8V3C+5+uay72UliI/AK1VK9EBMYklTTKuRLmOmZGx/DNQ
+jwPZBXaBuCaykjX6EfoqT6+ZZc/sqQRcPRchR2siUWD6et3ZD5I74++L3mXXFVqd
+Rog5LIDF6KbIRkVCNn9nSuKU5KX0vuLT9nu5B7LuH/YXHRJgM7HYzfpRVuvFUZp9
+P9FEQgD0cufFTC61kQcK0UAId0EK7ub9SElkwWIn+fU62/jHKPCHJdDjhFF5cn9v
+x3iJ0DmEpy098goksLQi991x73gep07hg8Jr/OeAPw5ci4MgFUfRLrkBDQRc0uP0
+AQgA4RaTUjGhdg2ZqtfLPHq7fokaRYmmpIYXVNGo62AJHutZnwx1FZF0WMefKcpj
+hQkAkJ86Mi0sKGR1J0B6xjZsYpO5Jlyx0b2cHfr68m8Hxv9tH+zcnJqVj+gsdIQ+
+yLVadxjTd9xxayhDrwE0jVz9nzMgoqyYSjmLyaWl7TzJfO3PuGkXgLkxTlXPR1qT
+fwNMIToePxH5FRPykXygj8NVnrZN3ATtyjFCR7qd9LmAunEFBtOpCxeLNqAsKuZq
+Cx90oJEIVZc5mCfo497fOdCEx3f0uIal7BeYcvLL1A89rw9nPZPX/5A/r7rxxfTZ
+Zcl9z6OK9Wo8D/f6NgjIBdXu1QARAQABiQE8BBgBCAAmFiEEoVqm0EvHGIs7jWRz
+gW7AYu0iZGAFAlzS4/QCGwwFCQPCZwAACgkQgW7AYu0iZGBsrAf/XWHrNgaLijAF
+7tODGpdd4fQSIsMjc7Ad61UrpG7SeNZY8QnPtWP5U/LrPMYjvzHj5r38eCQFOqy4
+aX8mgs1ttdmNfavkgOihyMlOuAxTvjlO7V47GP45J0ZRS1tR/+R4kI+qPGAILECI
+gYOiLM2cRu1qAafi7urfLh710Z37Pw35A78MVZfPmr6PmogjpF8v2zihRC1tvU7G
+qMJqy0jExIvfZVEoRB4+AuRh0eeYpgLPL4nCmV+R4gXq/oT7KESze+8DGMy6aGl1
+OuzehpapwPugAPonYf5UTloSflxRsQYqjAt71c4KK+joeYHK2cqM6wPw+GX5zQBj
+0tpmsfEDeA==
+=Zzxx
+-----END PGP PUBLIC KEY BLOCK-----
+```
+
+To encrypt a message, save this file as `mbee-software.key.pub` and import the 
+key into GPG by running:
+
+```
+gpg --import mbee-software.key.pub
+```
+
+Then encrypt your message by running:
+
+```
+gpg -e -r mbee-software file_to_encrypt.txt
+```
+
 
 ## Disclosure and Security Update Policy
-
 If and when security-related updates are made to MBEE, refer to `CHANGELOG.md`
 for instructions on how to mitigate the issue.
-
 
 ## Known Gaps and Issues
 
@@ -37,12 +99,6 @@ A known issue exists in the advanced element search in the UI. If the same field
 is selected more than once for the advanced search, only the first value is
 searched. For example, if searching by type `class` and by the type `block`,
 only the `class` results would be found.
-
-#### Windows Compatibility
-At this point there are still some compatibility issues with windows. The
-`package.json` includes post/pre install scripts that use linux specific
-commands, as does the plugin loading. It is recommended you run MBEE on a linux
-based device.
 
 #### Internet Explorer
 Internet Explorer does not currently have great support for React applications.
@@ -87,14 +143,14 @@ any plugins being installed on an MBEE instance.
 
 Below are the default ports necessary for running an MBEE instance and what those
 ports are used for. The HTTP and HTTPS ports are adjustable in the configuration
-file. The MongoDB port can be adjusted on deployment, see 
-[MongoDB section below](#mongodb) for more detail. 
+file, and the database port can be adjusted on deployment and in the 
+configuration file.
 
 | Port   | Purpose           |
 |:-------|:----------------- |
 | 9080   | MBEE HTTP port    |
 | 9443   | MBEE HTTPS port   |
-| 27017  | MongoDB           |
+| 27017  | Database          |
 
 
 ### Configuration JSON File
@@ -148,7 +204,7 @@ section of the configuration file:
     "https": {
       "enabled": true,
       "port": 9443,
-      "sslCertName": "example.com"
+      "sslCertName": "path/to/your/ssl/cert.crt"
     }
   }
 }
@@ -168,98 +224,6 @@ special case of a random key. When the `server.secret` field is set to `RANDOM`,
 MBEE will use a randomly generated string as the secret key. This key is
 generated on server startup and will change with each restart of the server.
 This means that a restart of the server will invalidate session tokens.
-
-### MongoDB
-
-**MongoDB Authentication**
-The `db` section of the configuration JSON file defines how MBEE will connect
-to the MongoDB database. **MongoDB by default does not run securely.** By
-default, MongoDB does not require authentication. To enable authentication on
-MongoDB you must first run the server without authentication enabled (we
-recommend doing this in an isolated environment). To do this, run
-`mongod --dbpath=./db`, where `./db` is the path to your database.
-
-> You can run MongoDB from whatever directory you like, but you must ensure the
-> directory containing the database contents has appropriate permissions
-> settings for your environment.
-
-With MongoDB running, you can add an admin user as follows:
-
-```
-use admin
-db.createUser(
-  {
-    user: "admin",
-    pwd: "admin",
-    roles: [{
-        role: "userAdminAnyDatabase",
-        db: "admin"
-    }]
-  }
-)
-```
-
-The `use admin` command creates the admin database, then `db.createUser` is used
-to create your admin user. To create a database and user for MBEE, you can
-run the following:
-
-```
-use <YOUR_MBEE_DB>
-db.createUser({
-    user: "<YOUR_MBEE_USERNAME>",
-    pwd: "<YOUR_MBEE_PASSWORD>",
-    roles: [{
-        role: "readWrite",
-        db: "<YOUR_MBEE_DB>"
-    }]
-})
-```
-
-In this case, `<YOUR_MBEE_DB>` is the name of the MBEE database,
-`<YOUR_MBEE_USERNAME>` is the name of your database user, and
-`<YOUR_MBEE_PASSWORD>` is the password to use for your MBEE user.
-
-> This goes without saying, but don't use easy to guess usernames and passwords.
-
-Once authentication is configured, you can stop MongoDB and re-run it with the
-`--auth` flag. For example:
-
-```
-mongod --auth --dbpath=./db
-```
-
-**SSL**
-To enable SSL on MongoDB, you need a valid SSL certificate in `PEM` format and
-a CA file for that certificate if necessary. To enable SSL, run MongoDB with
-the following flags:
-
-```
-mongod --sslMode requireSSL \
-       --sslPEMKeyFile /path/to/your/certificate.pem \
-       --sslCAFile /path/to/your/certificateAuthority.pem \
-       --sslAllowConnectionsWithoutCertificates
-```
-
-**Other Useful Security-Related Flags**
-The `--bind_ip` flag can be used to tell MongoDB what interfaces to listen on.
-For example `--bind_ip 0.0.0.0` will listen on all interfaces where
-`--bind_ip 127.0.0.1` will only listen on localhost.
-
-The `--logpath=/path/to/your/log/file.log` can be used to specify the MongoDB
-log file.
-
-**Recommendations**
-Consider running MongoDB in the following way:
-
-```
-mongod --sslMode requireSSL \
-       --sslPEMKeyFile /path/to/your/certificate.pem \
-       --sslCAFile /path/to/your/ca.pem \
-       --sslAllowConnectionsWithoutCertificates \
-       --bind_ip YOUR.IP.ADDRESS.HERE \
-       --auth --dbpath=/path/to/your/db \
-       --fork --logpath=/path/to/your/log/file.log
-```
 
 ### Authentication
 

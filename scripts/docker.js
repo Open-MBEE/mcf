@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module scripts.docker
  *
@@ -7,8 +7,16 @@
  *
  * @license MIT
  *
- * @description Builds and runs docker containers
+ * @owner Leah De Laurell
+ *
+ * @author Josh Kaplan
+ * @author Leah De Laurell
+ *
+ * @description Builds and runs docker containers.
  */
+/* eslint-disable jsdoc/require-description-complete-sentence */
+// Rule disabled to allow list in description
+
 
 // Error Check - Check if file was run directly or global M object is undefined
 if (module.parent == null || typeof M === 'undefined') {
@@ -26,8 +34,10 @@ const { spawn, spawnSync } = require('child_process');
  * @description The Docker command can be used to build a Docker image or run a Docker
  * container. It supports the command line arguments:
  * --clean
- * --build`
- * --run`
+ * --build
+ * --run
+ *
+ * @param {string} args - Additional options to pass into the docker function.
  */
 function docker(args) {
   // Removes the previous docker build.
@@ -85,10 +95,10 @@ function docker(args) {
       '--restart=always',
       '-e', `MBEE_ENV=${M.env}`
     ].concat(args.slice(1));
-    // Check if mongo is in docker container
-    if (M.config.docker.mongo.enabled) {
+    // Check if the database is in docker container
+    if (M.config.docker.db.enabled) {
       // http and docker http enabled, open specified ports
-      rargs = rargs.concat(['-p', `${M.config.docker.mongo.port}:${M.config.db.port}`]);
+      rargs = rargs.concat(['-p', `${M.config.docker.db.port}:${M.config.db.port}`]);
     }
     if (M.config.server.http.enabled && M.config.docker.http.enabled) {
       // http and docker http enabled, open specified ports

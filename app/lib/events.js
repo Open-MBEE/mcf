@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module lib.events
  *
@@ -7,10 +7,14 @@
  *
  * @license MIT
  *
+ * @owner Austin Bieber
+ *
+ * @author Austin Bieber
+ *
  * @description Defines the global event emitter.
  */
 
-// Node Modules
+// Node modules
 const EventEmitter = require('events');
 
 // Initialize the event emitter

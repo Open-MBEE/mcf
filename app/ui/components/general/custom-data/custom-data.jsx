@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module ui.components.general.custom-data.custom-data
  *
@@ -7,16 +7,21 @@
  *
  * @license MIT
  *
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ * @author James Eckstein
+ *
  * @description This renders the custom data view.
  */
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
 
-// React Modules
+// React modules
 import React, { Component } from 'react';
 
-// MBEE Modules
+// MBEE modules
 import KeyData from './key-data.jsx';
 /* eslint-enable no-unused-vars */
 

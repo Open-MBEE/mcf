@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module ui.sass.fm
  *
@@ -7,9 +7,15 @@
  *
  * @license MIT
  *
+ * @owner James Eckstein
+ *
+ * @author Josh Kaplan
+ * @author Jake Ursetta
+ *
  * @description This defines the Sass variables.
  */
 
+// MBEE modules
 @import './utils/_variables';
 
 #fm {

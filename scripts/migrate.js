@@ -1,12 +1,16 @@
 #!/usr/bin/env node
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module scripts.migration
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
+ *
+ * @owner Austin Bieber
+ *
+ * @author Austin Bieber
  *
  * @description Supports the ability to migrate the database between specific
  * versions.

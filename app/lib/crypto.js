@@ -1,11 +1,15 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module lib.crypto
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
+ *
+ * @owner Connor Doyle
+ *
+ * @author Josh Kaplan
  *
  * @description Defines common cryptographic functions.
  */
@@ -17,9 +21,9 @@ const crypto = require('crypto');  // NOTE: Refers to standard node crypto libra
  * @description Encrypts data with AES-256 using the app secret and returns the
  * encrypted data as a base64 encoded string.
  *
- * @params {string} data - Data to be encrypted
+ * @param {string} data - Data to be encrypted.
  *
- * @return {string} Encrypted data
+ * @returns {string} Encrypted data.
  */
 module.exports.encrypt = function encrypt(data) {
   const secret = M.config.server.secret;
@@ -38,9 +42,9 @@ module.exports.encrypt = function encrypt(data) {
  * @description Decrypts data with AES-256. It expects data to be in the same
  * base64 encoded string format returned by encrypt().
  *
- * @param {string} data - Data to be decrypted
+ * @param {string} data - Data to be decrypted.
  *
- * @return {Object} Decrypted data
+ * @returns {object} Decrypted data.
  */
 module.exports.decrypt = function decrypt(data) {
   if (data === undefined || data.toString() === '') {
@@ -73,9 +77,9 @@ module.exports.decrypt = function decrypt(data) {
 /**
  * @description Generates token from user data.
  *
- * @params {Object} data - Data to generate token
+ * @param {object} data - Data to generate token.
  *
- * @return {string} Encrypted token
+ * @returns {string} Encrypted token.
  */
 module.exports.generateToken = function generateToken(data) {
   // Return encrypted input
@@ -85,9 +89,9 @@ module.exports.generateToken = function generateToken(data) {
 /**
  * @description Inspects user token.
  *
- * @param {string} token - Token to inspect
+ * @param {string} token - Token to inspect.
  *
- * @return {Object} Decrypted token
+ * @returns {object} Decrypted token.
  */
 module.exports.inspectToken = function inspectToken(token) {
   // Decrypt input and return parsed data
@@ -97,9 +101,9 @@ module.exports.inspectToken = function inspectToken(token) {
 /**
  * @description Performs md5 hash with hex encoding.
  *
- * @params {Object} data - Data to md5 hash
+ * @param {object} data - Data to md5 hash.
  *
- * @return {string} Hash of data
+ * @returns {string} Hash of data.
  */
 module.exports.md5Hash = function md5Hash(data) {
   // hash input data and return it
@@ -109,9 +113,9 @@ module.exports.md5Hash = function md5Hash(data) {
 /**
  * @description Performs sha256 hash with hex encoding.
  *
- * @params {Object} data - Data to sha256 hash
+ * @param {object} data - Data to sha256 hash.
  *
- * @return {string} Hash of data
+ * @returns {string} Hash of data.
  */
 module.exports.sha256Hash = function sha256Hash(data) {
   // hash input data and return it

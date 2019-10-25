@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module lib.sanitization
  *
@@ -7,52 +7,35 @@
  *
  * @license MIT
  *
+ * @owner Austin Bieber
+ *
+ * @author Austin Bieber
+ * @author Phillip Lee
+ *
  * @description Defines sanitization functions.
  */
+/* eslint-disable jsdoc/require-description-complete-sentence */
+// Disabled to allow table in description
+
+// MBEE modules
+const db = M.require('lib.db');
 
 /**
  * @description Sanitizes database queries and scripting tags.
  *
  * @param {string} userInput - User input to sanitize.
  *
- * @return {string} Sanitized string
+ * @returns {string} Sanitized string.
  */
 module.exports.sanitize = function(userInput) {
-  return module.exports.mongo(module.exports.html(userInput));
+  return module.exports.db(module.exports.html(userInput));
 };
 
 /**
- * @description Sanitizes database queries.
- *
- * <p> +-------+-----------------+
- * <br>| Input | Sanitized Output|
- * <br>+-------+-----------------+
- * <br>|   $   |                 |
- * <br>+-------+-----------------+ </p>
- *
- * @param {Object} userInput - User object data to be sanitized.
+ * @description Sanitizes database queries. Uses the sanitize function defined
+ * in the database strategy, which is defined in the running config.
  */
-module.exports.mongo = function(userInput) {
-  if (Array.isArray(userInput)) {
-    return userInput.map((value) => this.mongo(value));
-  }
-  else if (userInput instanceof Object) {
-    // Check for '$' in each key parameter of userInput
-    Object.keys(userInput).forEach((key) => {
-      // If '$' in key, remove key from userInput
-      if (/^\$/.test(key)) {
-        delete userInput[key];
-      }
-      // If the value is an object
-      else if (typeof userInput[key] === 'object' && userInput[key] !== null) {
-        // Recursively call function on value
-        this.mongo(userInput[key]);
-      }
-    });
-  }
-  // Return modified userInput
-  return userInput;
-};
+module.exports.db = db.sanitize;
 
 /**
  * @description Sanitizes HTML input.
@@ -68,6 +51,8 @@ module.exports.mongo = function(userInput) {
  * <br>+-------+-----------------+ </p>
  *
  * @param {*} userInput - User input data to be sanitized.
+ *
+ * @returns {string} Sanitized user input.
  */
 module.exports.html = function(userInput) {
   // Check if input is string type
@@ -112,6 +97,8 @@ module.exports.html = function(userInput) {
  * <br>+-------+-----------------+ </p>
  *
  * @param {*} userInput - User input data to be sanitized.
+ *
+ * @returns {string} Sanitized user input.
  */
 module.exports.ldapFilter = function(userInput) {
   // If string, replace special characters

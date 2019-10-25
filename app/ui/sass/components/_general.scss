@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module ui.sass.components._general
  *
@@ -7,127 +7,22 @@
  *
  * @license MIT
  *
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ *
  * @description Defines general html sass component styles
  */
-/******************************************************************************
-/*                                  General                                   *
-/******************************************************************************/
 
+// MBEE modules
 @import '../utils/_variables';
-
-body,html {
-  margin: 0;
-  padding: 0;
-}
-* {
-  box-sizing: border-box;
-}
-
-::-webkit-scrollbar {
-  width: 0px;
-  background: transparent; /* make scrollbar transparent */
-}
-
-
-.table-width {
-  width: 60%;
-}
-
-th, td {
-  padding: 5px;
-}
-
-th {
-  text-align: left;
-}
-
-hr {
-  border-color: #9c9c9c;
-}
-
-h2 {
-  font-size: 18px;
-}
-
-h3 {
-  font-size: 15px;
-}
-
-label {
-  font-size: 15px;
-}
-
-textarea[name="custom"] {
-  font-family: Consolas, "Courier New";
-  resize: vertical;
-  outline: none;
-}
-
-.extra-padding {
-  padding: 20px;
-}
-
-/******************************************************************************
-/*                                  Themes                                    *
-/******************************************************************************/
-.mbee-theme {
-  background-color: $mbee-background;
-  color: $mbee-color;
-  font-family: $mbee-font;
-  height: 100%;
-}
 
 .about-top {
   padding-top: 30px;
 }
 
-.element-selector {
-  display: inline;
-  margin-left: 10px;
-
-  i.fas:hover {
-    color: lighten(#333333, 25%);
-  }
-}
-
-.element-selector-modal {
-  .modal-footer {
-    p {
-      width: 100%;
-      margin: 0;
-      font-size: 14px;
-      font-weight: 500;
-    }
-
-  }
-}
-
-.dropdown-list {
-  border: 1px solid #ced4da;
-  position: absolute;
-  background-color: white;
-  width: 85%;
-
-  .drop-list {
-    margin-bottom: 0;
-    padding-left: 0;
-  }
-}
-
-.grayed-out {
-  color: #c0c0c0;
-}
-
-.minimize {
-  font-size: smaller;
-}
-
-.spacing {
-  padding: 0 24px;
-}
-
-.bottom-spacing {
-  padding-bottom: 10px;
+.bigger-width-btn {
+  width: 150px;
 }
 
 .bold-name {
@@ -138,38 +33,81 @@ textarea[name="custom"] {
   font-weight: 700;
 }
 
-.box-list {
-  padding: 5px 10px;
-  margin: 15px;
+.bottom-spacing {
+  padding-bottom: 10px;
+}
 
-  .box-list-header {
-    display: flex;
-    justify-content: space-between;
+%btn-light-header {
+  padding: 0px;
+  margin-left: 5px;
+  font-size: 0.9rem;
+  background-color: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  outline: none !important;
+  color: $mbee-navbar-color;
+}
+
+#btn-expand, #btn-collapse {
+  @extend %btn-light-header;
+
+  &:focus, &:active, &:hover, &:visited {
+    @extend %btn-light-header;
+    font-weight: 600;
   }
+}
 
-  .box-list-footer {
-    display: flex;
-    justify-content: space-between;
-    padding-top: 5px;
+#grp-expand-collapse {
+  margin-top: 5px;
+  margin-left: 35px;
+  margin-bottom: -20px;
+}
 
-    .footer-btn {
-      color: black;
-      &:hover {
-        cursor: pointer;
-        color: #cccccc;
-      }
+.empty-item {
+  display: none;
+}
 
-      .btn-label {
-        font-size: small;
-        font-weight: 100;
-      }
+.extra-padding {
+  padding: 20px;
+}
 
-      i {
-        padding: 5px;
-        font-size: small;
-      }
-    }
+.grayed-out {
+  color: #c0c0c0 !important;
+}
+
+.header-box-depth {
+  box-shadow: 1px 1px 2px rgba(0,0,0,0.25);
+}
+
+.loading {
+  width: 100%;
+  height:100%;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+}
+
+#login-form {
+  margin-top: 40%;
+
+  button {
+    margin-top: 10px;
+    width: 100%;
   }
+}
+
+.minimize {
+  font-size: smaller;
+}
+
+.required-fields {
+  font-size: x-small;
+  padding-bottom: 10px;
+  color: $color-danger;
+}
+
+.table-width {
+  width: 60%;
 }
 
 .transparent {

@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module ui.components.home-views.org-list
  *
@@ -7,17 +7,21 @@
  *
  * @license MIT
  *
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ *
  * @description This creates the organization list.
  */
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
 
-// React Modules
+// React modules
 import React, { Component } from 'react';
 import { Modal, ModalBody, UncontrolledTooltip } from 'reactstrap';
 
-// MBEE Modules
+// MBEE modules
 import List from '../general/list/list.jsx';
 import OrgListItem from '../shared-views/list-items/org-list-item.jsx';
 import Delete from '../shared-views/delete.jsx';
@@ -34,7 +38,6 @@ class OrgList extends Component {
 
     // Initialize state props
     this.state = {
-      showProjs: false,
       width: null,
       modalProjCreate: false,
       modalOrgDelete: false,
@@ -53,7 +56,7 @@ class OrgList extends Component {
   // Define org toggle functionality
   handleShowProjsToggle() {
     // Set the state to opposite of its initial state
-    this.setState({ showProjs: !this.state.showProjs });
+    this.props.onExpandChange(this.props.org.id, !this.props.showProjs);
   }
 
   // Define toggle function
@@ -72,10 +75,26 @@ class OrgList extends Component {
     const projects = this.props.org.projects;
     const permissionedProjs = [];
 
+    // Verify if system admin
     if (!this.props.admin) {
       const username = this.props.user.username;
       projects.forEach(project => {
-        if (project.permissions[username]) {
+        const perm = project.permissions[username];
+
+        // Verify if admin
+        if (perm === 'admin') {
+          permissionedProjs.push(project);
+        }
+        // Verify if write perms and not archived
+        else if (perm === 'write' && !project.archived) {
+          permissionedProjs.push(project);
+        }
+        // Verify if read perms and not archived
+        else if (perm === 'read' && !project.archived) {
+          permissionedProjs.push(project);
+        }
+        // Verify if project is internal and not archived
+        else if (project.visibility === 'internal' && !project.archived) {
           permissionedProjs.push(project);
         }
       });
@@ -92,21 +111,26 @@ class OrgList extends Component {
     const orgId = this.props.org.id;
     let icon;
     let projects;
+    let archiveProj = false;
 
-    if (this.state.showProjs) {
+    if (this.props.showProjs) {
       icon = 'fas fa-angle-down';
     }
     else {
       icon = 'fas fa-angle-right';
     }
 
+    if (this.props.org.archived) {
+      archiveProj = true;
+    }
     // Loop through project-views in each org
     if (this.state.projects) {
       projects = this.state.projects.map(
         project => (<ProjList project={project}
                               admin={this.props.admin}
                               key={`proj-key-${project.id}`}
-                              orgid={this.props.org.id}/>)
+                              orgid={this.props.org.id}
+                              archiveProj={archiveProj}/>)
       );
     }
 
@@ -150,7 +174,7 @@ class OrgList extends Component {
             : ''
           }
         </div>
-        {(!this.state.showProjs)
+        {(!this.props.showProjs)
           ? ''
           : (<List>
               {projects}

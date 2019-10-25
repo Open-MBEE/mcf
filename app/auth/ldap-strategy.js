@@ -1,11 +1,15 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module auth.ldap-strategy
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
+ *
+ * @owner Austin Bieber
+ *
+ * @author Jake Ursetta
  *
  * @description This file implements authentication using LDAP Active Directory.
  */
@@ -23,14 +27,18 @@ module.exports = {
 // Node modules
 const fs = require('fs');
 const path = require('path');
+
+// NPM modules
 const ldap = require('ldapjs');
 
 // MBEE modules
-const LocalStrategy = M.require('auth.local-strategy');
 const Organization = M.require('models.organization');
 const User = M.require('models.user');
 const EventEmitter = M.require('lib.events');
 const sani = M.require('lib.sanitization');
+const errors = M.require('lib.errors');
+const mbeeCrypto = M.require('lib.crypto');
+const utils = M.require('lib.utils');
 
 // Allocate LDAP configuration variable for convenience
 const ldapConfig = M.config.auth.ldap;
@@ -40,12 +48,12 @@ const ldapConfig = M.config.auth.ldap;
  * Implement authentication via LDAP using username/password and
  * configuration in config file.
  *
- * @param {Object} req - Request express object
- * @param {Object} res - Response express object
- * @param {string} username - Username to authenticate via LDAP AD
- * @param {string} password - Password to authenticate via LDAP AD
+ * @param {object} req - Request express object.
+ * @param {object} res - Response express object.
+ * @param {string} username - Username to authenticate via LDAP AD.
+ * @param {string} password - Password to authenticate via LDAP AD.
  *
- * @returns {Promise} Authenticated user object
+ * @returns {Promise} Authenticated user object.
  *
  * @example
  * AuthController.handleBasicAuth(req, res, username, password)
@@ -56,43 +64,37 @@ const ldapConfig = M.config.auth.ldap;
  *     console.log(err);
  *   })
  */
-function handleBasicAuth(req, res, username, password) {
-  // Return a promise
-  return new Promise((resolve, reject) => {
-    // Define LDAP client handler
-    let ldapClient = null;
-
+async function handleBasicAuth(req, res, username, password) {
+  try {
     // Connect to database
-    ldapConnect()
-    .then(_ldapClient => {
-      ldapClient = _ldapClient;
+    const ldapClient = await ldapConnect();
 
-      // Search for user
-      return ldapSearch(ldapClient, username);
-    })
+    // Search for user
+    const foundUser = await ldapSearch(ldapClient, username);
 
     // Authenticate user
-    .then(foundUser => ldapAuth(ldapClient, foundUser, password))
-    // Sync user with local database
-    .then(authUser => ldapSync(authUser))
-    // Return authenticated user object
-    .then(syncedUser => resolve(syncedUser))
-    .catch(ldapConnectErr => reject(ldapConnectErr));
-  });
+    const authUser = await ldapAuth(ldapClient, foundUser, password);
+
+    // Sync user with local database; return authenticated user object
+    return await ldapSync(authUser);
+  }
+  catch (error) {
+    throw errors.captureError(error);
+  }
 }
 
 /**
- * @description Authenticates user with passed in token.
- * Implements handleTokenAuth() provided by the Local Strategy.
+ * @description This function implements handleTokenAuth() in lib/auth.js.
+ * Authenticates user with passed in token.
  *
- * @param {Object} req - Request express object
- * @param {Object} res - Response express object
- * @param {string} token - Token user authentication token, encrypted
+ * @param {object} req - Request express object.
+ * @param {object} res - Response express object.
+ * @param {string} token - User authentication token, encrypted.
  *
- * @returns {Promise} Local user object
+ * @returns {Promise} Local user object.
  *
  * @example
- * AuthController.handleTokenAuth(req, res, token)
+ * AuthController.handleTokenAuth(req, res, _token)
  *   .then(user => {
  *   // do something with authenticated user
  *   })
@@ -100,24 +102,75 @@ function handleBasicAuth(req, res, username, password) {
  *     console.log(err);
  *   })
  */
-function handleTokenAuth(req, res, token) {
-  return new Promise((resolve, reject) => {
-    LocalStrategy.handleTokenAuth(req, res, token)
-    .then(user => resolve(user))
-    .catch(handleTokenAuthErr => reject(handleTokenAuthErr));
-  });
+async function handleTokenAuth(req, res, token) {
+  // Define and initialize token
+  let decryptedToken = null;
+  try {
+    // Decrypt the token
+    decryptedToken = mbeeCrypto.inspectToken(token);
+  }
+  // If NOT decrypted, not valid and the
+  // user is not authorized
+  catch (decryptErr) {
+    throw decryptErr;
+  }
+
+  // Ensure token not expired
+  if (Date.now() < Date.parse(decryptedToken.expires)) {
+    let user = null;
+    // Not expired, find user
+    try {
+      user = await User.findOne({
+        _id: sani.sanitize(decryptedToken.username),
+        archivedOn: null
+      });
+    }
+    catch (findUserTokenErr) {
+      throw findUserTokenErr;
+    }
+    // A valid session was found in the request but the user no longer exists
+    if (!user) {
+      // Logout user
+      req.user = null;
+      req.session.destroy();
+      // Return error
+      throw new M.NotFoundError('No user found.', 'warn');
+    }
+    // return User object if authentication was successful
+    return user;
+  }
+  // If token is expired user is unauthorized
+  else {
+    throw new M.AuthorizationError('Token is expired or session is invalid.', 'warn');
+  }
 }
 
 /**
- * @description  This function generates the session token for user login.
- * Implements the Local Strategy doLogin function.
+ * @description This function implements doLogin() in lib/auth.js.
+ * This function generates the session token for user login.
+ * Upon successful login, generate token and set to session.
  *
- * @param {Object} req - Request express object
- * @param {Object} res - Response express object
- * @param {function} next - Callback to continue express authentication
+ * @param {object} req - Request express object.
+ * @param {object} res - Response express object.
+ * @param {Function} next - Callback to express authentication.
  */
 function doLogin(req, res, next) {
-  LocalStrategy.doLogin(req, res, next);
+  // Compute token expiration time
+  const timeDelta = M.config.auth.token.expires
+    * utils.timeConversions[M.config.auth.token.units];
+
+  // Generate the token
+  const token = mbeeCrypto.generateToken({
+    type: 'user',
+    username: (req.user.username || req.user._id),
+    created: (new Date(Date.now())),
+    expires: (new Date(Date.now() + timeDelta))
+  });
+  // Set the session token
+  req.session.token = token;
+  M.log.info(`${req.originalUrl} Logged in ${(req.user.username || req.user._id)}`);
+  // Callback
+  next();
 }
 
 /* ------------------------( LDAP Helper Functions )--------------------------*/
@@ -125,7 +178,7 @@ function doLogin(req, res, next) {
  * @description Connects to an LDAP server and resolves a client object used
  * to preform search and bind operations.
  *
- * @returns {Promise} An LDAP client object
+ * @returns {Promise} An LDAP client object.
  */
 function ldapConnect() {
   M.log.debug('Attempting to bind to the LDAP server.');
@@ -176,6 +229,8 @@ function ldapConnect() {
         ca: arrCaCerts
       }
     });
+    // Handle any errors in connecting to LDAP server
+    ldapClient.on('error', (error) => reject(error));
     // Bind ldapClient object to LDAP server
     ldapClient.bind(ldapConfig.bind_dn, ldapConfig.bind_dn_pass, (bindErr) => {
       // Check if LDAP server bind fails
@@ -192,10 +247,10 @@ function ldapConnect() {
 /**
  * @description Searches for and resolve a user from LDAP server.
  *
- * @param {Object} ldapClient - LDAP client
- * @param {string} username - Username to find LDAP user
+ * @param {object} ldapClient - LDAP client.
+ * @param {string} username - Username to find LDAP user.
  *
- * @returns {Promise} LDAP user information
+ * @returns {Promise} LDAP user information.
  */
 function ldapSearch(ldapClient, username) {
   M.log.debug('Attempting to search for LDAP user.');
@@ -274,13 +329,13 @@ function ldapSearch(ldapClient, username) {
 }
 
 /**
- * @description Validates a users password with LDAP server
+ * @description Validates a users password with LDAP server.
  *
- * @param {Object} ldapClient - LDAP client
- * @param {Object} user - LDAP user
- * @param {string} password - Password to verify LDAP user
+ * @param {object} ldapClient - LDAP client.
+ * @param {object} user - LDAP user.
+ * @param {string} password - Password to verify LDAP user.
  *
- * @returns {Promise} Authenticated user's information
+ * @returns {Promise} Authenticated user's information.
  */
 function ldapAuth(ldapClient, user, password) {
   M.log.debug(`Authenticating ${user[ldapConfig.attributes.username]} ...`);
@@ -306,37 +361,39 @@ function ldapAuth(ldapClient, user, password) {
 /**
  * @description Synchronizes authenticated user's LDAP information with database.
  *
- * @param {Object} ldapUserObj - LDAP user information
+ * @param {object} ldapUserObj - LDAP user information.
  *
- * @returns {Promise} Synchronized user model object
+ * @returns {Promise} Synchronized user model object.
  */
-function ldapSync(ldapUserObj) {
+async function ldapSync(ldapUserObj) {
   M.log.debug('Synchronizing LDAP user with local database.');
-  // Define and return promise
-  return new Promise((resolve, reject) => {
-    // Store user object function-wide
-    let userObject = {};
-    let found = false;
 
+  let userObject;
+  let foundUser;
+  try {
     // Search for user in database
-    User.findOne({ _id: ldapUserObj[ldapConfig.attributes.username] })
-    .then(foundUser => {
-      // If the user was found, update with LDAP info
-      if (foundUser) {
-        found = true;
-        // User exists, update database with LDAP information
-        foundUser.fname = ldapUserObj[ldapConfig.attributes.firstName];
-        foundUser.preferredName = ldapUserObj[ldapConfig.attributes.preferredName];
-        foundUser.lname = ldapUserObj[ldapConfig.attributes.lastName];
-        foundUser.email = ldapUserObj[ldapConfig.attributes.email];
+    foundUser = await User.findOne({ _id: ldapUserObj[ldapConfig.attributes.username] });
+  }
+  catch (error) {
+    throw new M.DatabaseError('Search query on user failed', 'warn');
+  }
 
-        // Save updated user to database
-        return foundUser.save();
-      }
+  try {
+    // If the user was found, update with LDAP info
+    if (foundUser) {
+      // User exists, update database with LDAP information
+      foundUser.fname = ldapUserObj[ldapConfig.attributes.firstName];
+      foundUser.preferredName = ldapUserObj[ldapConfig.attributes.preferredName];
+      foundUser.lname = ldapUserObj[ldapConfig.attributes.lastName];
+      foundUser.email = ldapUserObj[ldapConfig.attributes.email];
+
+      // Save updated user to database
+      userObject = await foundUser.save();
+    }
+    else {
       // User not found, create a new one
-
       // Initialize userData with LDAP information
-      const initData = new User({
+      const initData = User.createDocument({
         _id: ldapUserObj[ldapConfig.attributes.username],
         fname: ldapUserObj[ldapConfig.attributes.firstName],
         preferredName: ldapUserObj[ldapConfig.attributes.preferredName],
@@ -345,36 +402,43 @@ function ldapSync(ldapUserObj) {
         provider: 'ldap'
       });
 
-        // Save ldap user
-      return initData.save();
-    })
-    .then(savedUser => {
-      // Save user to function-wide variable
-      userObject = savedUser;
+      // Save ldap user
+      userObject = await initData.save();
+    }
+  }
+  catch (error) {
+    M.log.error(error.message);
+    throw new M.DatabaseError('Could not save user data to database', 'warn');
+  }
+  // If user created, emit users-created
+  EventEmitter.emit('users-created', [userObject]);
 
-      // If user created, emit users-created
-      if (!found) {
-        EventEmitter.emit('users-created', [savedUser]);
-      }
+  let defaultOrg;
+  try {
+    // Find the default org
+    defaultOrg = await Organization.findOne({ _id: M.config.server.defaultOrganizationId });
+  }
+  catch (error) {
+    throw new M.DatabaseError('Query operation on default organization failed', 'warn');
+  }
 
-      // Find the default org
-      return Organization.findOne({ _id: M.config.server.defaultOrganizationId });
-    })
-    .then((defaultOrg) => {
-      // Add the user to the default org
-      defaultOrg.permissions[userObject._id] = ['read', 'write'];
+  try {
+    // Add the user to the default org
+    defaultOrg.permissions[userObject._id] = ['read', 'write'];
 
-      // Mark permissions as modified, required for 'mixed' fields
-      defaultOrg.markModified('permissions');
+    // Mark permissions as modified, required for 'mixed' fields
+    defaultOrg.markModified('permissions');
 
-      // Save the updated default org
-      return defaultOrg.save();
-    })
-    // Return the new user
-    .then(() => resolve(userObject))
-    // Save failed, reject error
-    .catch(saveErr => reject(saveErr));
-  });
+    // Save the updated default org
+    await defaultOrg.save();
+  }
+  catch (saveErr) {
+    M.log.error(saveErr.message);
+    throw new M.DatabaseError('Could not save new user permissions to database', 'warn');
+  }
+
+  // Return the new user
+  return userObject;
 }
 
 /**

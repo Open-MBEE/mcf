@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module ui.sass.components._navbar
  *
@@ -7,13 +7,14 @@
  *
  * @license MIT
  *
-<<<<<<< HEAD
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ *
  * @description Defines the navbar sass styling
  */
-/******************************************************************************
-/*                              Navbar Styling                               *
-/******************************************************************************/
 
+// MBEE modules
 @import '../utils/_variables';
 
 .mbee-navbar {
@@ -23,13 +24,6 @@
   padding-top: 5px;
   padding-bottom: 3px;
   box-shadow: 2px 2px 4px rgba(0,0,0,0.25);
-}
-
-.small-screen-navbar {
-  background-color: $mbee-navbar-color;
-  width: 100%;
-  padding-top: 5px;
-  padding-bottom: 3px;
 }
 
 .navbar-brand {
@@ -54,4 +48,11 @@
   height: 100%;
   color: $mbee-navbar-text;
   font-size: 16px;
+}
+
+.small-screen-navbar {
+  background-color: $mbee-navbar-color;
+  width: 100%;
+  padding-top: 5px;
+  padding-bottom: 3px;
 }

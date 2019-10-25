@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module ui.components.general.stats.stats-list
  *
@@ -7,13 +7,17 @@
  *
  * @license MIT
  *
+ * @owner James Eckstein
+ *
+ * @author Jake Ursetta
+ *
  * @description This renders the stat list.
  */
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
 
-// React Modules
+// React modules
 import React, { Component } from 'react';
 
 /* eslint-enable no-unused-vars */
@@ -95,9 +99,12 @@ class StatsList extends Component {
       );
     }
 
+    // Verify if there is a class name
+    const className = (this.props.className) ? this.props.className : 'stats-list';
+
     // Return the stat list
     return (
-      <div className='stats-list' ref={this.ref}>
+      <div className={className} ref={this.ref}>
         {statsItems}
       </div>
     );

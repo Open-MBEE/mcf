@@ -1,11 +1,15 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module test.210-lib-logger
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
+ *
+ * @owner Connor Doyle
+ *
+ * @author Austin Bieber
  *
  * @description Tests the logger library functions.
  */
@@ -41,6 +45,8 @@ describe(M.getModuleName(module.filename), () => {
  * @description Creates a mock request and response object, and calls the
  * logger.logResponse() function. Reads the log file to verify the request was
  * properly logged.
+ *
+ * @param {Function} done - The Mocha callback.
  */
 function logMockResponse(done) {
   // Create mock request object

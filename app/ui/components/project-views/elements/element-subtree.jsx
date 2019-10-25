@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module ui.components.project-views.elements.element-subtree
  *
@@ -7,12 +7,19 @@
  *
  * @license MIT
  *
- * @description This renders the element tree in the project's page.
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ * @author Josh Kaplan
+ * @author James Eckstein
+ *
+ * @description This renders the elements in the element
+ * tree in the project's page.
  */
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
 
-// React Modules
+// React modules
 import React, { Component } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -29,13 +36,23 @@ class ElementSubtree extends Component {
     // Initialize state props
     this.state = {
       id: props.id,
-      isOpen: props.isOpen,
+      isOpen: false,
       data: props.data,
       children: null,
       elementWindow: false,
       isSelected: true,
       error: null
     };
+
+    if (props.id === 'model') {
+      this.state.isOpen = true;
+    }
+    else if (props.expand) {
+      this.state.isOpen = true;
+    }
+    else if (props.collapse) {
+      this.state.isOpen = false;
+    }
 
     // Bind functions
     this.toggleCollapse = this.toggleCollapse.bind(this);
@@ -45,7 +62,7 @@ class ElementSubtree extends Component {
   }
 
   /**
-   * Toggle the element sub tree
+   * @description Toggle the element sub tree.
    */
   handleElementToggle() {
     this.setState({ elementWindow: !this.state.elementWindow });
@@ -68,11 +85,11 @@ class ElementSubtree extends Component {
     }
     const elements = contains.join(',');
     const base = this.props.url;
-    let url = `${base}/elements?ids=${elements}&fields=id,name,contains,archived,type&minified=true&archived=true`;
+    let url = `${base}/elements?ids=${elements}&fields=id,name,contains,archived,type&minified=true&includeArchived=true`;
     // Provide different url
     // If length is too long
     if (url.length > 2047) {
-      url = `${base}/elements?parent=${parent}&fields=id,name,contains,archived,type&minified=true&archived=true`;
+      url = `${base}/elements?parent=${parent}&fields=id,name,contains,archived,type&minified=true&includeArchived=true`;
     }
 
     // Get children
@@ -107,11 +124,6 @@ class ElementSubtree extends Component {
 
           // Set the sorted data as children
           this.setState({ children: result });
-
-          // Verify if the state is displaying the children
-          if (this.props.childrenOpen.hasOwnProperty(this.state.id)) {
-            this.setState({ isOpen: this.props.childrenOpen[this.state.id] });
-          }
         },
         401: (err) => {
           // Unset children and display error
@@ -134,17 +146,14 @@ class ElementSubtree extends Component {
   }
 
   /**
-   * Toggle the element to display it's children
+   * @description Toggle the element to display it's children.
    */
   toggleCollapse() {
-    this.setState((prevState) => {
-      this.props.setChildOpen(this.state.id, !prevState.isOpen);
-      return (
-        { isOpen: !prevState.isOpen }
-      );
-    });
+    if (this.props.unsetCheckbox) {
+      this.props.unsetCheckbox();
+    }
+    this.setState((prevState) => ({ isOpen: !prevState.isOpen }));
   }
-
 
   componentDidUpdate(prevProps, prevStates) {
     // Verify if component needs to re-render
@@ -152,16 +161,29 @@ class ElementSubtree extends Component {
     if (this.state.data !== prevStates.data) {
       this.componentDidMount();
     }
+    if (this.props.data.contains.length !== prevProps.data.contains.length) {
+      this.setState({ data: this.props.data });
+      this.componentDidMount();
+    }
+
+    if ((this.props.expand !== prevProps.expand) && !!(this.props.expand)) {
+      this.setState({ isOpen: true });
+    }
+    if ((this.props.collapse !== prevProps.collapse) && !!(this.props.collapse)) {
+      if (this.props.id !== 'model') {
+        this.setState({ isOpen: false });
+      }
+    }
   }
 
   /**
-   * When an element is deleted, created, or updates the parent
+   * @description When an element is deleted, created, or updates the parent
    * the elements will be updated.
    */
   refresh() {
     // Build URL to get element data
     const base = this.props.url;
-    const url = `${base}/elements/${this.state.id}?minified=true&archived=true`;
+    const url = `${base}/elements/${this.state.id}?minified=true&includeArchived=true`;
 
     // Get element data
     $.ajax({
@@ -188,7 +210,7 @@ class ElementSubtree extends Component {
   }
 
   /**
-   * When an element is clicked, parses the ID and call the passed in
+   * @description When an element is clicked, parses the ID and call the passed in
    * click handler function.
    */
   handleClick() {
@@ -207,12 +229,14 @@ class ElementSubtree extends Component {
     let expandIcon = 'fa-caret-right transparent';
     const subtree = [];
 
+    const isOpen = this.state.isOpen;
+
     // If the element contains other elements, handle the subtree
     if (this.state.data !== null
       && Array.isArray(this.state.data.contains)
       && this.state.data.contains.length >= 1) {
       // Icon should be caret to show subtree is collapsible
-      expandIcon = (this.state.isOpen) ? 'fa-caret-down' : 'fa-caret-right';
+      expandIcon = (isOpen) ? 'fa-caret-down' : 'fa-caret-right';
 
       // Create Subtrees
       if (this.state.children !== null) {
@@ -225,13 +249,14 @@ class ElementSubtree extends Component {
                             parent={this.state}
                             archived={this.props.archived}
                             displayIds={this.props.displayIds}
+                            expand={this.props.expand}
+                            collapse={this.props.collapse}
                             setRefreshFunctions={this.props.setRefreshFunctions}
                             parentRefresh={this.refresh}
                             linkElements={this.props.linkElements}
                             clickHandler={this.props.clickHandler}
-                            childrenOpen={this.props.childrenOpen}
-                            setChildOpen={this.props.setChildOpen}
-                            isOpen={false}
+                            unsetCheckbox={this.props.unsetCheckbox}
+                            isOpen={isOpen}
                             url={this.props.url}/>
           );
         }
@@ -298,15 +323,15 @@ class ElementSubtree extends Component {
 
     const iconMappings = {
       Package: {
-        icon: (this.state.isOpen) ? 'folder-open' : 'folder',
+        icon: (isOpen) ? 'folder-open' : 'folder',
         color: 'lightblue'
       },
       package: {
-        icon: (this.state.isOpen) ? 'folder-open' : 'folder',
+        icon: (isOpen) ? 'folder-open' : 'folder',
         color: 'lightblue'
       },
       'uml:Package': {
-        icon: (this.state.isOpen) ? 'folder-open' : 'folder',
+        icon: (isOpen) ? 'folder-open' : 'folder',
         color: 'lightblue'
       },
       Diagram: {
@@ -415,7 +440,7 @@ class ElementSubtree extends Component {
              onClick={this.toggleCollapse}>
           </i>
           {elementLink}
-          {(this.state.isOpen) ? (<div>{subtree}</div>) : ''}
+          {(isOpen) ? (<div>{subtree}</div>) : ''}
         </div>);
     }
   }

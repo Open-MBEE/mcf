@@ -1,11 +1,16 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module app
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
+ *
+ * @owner Austin Bieber
+ *
+ * @author Josh Kaplan
+ * @author Austin Bieber
  *
  * @description Defines the MBEE App. Allows MBEE app to be imported by other modules.
  * This app is imported by start.js script which then runs the server.
@@ -27,9 +32,13 @@ const db = M.require('lib.db');
 const utils = M.require('lib.utils');
 const middleware = M.require('lib.middleware');
 const migrate = M.require('lib.migrate');
+const Artifact = M.require('models.artifact');
+const Branch = M.require('models.branch');
+const Element = M.require('models.element');
 const Organization = M.require('models.organization');
+const Project = M.require('models.project');
+const ServerData = M.require('models.server-data');
 const User = M.require('models.user');
-const Session = M.require('models.session');
 
 // Initialize express app and export the object
 const app = express();
@@ -40,6 +49,7 @@ module.exports = app;
  * default organization if needed.
  */
 db.connect()
+.then(() => initModels())
 .then(() => migrate.getSchemaVersion())
 .then(() => createDefaultOrganization())
 .then(() => createDefaultAdmin())
@@ -50,7 +60,9 @@ db.connect()
 });
 
 /**
- * @description Initializes the application and exports app.js
+ * @description Initializes the application and exports app.js.
+ *
+ * @returns {Promise} Resolves an empty promise upon completion.
  */
 function initApp() {
   return new Promise((resolve) => {
@@ -89,7 +101,7 @@ function initApp() {
       resave: false,
       saveUninitialized: false,
       cookie: { maxAge: M.config.auth.session.expires * units },
-      store: Session
+      store: new db.Store()
     }));
 
     // Enable flash messages
@@ -120,7 +132,11 @@ function initApp() {
   });
 }
 
-// Create default organization if it does not exist
+/**
+ * @description Creates a default organization if one does not already exist.
+ *
+ * @returns {Promise} Resolves an empty promise upon completion.
+ */
 function createDefaultOrganization() {
   return new Promise((resolve, reject) => {
     // Initialize createdOrg
@@ -157,7 +173,7 @@ function createDefaultOrganization() {
       createdOrg = true;
       // Default organization does NOT exist, create it and add all active users
       // to permissions list
-      const defaultOrg = new Organization({
+      const defaultOrg = Organization.createDocument({
         _id: M.config.server.defaultOrganizationId,
         name: M.config.server.defaultOrganizationName
       });
@@ -182,7 +198,11 @@ function createDefaultOrganization() {
   });
 }
 
-// Create default admin if a global admin does not exist
+/**
+ * @description Creates a default admin if a global admin does not already exist.
+ *
+ * @returns {Promise} Resolves an empty promise upon completion.
+ */
 function createDefaultAdmin() {
   return new Promise((resolve, reject) => {
     // Initialize userCreated
@@ -198,7 +218,7 @@ function createDefaultAdmin() {
       // set userCreated to true
       userCreated = true;
       // No global admin exists, create local user as global admin
-      const adminUserData = new User({
+      const adminUserData = User.createDocument({
         // Set username and password of global admin user from configuration.
         _id: M.config.server.defaultAdminUsername,
         password: M.config.server.defaultAdminPassword,
@@ -228,4 +248,20 @@ function createDefaultAdmin() {
     // Catch and reject error
     .catch(error => reject(error));
   });
+}
+
+/**
+ * @description Initializes all models asynchronously.
+ * @async
+ *
+ * @returns {Promise} Returns an empty promise upon completion.
+ */
+async function initModels() {
+  await Artifact.init();
+  await Branch.init();
+  await Element.init();
+  await Organization.init();
+  await Project.init();
+  await ServerData.init();
+  await User.init();
 }

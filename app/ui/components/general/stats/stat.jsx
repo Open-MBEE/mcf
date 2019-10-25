@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module ui.components.general.stats.stat
  *
@@ -7,13 +7,18 @@
  *
  * @license MIT
  *
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ * @author Jake Ursetta
+ *
  * @description This renders a stat.
  */
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
 
-// React Modules
+// React modules
 import React, { Component } from 'react';
 import { UncontrolledTooltip } from 'reactstrap';
 
@@ -41,21 +46,31 @@ class Stat extends Component {
     let value;
     let classNames;
 
-    // Verify if divider element
+    // Verify if defining a divider
     if (this.props.divider) {
       // Set divider properties
       classNames = 'stats-item stats-divider';
       icon = '';
       value = '';
     }
+    // Verify if defining a label
     else if (this.props.label) {
+      // Set label properties
       icon = '';
       value = '';
       classNames = `stats-item bold-name ${this.props.className}`;
     }
+    // Verify if className was provided
     else if (this.props.className) {
-      classNames = this.props.className;
+      // Set className with stat properties
+      let key = 'stats-item';
+      if (this.props._key === 'empty') {
+        key = 'empty-item';
+      }
+      classNames = `${this.props.className} ${key}`;
       icon = <i className={this.props.icon}/>;
+      // Verify value is a number, display a '?' if not
+      value = Number.isNaN(this.props.value) ? '?' : (<p>{this.props.value}</p>);
     }
     else {
       // Set stat properties
@@ -71,11 +86,12 @@ class Stat extends Component {
       <div className={classNames} ref={this.ref} id={this.props._key || this.props.title}>
         {icon}
         {value}
+        {/* Verify if stat is a label */}
         {(!this.props.label)
           ? ''
           : <span>{this.props.title}</span>
         }
-        {/* Create hover title for icon if not divider element */}
+        {/* Create hover title for icon if not divider, label, or noToolTip was provided */}
         {(this.props.label || this.props.divider || this.props.noToolTip)
           ? ''
           : (<UncontrolledTooltip placement='top'

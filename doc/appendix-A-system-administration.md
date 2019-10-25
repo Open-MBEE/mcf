@@ -11,24 +11,22 @@ first case: a single running instance of the MBEE Core Framework.
 MBEE is designed to be cross-platform, but is primarily tested on Linux and 
 other Posix systems. Windows support is intended, but not yet fully supported.
 
-> Windows Users: MBEE should be able to run on Windows, but plugins may not be 
-> fully supported. It is intended that full Windows support will be available by
-> version 0.10.0 of the MBEE Core Framework.
+> Windows Users: The MBEE Core Framework should be able to run on Windows, 
+> but plugins may not be fully supported.
 
 The server should have at least 1 CPU and 0.5 GB RAM. The amount of disk space
 required is dependent on the total model storage needed.
 
 ## Obtaining the MBEE Source Code
-The MBEE source code can be obtained from [GitHub](https://github.com/lmco/mbee.git).
+The MBEE source code can be obtained from [GitHub](https://github.com/lmco/mbee).
 
 Clone the source code using Git by running:
 
-```json
-git clone <MBEE_REPO_URL>
+```bash
+git clone https://github.com/lmco/mbee.git
 ```
 
-Where `<MBEE_REPO_URL>` should be replaced with the repository URL you are 
-cloning from. Then enter the newly created directory containing the source code.
+Enter the newly created directory containing the source code.
 
 ## Building MBEE
 Before running MBEE, the software must be built. The build process compiles 
@@ -39,7 +37,7 @@ The build process will output these runtime files to the `build` directory.
 
 Yarn is the recommended build tool for MBEE. To install it, run 
 
-```
+```shell
 npm install -g yarn
 ```
 
@@ -47,8 +45,8 @@ npm install -g yarn
 If you're building MBEE for the first time, the easiest way to get started is 
 to run
 
-```
-yarn install
+```shell
+yarn install # or npm install
 ```
 
 By default this will install all dependencies and run a post-install script to 
@@ -161,8 +159,9 @@ building the Docker image.
 
 To build the docker image, run `node mbee docker --build`. This will build the 
 Docker image using the Dockerfile specified in the MBEE configuration file.
-The Dockerfile, image name, container name, and other options can be configured
-in the MBEE config file.
+Do note that the docker scripts have certain commands that will be run on build 
+and start commands. The Dockerfile, image name, container name, and other options 
+can be configured in the MBEE config file.
 
 After the image is built, the docker container can be run using the `--run` 
 subcommand. The container will be detached, but have interactive processes. 
@@ -194,7 +193,7 @@ defining the server ports, Docker configuration information, enabling and
 disabling application components, swapping out authentication schemes, and more. 
 
 For a detailed explanation of the fields supported by the config file, see the
-detailed comments provided in the [example.cfg](config/example.cfg).
+detailed comments provided in the example.cfg.
 
 Some of the noteworthy options are
 
@@ -282,7 +281,7 @@ then specify which authentication module to use in the MBEE config file.
 By default, MBEE provides strategies for local authentication or LDAP
 authentication. Local is used by default because it has fewer dependencies and
 is easiest to get started. LDAP can be used by specifying that strategy in the
-[default.cfg](config/default.cfg) and altering the `auth.ldap` section of the
+default.cfg and altering the `auth.ldap` section of the
 config to define your LDAP configuration.
 
 An authentication module has the following requirements:

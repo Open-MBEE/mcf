@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module test.205-lib-utils
  *
@@ -7,10 +7,14 @@
  *
  * @license MIT
  *
+ * @owner Connor Doyle
+ *
+ * @author Austin Bieber
+ *
  * @description This file tests the utility functions.
  */
 
-// Node modules
+// NPM modules
 const chai = require('chai');
 
 // MBEE modules
@@ -27,7 +31,6 @@ describe(M.getModuleName(module.filename), () => {
   it('should create a valid uid', validUID);
   it('should try to create a uid from invalid parameters and fail', invalidUID);
   it('should parse a valid uid', parseValidUID);
-  it('should try to parse an invalid uid and fail', parseInvalidUID);
   it('should parse a valid uid and get the second element', parseValidUIDSecondElement);
   it('should title-case a valid word', validTitleCase);
   it('should NOT title-case an invalid word', invalidTitleCase);
@@ -35,92 +38,69 @@ describe(M.getModuleName(module.filename), () => {
 
 /* --------------------( Tests )-------------------- */
 /**
- * @description Creates a uid from valid parameters
+ * @description Creates a uid from valid parameters.
  */
-function validUID(done) {
+async function validUID() {
   try {
     const uid = utils.createID('org', 'project', 'branch', 'element');
     chai.expect(uid).to.equal('org:project:branch:element');
-    done();
   }
   catch (error) {
     M.log.error(error);
     // Expect no error
     chai.expect(error.message).to.equal(null);
-    done();
   }
 }
 
 /**
- * @description Creates a uid from invalid parameters
+ * @description Creates a uid from invalid parameters.
  */
-function invalidUID(done) {
+async function invalidUID() {
   try {
     utils.createID('org', 'project', 'master', 9);
     chai.expect(true).to.equal(false);
-    done();
   }
   catch (error) {
     chai.expect(error.message).to.equal('Argument is not a string.');
-    done();
   }
 }
 
 /**
  * @description Parse a valid uid. Checks array element exist.
  */
-function parseValidUID(done) {
+async function parseValidUID() {
   try {
     const uid = utils.parseID('org:project:element');
     chai.expect(uid).to.include('org');
     chai.expect(uid).to.include('project');
     chai.expect(uid).to.include('element');
-    done();
   }
   catch (error) {
     M.log.error(error);
     // Expect no error
     chai.expect(error.message).to.equal(null);
-    done();
-  }
-}
-
-/**
- * @description Parse an invalid uid. Expected error.
- */
-function parseInvalidUID(done) {
-  try {
-    utils.parseID('not a valid uid');
-    chai.assert(true === false);
-    done();
-  }
-  catch (error) {
-    chai.expect(error.message).to.equal('Invalid UID.');
-    done();
   }
 }
 
 /**
  * @description Parse a valid uid and get the 2nd element.
  */
-function parseValidUIDSecondElement(done) {
+async function parseValidUIDSecondElement() {
   try {
     const project = utils.parseID('org:project:element')[2];
     chai.expect(project).to.equal('element');
-    done();
   }
   catch (error) {
     M.log.error(error);
     // Expect no error
     chai.expect(error.message).to.equal(null);
-    done();
   }
 }
 
 /**
  * @description Test a valid word is title-cased.
  */
-function validTitleCase(done) {
+async function validTitleCase() {
   // Initialize valid word
   const word = 'heLLo156';
 
@@ -129,13 +109,12 @@ function validTitleCase(done) {
 
   // Expect word to be title-cased
   chai.expect(titleCased).to.equal('Hello156');
-  done();
 }
 
 /**
- * @description Tests an invalid word is NOT title-cased
+ * @description Tests an invalid word is NOT title-cased.
  */
-function invalidTitleCase(done) {
+async function invalidTitleCase() {
   // Initialize invalid word
   const word = '123 Goodbye';
 
@@ -144,5 +123,4 @@ function invalidTitleCase(done) {
 
   // Expect the word to NOT have changed
   chai.expect(titleCased).to.equal(word);
-  done();
 }

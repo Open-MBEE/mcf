@@ -1,22 +1,27 @@
 /**
-* Classification: UNCLASSIFIED
-*
-* @module ui.components.project-views.elements.element
-*
-* @copyright Copyright (C) 2018, Lockheed Martin Corporation
-*
-* @license MIT
-*
-* @description This renders the sidebar.
-*/
+ * @classification UNCLASSIFIED
+ *
+ * @module ui.components.project-views.elements.element
+ *
+ * @copyright Copyright (C) 2018, Lockheed Martin Corporation
+ *
+ * @license MIT
+ *
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ *
+ * @description This renders the element information side panel.
+ * Displaying the information on an element selected from the tree.
+ */
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
 
-// React Modules
+// React modules
 import React, { Component } from 'react';
 
-// MBEE Modules
+// MBEE modules
 import {
   Modal,
   ModalBody,
@@ -59,8 +64,8 @@ class Element extends Component {
     const elementId = this.props.id;
 
     if (elementId) {
-      // Initialize variables
-      const url = `${this.props.url}/elements/${elementId}?minified=true&archived=true`;
+      // Initalize variables
+      const url = `${this.props.url}/elements/${elementId}?minified=true&includeArchived=true`;
       // Get project data
       $.ajax({
         method: 'GET',
@@ -121,7 +126,7 @@ class Element extends Component {
         uniqCrossRefs[xr] = { id: ref };
       });
 
-      // Get a list of IDs from the cross-references
+      // Get a list of IDs from the cross-referencs
       const uniqCrossRefsValues = Object.values(uniqCrossRefs);
       const ids = uniqCrossRefsValues.map(xr => xr.id);
 

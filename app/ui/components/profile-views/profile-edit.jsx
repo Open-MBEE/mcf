@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module ui.components.profile-views.profile-edit
  *
@@ -7,13 +7,17 @@
  *
  * @license MIT
  *
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ *
  * @description This renders the user's edit page.
  */
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
 
-// React Modules
+// React modules
 import React, { Component } from 'react';
 import {
   Form,
@@ -25,7 +29,7 @@ import {
   UncontrolledAlert
 } from 'reactstrap';
 
-// MBEE Modules
+// MBEE modules
 import validators from '../../../../build/json/validators.json';
 
 /* eslint-enable no-unused-vars */
@@ -180,12 +184,12 @@ class ProfileEdit extends Component {
     // Render user edit page
     return (
       <div id='workspace'>
-        <div id='workspace-header' className='profile-edit-title'>
+        <div className='workspace-header'>
           <h2 className={titleClass}>User Edit</h2>
           {(!localUser)
             ? ''
             : (<div className='workspace-header-button'>
-                <Button className='btn'
+                <Button className='bigger-width-btn'
                         size='sm'
                         outline color='primary'
                         onClick={this.props.togglePasswordModal}>
@@ -227,6 +231,7 @@ class ProfileEdit extends Component {
                        id="preferred"
                        placeholder="User's preferred name"
                        value={this.state.preferred || ''}
+                       invalid={preferredInvalid}
                        invalid={preferredInvalid}
                        onChange={this.handleChange}/>
                 {/* Verify fields are valid, or display feedback */}

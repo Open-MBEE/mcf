@@ -1,24 +1,28 @@
 /**
-* Classification: UNCLASSIFIED
-*
-* @module ui.components.home-views.proj-list
-*
-* @copyright Copyright (C) 2018, Lockheed Martin Corporation
-*
-* @license MIT
-*
-* @description This creates the project list rendered under
+ * @classification UNCLASSIFIED
+ *
+ * @module ui.components.home-views.proj-list
+ *
+ * @copyright Copyright (C) 2018, Lockheed Martin Corporation
+ *
+ * @license MIT
+ *
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ *
+ * @description This creates the project list rendered under
  * the organization.
-*/
+ */
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
 
-// React Modules
+// React modules
 import React, { Component } from 'react';
 import { Modal, ModalBody, UncontrolledTooltip } from 'reactstrap';
 
-// MBEE Modules
+// MBEE modules
 import ProjectListItem from '../shared-views/list-items/project-list-item.jsx';
 import Delete from '../shared-views/delete.jsx';
 
@@ -54,7 +58,7 @@ class ProjList extends Component {
     // Initialize variables
     const project = this.props.project;
     const orgId = this.props.orgid;
-
+    const className = `homeproj-list ${this.props.className}`;
     return (
       <React.Fragment>
         {/* Modal for deleting a project */}
@@ -64,8 +68,9 @@ class ProjList extends Component {
           </ModalBody>
         </Modal>
         <div className='proj-list'>
-          <ProjectListItem className='homeproj-list'
+          <ProjectListItem className={className}
                            divider={true}
+                           archiveProj={this.props.archiveProj}
                            project={project}
                            href={`/orgs/${orgId}/projects/${project.id}/branches/master/elements`}/>
           {(!this.props.admin)

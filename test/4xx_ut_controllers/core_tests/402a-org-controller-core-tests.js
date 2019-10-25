@@ -1,11 +1,17 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module test.402a-org-controller-core-tests
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
+ *
+ * @owner Connor Doyle
+ *
+ * @author Austin Bieber
+ * @author Leah De Laurell
+ * @author Connor Doyle
  *
  * @description Tests the organization controller functionality: create,
  * delete, update, and find organizations.
@@ -71,22 +77,29 @@ describe(M.getModuleName(module.filename), () => {
   });
 
   /* Execute the tests */
+  // ------------- Create -------------
   it('should create an org', createOrg);
   it('should create multiple orgs', createOrgs);
-  it('should create or replace an org', createOrReplaceOrg);
-  it('should create and replace multiple orgs', createOrReplaceOrgs);
+  // -------------- Find --------------
   it('should find an org', findOrg);
   it('should find multiple orgs', findOrgs);
   it('should find all orgs', findAllOrgs);
+  // ------------- Update -------------
   it('should update an org', updateOrg);
   it('should update multiple orgs', updateOrgs);
+  // ------------- Replace ------------
+  it('should create or replace an org', createOrReplaceOrg);
+  it('should create and replace multiple orgs', createOrReplaceOrgs);
+  // ------------- Remove -------------
   it('should delete an org', deleteOrg);
   it('should delete multiple orgs', deleteOrgs);
 });
 
 /* --------------------( Tests )-------------------- */
 /**
- * @description Creates an organization using the org controller
+ * @description Validates that the Org Controller can create an org.
+ *
+ * @param {Function} done - The Mocha callback.
  */
 function createOrg(done) {
   const orgData = testData.orgs[0];
@@ -108,8 +121,8 @@ function createOrg(done) {
     chai.expect(createdOrg.permissions[adminUser._id]).to.include('admin');
 
     // Verify additional properties
-    chai.expect(createdOrg.createdBy).to.equal(adminUser.username);
-    chai.expect(createdOrg.lastModifiedBy).to.equal(adminUser.username);
+    chai.expect(createdOrg.createdBy).to.equal(adminUser._id);
+    chai.expect(createdOrg.lastModifiedBy).to.equal(adminUser._id);
     chai.expect(createdOrg.archivedBy).to.equal(null);
     chai.expect(createdOrg.createdOn).to.not.equal(null);
     chai.expect(createdOrg.updatedOn).to.not.equal(null);
@@ -125,12 +138,15 @@ function createOrg(done) {
 }
 
 /**
- * @description Creates multiple organizations using the org controller
+ * @description Validates that the Org Controller can create multiple orgs.
+ *
+ * @param {Function} done - The Mocha callback.
  */
 function createOrgs(done) {
   const orgDataObjects = [
     testData.orgs[1],
-    testData.orgs[2]
+    testData.orgs[2],
+    testData.orgs[3]
   ];
 
   // Create orgs via controller
@@ -155,8 +171,8 @@ function createOrgs(done) {
       chai.expect(createdOrg.permissions[adminUser._id]).to.include('admin');
 
       // Verify additional properties
-      chai.expect(createdOrg.createdBy).to.equal(adminUser.username);
-      chai.expect(createdOrg.lastModifiedBy).to.equal(adminUser.username);
+      chai.expect(createdOrg.createdBy).to.equal(adminUser._id);
+      chai.expect(createdOrg.lastModifiedBy).to.equal(adminUser._id);
       chai.expect(createdOrg.archivedBy).to.equal(null);
       chai.expect(createdOrg.createdOn).to.not.equal(null);
       chai.expect(createdOrg.updatedOn).to.not.equal(null);
@@ -173,7 +189,9 @@ function createOrgs(done) {
 }
 
 /**
- * @description Creates or replaces an organization using the org controller
+ * @description Validates that the Org Controller can create or replace an org.
+ *
+ * @param {Function} done - The Mocha callback.
  */
 function createOrReplaceOrg(done) {
   const orgData = testData.orgs[0];
@@ -195,8 +213,8 @@ function createOrReplaceOrg(done) {
     chai.expect(replacedOrg.permissions[adminUser._id]).to.include('admin');
 
     // Verify additional properties
-    chai.expect(replacedOrg.createdBy).to.equal(adminUser.username);
-    chai.expect(replacedOrg.lastModifiedBy).to.equal(adminUser.username);
+    chai.expect(replacedOrg.createdBy).to.equal(adminUser._id);
+    chai.expect(replacedOrg.lastModifiedBy).to.equal(adminUser._id);
     chai.expect(replacedOrg.archivedBy).to.equal(null);
     chai.expect(replacedOrg.createdOn).to.not.equal(null);
     chai.expect(replacedOrg.updatedOn).to.not.equal(null);
@@ -212,8 +230,9 @@ function createOrReplaceOrg(done) {
 }
 
 /**
- * @description Creates and replaces multiple organizations using the org
- * controller.
+ * @description Validates that the Org Controller can create or replace multiple orgs.
+ *
+ * @param {Function} done - The Mocha callback.
  */
 function createOrReplaceOrgs(done) {
   const orgDataObjects = [
@@ -244,8 +263,8 @@ function createOrReplaceOrgs(done) {
       chai.expect(replacedOrg.permissions[adminUser._id]).to.include('admin');
 
       // Verify additional properties
-      chai.expect(replacedOrg.createdBy).to.equal(adminUser.username);
-      chai.expect(replacedOrg.lastModifiedBy).to.equal(adminUser.username);
+      chai.expect(replacedOrg.createdBy).to.equal(adminUser._id);
+      chai.expect(replacedOrg.lastModifiedBy).to.equal(adminUser._id);
       chai.expect(replacedOrg.archivedBy).to.equal(null);
       chai.expect(replacedOrg.createdOn).to.not.equal(null);
       chai.expect(replacedOrg.updatedOn).to.not.equal(null);
@@ -262,7 +281,9 @@ function createOrReplaceOrgs(done) {
 }
 
 /**
- * @description Finds an organization using the org controller
+ * @description Validates that the Org Controller can find an org.
+ *
+ * @param {Function} done - The Mocha callback.
  */
 function findOrg(done) {
   const orgData = testData.orgs[0];
@@ -284,8 +305,8 @@ function findOrg(done) {
     chai.expect(foundOrg.permissions[adminUser._id]).to.include('admin');
 
     // Verify additional properties
-    chai.expect(foundOrg.createdBy).to.equal(adminUser.username);
-    chai.expect(foundOrg.lastModifiedBy).to.equal(adminUser.username);
+    chai.expect(foundOrg.createdBy).to.equal(adminUser._id);
+    chai.expect(foundOrg.lastModifiedBy).to.equal(adminUser._id);
     chai.expect(foundOrg.archivedBy).to.equal(null);
     chai.expect(foundOrg.createdOn).to.not.equal(null);
     chai.expect(foundOrg.updatedOn).to.not.equal(null);
@@ -301,7 +322,9 @@ function findOrg(done) {
 }
 
 /**
- * @description Finds multiple organizations using the org controller
+ * @description Validates that the Org Controller can find multiple orgs.
+ *
+ * @param {Function} done - The Mocha callback.
  */
 function findOrgs(done) {
   const orgDataObjects = [
@@ -335,8 +358,8 @@ function findOrgs(done) {
       chai.expect(foundOrg.permissions[adminUser._id]).to.include('admin');
 
       // Verify additional properties
-      chai.expect(foundOrg.createdBy).to.equal(adminUser.username);
-      chai.expect(foundOrg.lastModifiedBy).to.equal(adminUser.username);
+      chai.expect(foundOrg.createdBy).to.equal(adminUser._id);
+      chai.expect(foundOrg.lastModifiedBy).to.equal(adminUser._id);
       chai.expect(foundOrg.archivedBy).to.equal(null);
       chai.expect(foundOrg.createdOn).to.not.equal(null);
       chai.expect(foundOrg.updatedOn).to.not.equal(null);
@@ -353,8 +376,9 @@ function findOrgs(done) {
 }
 
 /**
- * @description Finds all organizations the user has access to using the org
- * controller
+ * @description Validates that the Org Controller can find all orgs a user has access to.
+ *
+ * @param {Function} done - The Mocha callback.
  */
 function findAllOrgs(done) {
   const orgDataObjects = [
@@ -372,7 +396,7 @@ function findAllOrgs(done) {
   OrgController.find(adminUser)
   .then((foundOrgs) => {
     // Expect foundOrgs not to be empty. Cannot know true number in DB
-    chai.expect(foundOrgs.length).to.equal(orgDataObjects.length);
+    chai.expect(foundOrgs.length).to.be.at.least(orgDataObjects.length);
 
     // Convert foundOrgs to JMI type 2 for easier lookup
     const jmi2Orgs = jmi.convertJMI(1, 2, foundOrgs);
@@ -392,8 +416,8 @@ function findAllOrgs(done) {
         chai.expect(foundOrg.permissions[adminUser._id]).to.include('admin');
 
         // Verify additional properties
-        chai.expect(foundOrg.createdBy).to.equal(adminUser.username);
-        chai.expect(foundOrg.lastModifiedBy).to.equal(adminUser.username);
+        chai.expect(foundOrg.createdBy).to.equal(adminUser._id);
+        chai.expect(foundOrg.lastModifiedBy).to.equal(adminUser._id);
         chai.expect(foundOrg.archivedBy).to.equal(null);
         chai.expect(foundOrg.createdOn).to.not.equal(null);
         chai.expect(foundOrg.updatedOn).to.not.equal(null);
@@ -417,7 +441,9 @@ function findAllOrgs(done) {
 }
 
 /**
- * @description Updates an organization using the org controller
+ * @description Validates that the Org Controller can update an org.
+ *
+ * @param {Function} done - The Mocha callback.
  */
 function updateOrg(done) {
   const orgData = testData.orgs[0];
@@ -445,8 +471,8 @@ function updateOrg(done) {
     chai.expect(updatedOrg.permissions[adminUser._id]).to.include('admin');
 
     // Verify additional properties
-    chai.expect(updatedOrg.createdBy).to.equal(adminUser.username);
-    chai.expect(updatedOrg.lastModifiedBy).to.equal(adminUser.username);
+    chai.expect(updatedOrg.createdBy).to.equal(adminUser._id);
+    chai.expect(updatedOrg.lastModifiedBy).to.equal(adminUser._id);
     chai.expect(updatedOrg.archivedBy).to.equal(null);
     chai.expect(updatedOrg.createdOn).to.not.equal(null);
     chai.expect(updatedOrg.updatedOn).to.not.equal(null);
@@ -462,7 +488,9 @@ function updateOrg(done) {
 }
 
 /**
- * @description Updates multiple organizations using the org controller
+ * @description Validates that the Org Controller can update multiple orgs.
+ *
+ * @param {Function} done - The Mocha callback.
  */
 function updateOrgs(done) {
   const orgDataObjects = [
@@ -499,8 +527,8 @@ function updateOrgs(done) {
       chai.expect(updatedOrg.permissions[adminUser._id]).to.include('admin');
 
       // Verify additional properties
-      chai.expect(updatedOrg.createdBy).to.equal(adminUser.username);
-      chai.expect(updatedOrg.lastModifiedBy).to.equal(adminUser.username);
+      chai.expect(updatedOrg.createdBy).to.equal(adminUser._id);
+      chai.expect(updatedOrg.lastModifiedBy).to.equal(adminUser._id);
       chai.expect(updatedOrg.archivedBy).to.equal(null);
       chai.expect(updatedOrg.createdOn).to.not.equal(null);
       chai.expect(updatedOrg.updatedOn).to.not.equal(null);
@@ -517,7 +545,9 @@ function updateOrgs(done) {
 }
 
 /**
- * @description Deletes an organization using the org controller
+ * @description Validates that the Org Controller can delete an org.
+ *
+ * @param {Function} done - The Mocha callback.
  */
 function deleteOrg(done) {
   const orgData = testData.orgs[0];
@@ -549,7 +579,9 @@ function deleteOrg(done) {
 }
 
 /**
- * @description Deletes multiple organizations using the org controller
+ * @description Validates that the Org Controller can delete multiple orgs.
+ *
+ * @param {Function} done - The Mocha callback.
  */
 function deleteOrgs(done) {
   const orgDataObjects = [

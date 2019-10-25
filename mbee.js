@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module mbee.js
  *
@@ -8,11 +8,17 @@
  *
  * @license MIT
  *
+ * @owner Connor Doyle
+ *
+ * @author Josh Kaplan
+ * @author Austin Bieber
+ * @author Connor Doyle
+ *
  * @description This file defines the MBEE CLI commands and sets up the
  * global M object.
  */
 
-// Node Modules
+// Node modules
 const fs = require('fs');                       // Access the filesystem
 const path = require('path');                   // Find directory paths
 const { execSync } = require('child_process');  // Execute shell commands
@@ -114,26 +120,18 @@ Object.defineProperty(M, 'root', {
 });
 
 // Load the parseJSON library module.
-const parseJSON = M.require('lib.parse-json');
+const configUtils = M.require('lib.config-utils');
 // Set configuration file path
 const configPath = path.join(M.root, 'config', `${M.env}.cfg`);
 // Read configuration file
 const configContent = fs.readFileSync(configPath).toString();
 // Remove comments from configuration string
-const stripComments = parseJSON.removeComments(configContent);
+const stripComments = configUtils.removeComments(configContent);
 // Parse configuration string into JSON object
 const config = JSON.parse(stripComments);
 
-// Check if config secret is RANDOM
-if (config.server.secret === 'RANDOM') {
-  // Config state is RANDOM, generate and set config secret
-  const random1 = Math.random().toString(36).substring(2, 15);
-  const random2 = Math.random().toString(36).substring(2, 15);
-  config.server.secret = random1 + random2;
-}
-
 /**
- * Define the MBEE configuration
+ * Define the MBEE configuration.
  */
 Object.defineProperty(M, 'config', {
   value: config,
@@ -148,8 +146,10 @@ const buildComplete = fs.existsSync(`${M.root}/build`);
 // Check if dependencies are installed
 if (installComplete) {
   // Initialize the MBEE logger/helper functions
+  const opts = process.argv[3] ? process.argv.slice(3) : [];
+  const logger = M.require('lib.logger');
   Object.defineProperty(M, 'log', {
-    value: M.require('lib.logger').logger,
+    value: logger.makeLogger(process.argv[2], opts),
     writable: false,
     enumerable: true
   });
@@ -176,8 +176,28 @@ if (installComplete) {
     },
     DatabaseError: {
       value: M.require('lib.errors').DatabaseError
+    },
+    NotImplementedError: {
+      value: M.require('lib.errors').NotImplementedError
     }
   });
+}
+
+// Validate the config file
+try {
+  configUtils.validate(config);
+}
+catch (error) {
+  M.log.critical(error.message);
+  process.exit(-1);
+}
+
+// Check if config secret is RANDOM
+if (config.server.secret === 'RANDOM') {
+  // Config state is RANDOM, generate and set config secret
+  const random1 = Math.random().toString(36).substring(2, 15);
+  const random2 = Math.random().toString(36).substring(2, 15);
+  config.server.secret = random1 + random2;
 }
 
 // Make the M object read only and its properties cannot be changed or removed.
@@ -186,6 +206,10 @@ Object.freeze(M);
 // Invoke main
 main();
 
+/**
+ * @description The main function that takes in arguments and either starts the MBEE server
+ * or runs one of the custom MBEE scripts.
+ */
 function main() {
   // Set argument commands for use in configuration lib and main function
   // Example: node mbee.js <subcommand> <opts>

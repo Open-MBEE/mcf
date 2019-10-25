@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module ui.components.general.list.list
  *
@@ -7,13 +7,19 @@
  *
  * @license MIT
  *
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ * @author Jake Ursetta
+ *
  * @description This renders a list.
  */
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
+/* eslint-disable jsdoc/require-jsdoc */
 
-// React Modules
+// React modules
 import React from 'react';
 
 /* eslint-enable no-unused-vars */
@@ -25,7 +31,7 @@ function List(props) {
             {child}
         </React.Fragment>);
 
-    // Initializes the classes
+  // Initializes the classes
   let appliedClasses = 'list';
 
   // Verify class name provided

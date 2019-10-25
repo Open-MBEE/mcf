@@ -1,7 +1,7 @@
 ##
-# Classification: UNCLASSIFIED                                                                                                        #
+# @classification UNCLASSIFIED                                                                                                        #
 #
-# @module config.Dockerfile
+# @module config.example.Dockerfile
 #
 # @copyright Copyright (C) 2018, Lockheed Martin Corporation
 #

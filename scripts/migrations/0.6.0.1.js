@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module script.migrations.0.6.0.1
  *
@@ -7,43 +7,45 @@
  *
  * @license MIT
  *
+ * @owner Austin Bieber
+ *
+ * @author Austin Bieber
+ *
  * @description Migration script for version 0.6.0.1.
  */
 
-// Node Modules
+// Node modules
 const fs = require('fs');
 const path = require('path');
 
-// NPM Modules
+// NPM modules
 const mongoose = require('mongoose');
 
 // MBEE modules
+const migrate = M.require('lib.migrate');
+const Element = M.require('models.element');
+const Organization = M.require('models.organization');
+const Project = M.require('models.project');
+const User = M.require('models.user');
 const jmi = M.require('lib.jmi-conversions');
+
+// Due to the use of MongoDB ObjectIDs, this file cannot be adjusted for other
+// databases, thus it must be rewritten or commented out
+if (M.config.db.strategy !== 'mongoose-mongodb-strategy') {
+  M.log.critical('The 0.6.0.1 migration is MongoDB specific. Please rewrite'
+    + ' this file or comment out helper functions if running for first time'
+    + ' and version is greater that 0.6.0.');
+  process.exit(1);
+}
 
 /**
  * @description Handles the database migration from 0.6.0.1 to 0.6.0. This drop in
  * versions is currently not supported.
+ *
+ * @returns {Promise} Returns an empty promise upon completion.
  */
 module.exports.down = function() {
-  return new Promise((resolve, reject) => {
-    // Get all documents from the server data
-    mongoose.connection.db.collection('server_data').find({}).toArray()
-    .then((serverData) => {
-      // Restrict collection to one document
-      if (serverData.length > 1) {
-        throw new Error('Cannot have more than one document in the server_data collection.');
-      }
-      // If no server data currently exists, create the document
-      if (serverData.length === 0) {
-        return mongoose.connection.db.collection('server_data').insertOne({ version: '0.6.0' });
-      }
-
-      return mongoose.connection.db.collection('server_data')
-      .updateMany({ _id: serverData[0]._id }, { $set: { version: '0.6.0' } });
-    })
-    .then(() => resolve())
-    .catch((error) => reject(error));
-  });
+  return migrate.shiftVersion('0.6.0');
 };
 
 /**
@@ -61,131 +63,54 @@ module.exports.down = function() {
  * passwords due to change in salt when password is hashed. If for some reason a
  * migration fails, any data removed from the database will be added to the
  * ./data directory.
+ *
+ * @returns {Promise} Returns an empty promise upon completion.
  */
-module.exports.up = function() {
-  return new Promise((resolve, reject) => {
-    // Define global variables
-    let orgs = [];
-    let projects = [];
-    let elements = [];
-    let users = [];
-    let jmiOrgs = [];
-    let jmiProjects = [];
-    let jmiElements = [];
-    let jmiUsers = [];
-    let existingCollections = [];
-
+module.exports.up = async function() {
+  try {
     // If data directory doesn't exist, create it
     if (!fs.existsSync(path.join(M.root, 'data'))) {
       fs.mkdirSync(path.join(M.root, 'data'));
     }
 
     // Find all orgs
-    mongoose.connection.db.collection('organizations').find({}).toArray()
-    .then((foundOrgs) => {
-      orgs = foundOrgs;
-      jmiOrgs = jmi.convertJMI(1, 2, orgs);
+    const orgs = await Organization.find({});
+    const jmiOrgs = jmi.convertJMI(1, 2, orgs);
 
-      // Write contents to temporary file
-      return new Promise(function(res, rej) {
-        fs.writeFile(path.join(M.root, 'data', 'orgs.json'), JSON.stringify(orgs), function(err) {
-          if (err) rej(err);
-          else res();
-        });
-      });
-    })
+    // Write contents to temporary file
+    fs.writeFileSync(path.join(M.root, 'data', 'orgs.json'), JSON.stringify(orgs));
+
     // Find all projects
-    .then(() => mongoose.connection.db.collection('projects').find({}).toArray())
-    .then((foundProjects) => {
-      projects = foundProjects;
-      jmiProjects = jmi.convertJMI(1, 2, projects);
+    const projects = await Project.find({});
+    const jmiProjects = jmi.convertJMI(1, 2, projects);
 
-      // Write contents to temporary file
-      return new Promise(function(res, rej) {
-        fs.writeFile(path.join(M.root, 'data', 'project.json'),
-          JSON.stringify(projects), function(err) {
-            if (err) rej(err);
-            else res();
-          });
-      });
-    })
+    // Write contents to temporary file
+    fs.writeFileSync(path.join(M.root, 'data', 'projects.json'), JSON.stringify(projects));
+
     // Find all elements
-    .then(() => mongoose.connection.db.collection('elements').find({}).toArray())
-    .then((foundElements) => {
-      elements = foundElements;
-      jmiElements = jmi.convertJMI(1, 2, elements);
+    const elements = await Element.find({});
+    const jmiElements = jmi.convertJMI(1, 2, elements);
 
-      // Write contents to temporary file
-      return new Promise(function(res, rej) {
-        fs.writeFile(path.join(M.root, 'data', 'elements.json'),
-          JSON.stringify(elements), function(err) {
-            if (err) rej(err);
-            else res();
-          });
-      });
-    })
+    // Write contents to temporary file
+    fs.writeFileSync(path.join(M.root, 'data', 'elements.json'), JSON.stringify(elements));
+
     // Find all users
-    .then(() => mongoose.connection.db.collection('users').find({}).toArray())
-    .then((foundUsers) => {
-      users = foundUsers;
-      jmiUsers = jmi.convertJMI(1, 2, users);
+    const users = await User.find({});
+    const jmiUsers = jmi.convertJMI(1, 2, users);
 
-      // Write contents to temporary file
-      return new Promise(function(res, rej) {
-        fs.writeFile(path.join(M.root, 'data', 'users.json'),
-          JSON.stringify(users), function(err) {
-            if (err) rej(err);
-            else res();
-          });
-      });
-    })
+    // Write contents to temporary file
+    fs.writeFileSync(path.join(M.root, 'data', 'users.json'), JSON.stringify(users));
+
     // Find all currently existing collections
-    .then(() => mongoose.connection.db.collections())
-    .then((collections) => {
-      // Set the existing collections array
-      existingCollections = collections.map(c => c.s.name);
-
-      // If the orgs collection exists, run the helper function
-      if (existingCollections.includes('organizations')) {
-        return sixToSevenOrgHelper(orgs, jmiUsers);
-      }
-    })
-    .then(() => {
-      // If the projects collection exists, run the helper function
-      if (existingCollections.includes('projects')) {
-        return sixToSevenProjectHelper(projects, jmiUsers, jmiOrgs);
-      }
-    })
-    .then(() => {
-      // If the elements collection exists, run the helper function
-      if (existingCollections.includes('elements')) {
-        return sixToSevenElementHelper(elements, jmiUsers, jmiProjects, jmiElements);
-      }
-    })
-    .then(() => {
-      // If the users collection exists, run the helper function
-      if (existingCollections.includes('users')) {
-        return sixToSevenUserHelper(users, jmiUsers);
-      }
-    })
-    // Get all documents from the server data
-    .then(() => mongoose.connection.db.collection('server_data').find({}).toArray())
-    .then((serverData) => {
-      // Restrict collection to one document
-      if (serverData.length > 1) {
-        throw new Error('Cannot have more than one document in the server_data collection.');
-      }
-      // If no server data currently exists, create the document
-      if (serverData.length === 0) {
-        return mongoose.connection.db.collection('server_data').insertOne({ version: '0.6.0.1' });
-      }
-
-      return mongoose.connection.db.collection('server_data')
-      .updateMany({ _id: serverData[0]._id }, { $set: { version: '0.6.0.1' } });
-    })
-    .then(() => resolve())
-    .catch((error) => reject(error));
-  });
+    await sixToSevenOrgHelper(orgs, jmiUsers);
+    await sixToSevenProjectHelper(projects, jmiUsers, jmiOrgs);
+    await sixToSevenElementHelper(elements, jmiUsers, jmiProjects, jmiElements);
+    await sixToSevenUserHelper(users, jmiUsers);
+  }
+  catch (error) {
+    throw new M.DatabaseError(error.message, 'warn');
+  }
+  return migrate.shiftVersion('0.6.0.1');
 };
 
 
@@ -194,7 +119,9 @@ module.exports.up = function() {
  * updates to the organization collection.
  *
  * @param {Array} orgs - The organizations being updated.
- * @param {Object} jmi2Users - The found users in JMI Type 2 format.
+ * @param {object} jmi2Users - The found users in JMI Type 2 format.
+ *
+ * @returns {Promise} Returns an empty promise upon completion.
  */
 function sixToSevenOrgHelper(orgs, jmi2Users) {
   return new Promise((resolve, reject) => {
@@ -261,20 +188,20 @@ function sixToSevenOrgHelper(orgs, jmi2Users) {
     orgsToInsert.forEach((org) => delete org.id);
 
     // Delete all currently existing orgs
-    mongoose.connection.db.collection('organizations').deleteMany({})
+    Organization.deleteMany({})
     // Find all indexes in the organizations collections
-    .then(() => mongoose.connection.db.collection('organizations').indexes())
+    .then(() => Organization.getIndexes())
     .then((indexes) => {
       const promises = [];
       // Loop through the found indexes
       indexes.forEach((index) => {
         // If unique ID index exists, delete from orgs collection
         if (index.name === 'id_1') {
-          promises.push(mongoose.connection.db.collection('organizations').dropIndex('id_1'));
+          promises.push(Organization.deleteIndex('id_1'));
         }
         // If unique name index exists, delete from orgs collection
         else if (index.name === 'name_1') {
-          promises.push(mongoose.connection.db.collection('organizations').dropIndex('name_1'));
+          promises.push(Organization.deleteIndex('name_1'));
         }
       });
 
@@ -285,7 +212,7 @@ function sixToSevenOrgHelper(orgs, jmi2Users) {
     .then(() => {
       // If there are orgs to add, add them
       if (orgsToInsert.length > 0) {
-        return mongoose.connection.db.collection('organizations').insertMany(orgsToInsert);
+        return Organization.insertMany(orgsToInsert);
       }
     })
     .then(() => {
@@ -308,8 +235,10 @@ function sixToSevenOrgHelper(orgs, jmi2Users) {
  * updates to the project collection.
  *
  * @param {Array} projects - The projects being updated.
- * @param {Object} jmi2Users - The found users in JMI Type 2 format.
- * @param {Object} jmi2Orgs - The found orgs in JMI Type 2 format.
+ * @param {object} jmi2Users - The found users in JMI Type 2 format.
+ * @param {object} jmi2Orgs - The found orgs in JMI Type 2 format.
+ *
+ * @returns {Promise} Returns an empty promise upon completion.
  */
 function sixToSevenProjectHelper(projects, jmi2Users, jmi2Orgs) {
   return new Promise((resolve, reject) => {
@@ -383,21 +312,21 @@ function sixToSevenProjectHelper(projects, jmi2Users, jmi2Orgs) {
     projectsToInsert.forEach((project) => delete project.id);
 
     // Delete all projects
-    mongoose.connection.db.collection('projects').deleteMany({})
+    Project.deleteMany({})
     // Find all indexes in the projects collections
-    .then(() => mongoose.connection.db.collection('projects').indexes())
+    .then(() => Project.getIndexes())
     .then((indexes) => {
       const indexNames = indexes.map(i => i.name);
       // If unique ID index exists, delete from projects collection
       if (indexNames.includes('id_1')) {
-        return mongoose.connection.db.collection('projects').dropIndex('id_1');
+        return Project.deleteIndex('id_1');
       }
     })
     // Insert updated projects
     .then(() => {
       // If there are projects to add, add them
       if (projectsToInsert.length > 0) {
-        mongoose.connection.db.collection('projects').insertMany(projectsToInsert);
+        Project.insertMany(projectsToInsert);
       }
     })
     .then(() => {
@@ -420,9 +349,11 @@ function sixToSevenProjectHelper(projects, jmi2Users, jmi2Orgs) {
  * updates to the element collection.
  *
  * @param {Array} elements - The elements being updated.
- * @param {Object} jmi2Users - The found users in JMI Type 2 format.
- * @param {Object} jmi2Projects - The found projects in JMI Type 2 format.
- * @param {Object} jmi2Elements - The found elements in JMI Type 2 format.
+ * @param {object} jmi2Users - The found users in JMI Type 2 format.
+ * @param {object} jmi2Projects - The found projects in JMI Type 2 format.
+ * @param {object} jmi2Elements - The found elements in JMI Type 2 format.
+ *
+ * @returns {Promise} Returns an empty promise upon completion.
  */
 function sixToSevenElementHelper(elements, jmi2Users, jmi2Projects, jmi2Elements) {
   return new Promise((resolve, reject) => {
@@ -493,20 +424,20 @@ function sixToSevenElementHelper(elements, jmi2Users, jmi2Projects, jmi2Elements
     elementsToInsert.forEach((element) => delete element.id);
 
     // Delete all elements in the database
-    mongoose.connection.db.collection('elements').deleteMany({})
+    Element.deleteMany({})
     // Find all indexes in the elements collections
-    .then(() => mongoose.connection.db.collection('elements').indexes())
+    .then(() => Element.getIndexes())
     .then((indexes) => {
       const promises = [];
       // Loop through the found indexes
       indexes.forEach((index) => {
         // If unique UUID index exists, delete from elements collection
         if (index.name === 'uuid_1') {
-          promises.push(mongoose.connection.db.collection('elements').dropIndex('uuid_1'));
+          promises.push(Element.deleteIndex('uuid_1'));
         }
         // If unique ID index exists, delete from elements collection
         else if (index.name === 'id_1') {
-          promises.push(mongoose.connection.db.collection('elements').dropIndex('id_1'));
+          promises.push(Element.deleteIndex('id_1'));
         }
       });
 
@@ -517,7 +448,7 @@ function sixToSevenElementHelper(elements, jmi2Users, jmi2Projects, jmi2Elements
     .then(() => {
       // If there are elements to add, add them
       if (elementsToInsert.length > 0) {
-        mongoose.connection.db.collection('elements').insertMany(elementsToInsert);
+        Element.insertMany(elementsToInsert);
       }
     })
     .then(() => {
@@ -540,7 +471,9 @@ function sixToSevenElementHelper(elements, jmi2Users, jmi2Projects, jmi2Elements
  * updates to the user collection.
  *
  * @param {Array} users - The users being updated.
- * @param {Object} jmi2Users - The found users in JMI Type 2 format.
+ * @param {object} jmi2Users - The found users in JMI Type 2 format.
+ *
+ * @returns {Promise} Returns an empty promise upon completion.
  */
 function sixToSevenUserHelper(users, jmi2Users) {
   return new Promise((resolve, reject) => {
@@ -582,12 +515,12 @@ function sixToSevenUserHelper(users, jmi2Users) {
     });
 
     // Delete all users in the database
-    mongoose.connection.db.collection('users').deleteMany({})
+    User.deleteMany({})
     // Insert updated users
     .then(() => {
       // If there are users to add, add them
       if (usersToInsert.length > 0) {
-        mongoose.connection.db.collection('users').insertMany(usersToInsert);
+        User.insertMany(usersToInsert);
       }
     })
     .then(() => {

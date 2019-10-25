@@ -1,11 +1,16 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module test.502a-org-mock-core-tests
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
+ *
+ * @owner Connor Doyle
+ *
+ * @author Leah De Laurell
+ * @author Phillip Lee
  *
  * @description This tests mock requests of the API controller functionality:
  * GET, POST, PATCH, and DELETE organizations.
@@ -86,6 +91,8 @@ describe(M.getModuleName(module.filename), () => {
 /* --------------------( Tests )-------------------- */
 /**
  * @description Verifies mock POST request to create an organization.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function postOrg(done) {
   const orgData = testData.orgs[0];
@@ -108,11 +115,11 @@ function postOrg(done) {
     chai.expect(postedOrg.id).to.equal(orgData.id);
     chai.expect(postedOrg.name).to.equal(orgData.name);
     chai.expect(postedOrg.custom).to.deep.equal(orgData.custom || {});
-    chai.expect(postedOrg.permissions[adminUser.username]).to.equal('admin');
+    chai.expect(postedOrg.permissions[adminUser._id]).to.equal('admin');
 
     // Verify additional properties
-    chai.expect(postedOrg.createdBy).to.equal(adminUser.username);
-    chai.expect(postedOrg.lastModifiedBy).to.equal(adminUser.username);
+    chai.expect(postedOrg.createdBy).to.equal(adminUser._id);
+    chai.expect(postedOrg.lastModifiedBy).to.equal(adminUser._id);
     chai.expect(postedOrg.createdOn).to.not.equal(null);
     chai.expect(postedOrg.updatedOn).to.not.equal(null);
     chai.expect(postedOrg.archived).to.equal(false);
@@ -134,6 +141,8 @@ function postOrg(done) {
 
 /**
  * @description Verifies mock POST request to create multiple organizations.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function postOrgs(done) {
   // Create request object
@@ -167,11 +176,11 @@ function postOrgs(done) {
       chai.expect(postedOrg.id).to.equal(orgDataObject.id);
       chai.expect(postedOrg.name).to.equal(orgDataObject.name);
       chai.expect(postedOrg.custom).to.deep.equal(orgDataObject.custom || {});
-      chai.expect(postedOrg.permissions[adminUser.username]).to.equal('admin');
+      chai.expect(postedOrg.permissions[adminUser._id]).to.equal('admin');
 
       // Verify additional properties
-      chai.expect(postedOrg.createdBy).to.equal(adminUser.username);
-      chai.expect(postedOrg.lastModifiedBy).to.equal(adminUser.username);
+      chai.expect(postedOrg.createdBy).to.equal(adminUser._id);
+      chai.expect(postedOrg.lastModifiedBy).to.equal(adminUser._id);
       chai.expect(postedOrg.createdOn).to.not.equal(null);
       chai.expect(postedOrg.updatedOn).to.not.equal(null);
       chai.expect(postedOrg.archived).to.equal(false);
@@ -194,6 +203,8 @@ function postOrgs(done) {
 
 /**
  * @description Verifies mock PUT request to create/replace an organization.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function putOrg(done) {
   const orgData = testData.orgs[0];
@@ -216,11 +227,11 @@ function putOrg(done) {
     chai.expect(replacedOrg.id).to.equal(orgData.id);
     chai.expect(replacedOrg.name).to.equal(orgData.name);
     chai.expect(replacedOrg.custom).to.deep.equal(orgData.custom || {});
-    chai.expect(replacedOrg.permissions[adminUser.username]).to.equal('admin');
+    chai.expect(replacedOrg.permissions[adminUser._id]).to.equal('admin');
 
     // Verify additional properties
-    chai.expect(replacedOrg.createdBy).to.equal(adminUser.username);
-    chai.expect(replacedOrg.lastModifiedBy).to.equal(adminUser.username);
+    chai.expect(replacedOrg.createdBy).to.equal(adminUser._id);
+    chai.expect(replacedOrg.lastModifiedBy).to.equal(adminUser._id);
     chai.expect(replacedOrg.createdOn).to.not.equal(null);
     chai.expect(replacedOrg.updatedOn).to.not.equal(null);
     chai.expect(replacedOrg.archived).to.equal(false);
@@ -243,6 +254,8 @@ function putOrg(done) {
 /**
  * @description Verifies mock PUT request to create/replace multiple
  * organizations.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function putOrgs(done) {
   // Create request object
@@ -277,11 +290,11 @@ function putOrgs(done) {
       chai.expect(replacedOrg.id).to.equal(orgDataObject.id);
       chai.expect(replacedOrg.name).to.equal(orgDataObject.name);
       chai.expect(replacedOrg.custom).to.deep.equal(orgDataObject.custom || {});
-      chai.expect(replacedOrg.permissions[adminUser.username]).to.equal('admin');
+      chai.expect(replacedOrg.permissions[adminUser._id]).to.equal('admin');
 
       // Verify additional properties
-      chai.expect(replacedOrg.createdBy).to.equal(adminUser.username);
-      chai.expect(replacedOrg.lastModifiedBy).to.equal(adminUser.username);
+      chai.expect(replacedOrg.createdBy).to.equal(adminUser._id);
+      chai.expect(replacedOrg.lastModifiedBy).to.equal(adminUser._id);
       chai.expect(replacedOrg.createdOn).to.not.equal(null);
       chai.expect(replacedOrg.updatedOn).to.not.equal(null);
       chai.expect(replacedOrg.archived).to.equal(false);
@@ -304,6 +317,8 @@ function putOrgs(done) {
 
 /**
  * @description Verifies mock GET request to get an organization.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function getOrg(done) {
   // Create request object
@@ -325,11 +340,11 @@ function getOrg(done) {
     chai.expect(foundOrg.id).to.equal(testData.orgs[0].id);
     chai.expect(foundOrg.name).to.equal(testData.orgs[0].name);
     chai.expect(foundOrg.custom).to.deep.equal(testData.orgs[0].custom || {});
-    chai.expect(foundOrg.permissions[adminUser.username]).to.equal('admin');
+    chai.expect(foundOrg.permissions[adminUser._id]).to.equal('admin');
 
     // Verify additional properties
-    chai.expect(foundOrg.createdBy).to.equal(adminUser.username);
-    chai.expect(foundOrg.lastModifiedBy).to.equal(adminUser.username);
+    chai.expect(foundOrg.createdBy).to.equal(adminUser._id);
+    chai.expect(foundOrg.lastModifiedBy).to.equal(adminUser._id);
     chai.expect(foundOrg.createdOn).to.not.equal(null);
     chai.expect(foundOrg.updatedOn).to.not.equal(null);
     chai.expect(foundOrg.archived).to.equal(false);
@@ -351,6 +366,8 @@ function getOrg(done) {
 
 /**
  * @description Verifies mock GET request to get multiple organizations.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function getOrgs(done) {
   const orgData = [
@@ -386,11 +403,11 @@ function getOrgs(done) {
       chai.expect(foundOrg.id).to.equal(orgDataObject.id);
       chai.expect(foundOrg.name).to.equal(orgDataObject.name);
       chai.expect(foundOrg.custom).to.deep.equal(orgDataObject.custom || {});
-      chai.expect(foundOrg.permissions[adminUser.username]).to.equal('admin');
+      chai.expect(foundOrg.permissions[adminUser._id]).to.equal('admin');
 
       // Verify additional properties
-      chai.expect(foundOrg.createdBy).to.equal(adminUser.username);
-      chai.expect(foundOrg.lastModifiedBy).to.equal(adminUser.username);
+      chai.expect(foundOrg.createdBy).to.equal(adminUser._id);
+      chai.expect(foundOrg.lastModifiedBy).to.equal(adminUser._id);
       chai.expect(foundOrg.createdOn).to.not.equal(null);
       chai.expect(foundOrg.updatedOn).to.not.equal(null);
       chai.expect(foundOrg.archived).to.equal(false);
@@ -413,6 +430,8 @@ function getOrgs(done) {
 
 /**
  * @description Verifies mock GET request to get all organizations.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function getAllOrgs(done) {
   const orgData = [
@@ -450,11 +469,11 @@ function getAllOrgs(done) {
       chai.expect(foundOrg.id).to.equal(orgDataObject.id);
       chai.expect(foundOrg.name).to.equal(orgDataObject.name);
       chai.expect(foundOrg.custom).to.deep.equal(orgDataObject.custom || {});
-      chai.expect(foundOrg.permissions[adminUser.username]).to.equal('admin');
+      chai.expect(foundOrg.permissions[adminUser._id]).to.equal('admin');
 
       // Verify additional properties
-      chai.expect(foundOrg.createdBy).to.equal(adminUser.username);
-      chai.expect(foundOrg.lastModifiedBy).to.equal(adminUser.username);
+      chai.expect(foundOrg.createdBy).to.equal(adminUser._id);
+      chai.expect(foundOrg.lastModifiedBy).to.equal(adminUser._id);
       chai.expect(foundOrg.createdOn).to.not.equal(null);
       chai.expect(foundOrg.updatedOn).to.not.equal(null);
       chai.expect(foundOrg.archived).to.equal(false);
@@ -477,6 +496,8 @@ function getAllOrgs(done) {
 
 /**
  * @description Verifies mock PATCH request to update an organization.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function patchOrg(done) {
   // Create request object
@@ -497,11 +518,11 @@ function patchOrg(done) {
     chai.expect(patchedOrg.id).to.equal(testData.orgs[0].id);
     chai.expect(patchedOrg.name).to.equal(testData.orgs[1].name);
     chai.expect(patchedOrg.custom).to.deep.equal(testData.orgs[0].custom || {});
-    chai.expect(patchedOrg.permissions[adminUser.username]).to.equal('admin');
+    chai.expect(patchedOrg.permissions[adminUser._id]).to.equal('admin');
 
     // Verify additional properties
-    chai.expect(patchedOrg.createdBy).to.equal(adminUser.username);
-    chai.expect(patchedOrg.lastModifiedBy).to.equal(adminUser.username);
+    chai.expect(patchedOrg.createdBy).to.equal(adminUser._id);
+    chai.expect(patchedOrg.lastModifiedBy).to.equal(adminUser._id);
     chai.expect(patchedOrg.createdOn).to.not.equal(null);
     chai.expect(patchedOrg.updatedOn).to.not.equal(null);
     chai.expect(patchedOrg.archived).to.equal(false);
@@ -523,6 +544,8 @@ function patchOrg(done) {
 
 /**
  * @description Verifies mock PATCH request to update multiple orgs.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function patchOrgs(done) {
   // Create request object
@@ -561,11 +584,11 @@ function patchOrgs(done) {
       chai.expect(patchedOrg.id).to.equal(orgDataObject.id);
       chai.expect(patchedOrg.name).to.equal(testData.orgs[1].name);
       chai.expect(patchedOrg.custom).to.deep.equal(orgDataObject.custom);
-      chai.expect(patchedOrg.permissions[adminUser.username]).to.equal('admin');
+      chai.expect(patchedOrg.permissions[adminUser._id]).to.equal('admin');
 
       // Verify additional properties
-      chai.expect(patchedOrg.createdBy).to.equal(adminUser.username);
-      chai.expect(patchedOrg.lastModifiedBy).to.equal(adminUser.username);
+      chai.expect(patchedOrg.createdBy).to.equal(adminUser._id);
+      chai.expect(patchedOrg.lastModifiedBy).to.equal(adminUser._id);
       chai.expect(patchedOrg.createdOn).to.not.equal(null);
       chai.expect(patchedOrg.updatedOn).to.not.equal(null);
       chai.expect(patchedOrg.archived).to.equal(false);
@@ -588,6 +611,8 @@ function patchOrgs(done) {
 
 /**
  * @description Verifies mock DELETE request to delete an organization.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function deleteOrg(done) {
   // Create request object
@@ -623,6 +648,8 @@ function deleteOrg(done) {
 
 /**
  * @description Verifies mock DELETE request to delete multiple organizations.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function deleteOrgs(done) {
   // Create request object

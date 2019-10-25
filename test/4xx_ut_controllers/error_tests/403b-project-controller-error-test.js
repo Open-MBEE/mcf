@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module test.403b-project-controller-error-tests
  *
@@ -7,11 +7,21 @@
  *
  * @license MIT
  *
+ * @owner Connor Doyle
+ *
+ * @author Phillip Lee
+ *
  * @description This tests for expected errors within the project controller.
  */
 
 // NPM modules
 const chai = require('chai');
+const chaiAsPromised = require('chai-as-promised');
+
+// Use async chai
+chai.use(chaiAsPromised);
+// Initialize chai should function, used for expecting promise rejections
+const should = chai.should(); // eslint-disable-line no-unused-vars
 
 // MBEE modules
 const ProjectController = M.require('controllers.project-controller');
@@ -87,74 +97,70 @@ describe(M.getModuleName(module.filename), () => {
   });
 
   /* Execute the tests */
+  // -------------- Find --------------
+  // ------------- Create -------------
+  // ------------- Update -------------
+  // ------------- Replace ------------
   it('should reject put proj with invalid id', putInvalidId);
   it('should reject put proj without id', putWithoutId);
+  // ------------- Remove -------------
 });
 
 /* --------------------( Tests )-------------------- */
 /**
  * @description Verifies invalid Id PUT call does not delete existing projects.
  */
-function putInvalidId(done) {
+async function putInvalidId() {
   // Create the test project objects
   const testProjObj0 = testData.projects[0];
   const testProjObj1 = testData.projects[1];
   const invalidProjObj = { id: 'INVALID_ID', name: 'proj name' };
 
-  ProjectController.createOrReplace(adminUser, org.id,
+  await ProjectController.createOrReplace(adminUser, org.id,
     [testProjObj0, testProjObj1, invalidProjObj])
-  .then(() => {
-    // Should not succeed, force to fail
-    done(new Error('Project put successfully.'));
-  })
-  .catch((error) => {
-    // Verify the error message
-    chai.expect(error.message).to.equal('Project validation failed: _id: Path `_id` is invalid (testorg00:INVALID_ID).');
+  .should.eventually.be.rejectedWith(
+    `Project validation failed: _id: Invalid project ID [${invalidProjObj.id}].`
+  );
 
+  let foundProjs;
+  try {
     // Expected error, find valid projects
-    return ProjectController.find(adminUser, org.id, [testProjObj0.id, testProjObj1.id]);
-  })
-  .then((foundProjs) => {
-    // Expect to find 2 projects
-    chai.expect(foundProjs.length).to.equal(2);
-    done();
-  })
-  .catch((error) => {
-    chai.expect(error.message).to.equal(null);
-    done();
-  });
+    foundProjs = await ProjectController.find(adminUser,
+      org.id, [testProjObj0.id, testProjObj1.id]);
+  }
+  catch (error) {
+    M.log.error(error);
+    // There should be no error
+    should.not.exist(error);
+  }
+  // Expect to find 2 projects
+  foundProjs.length.should.equal(2);
 }
 
 /**
  * @description Verifies PUT call without Id does not delete existing projects.
  * Note: This test should fail prior to deletion of existing projects.
  */
-function putWithoutId(done) {
+async function putWithoutId() {
   // Create the test projects
   const testProjObj0 = testData.projects[0];
   const testProjObj1 = testData.projects[1];
   const invalidProjObj = { name: 'missing id' };
 
-  ProjectController.createOrReplace(adminUser, org.id,
+  await ProjectController.createOrReplace(adminUser, org.id,
     [testProjObj0, testProjObj1, invalidProjObj])
-  .then(() => {
-    // Should not succeed, force to fail
-    done(new Error('Project put successfully.'));
-  })
-  .catch((error) => {
-    // Expected error, find valid projects
-    ProjectController.find(adminUser, org.id, [testProjObj0.id, testProjObj1.id])
-    .then((foundProjs) => {
-      // Verify the error message
-      chai.expect(error.message).to.equal('Project #3 does not have an id.');
+  .should.eventually.be.rejectedWith('Project #3 does not have an id.');
 
-      // Expect to find 2 projects
-      chai.expect(foundProjs.length).to.equal(2);
-      done();
-    })
-    .catch((err) => {
-      chai.expect(err.message).to.equal(null);
-      done();
-    });
-  });
+  let foundProjs;
+  try {
+    foundProjs = await ProjectController.find(adminUser,
+      org.id, [testProjObj0.id, testProjObj1.id]);
+  }
+  catch (error) {
+    M.log.error(error);
+    // There should be no error
+    should.not.exist(error);
+  }
+  // Expect to find 2 projects
+  foundProjs.length.should.equal(2);
 }

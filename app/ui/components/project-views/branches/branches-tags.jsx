@@ -1,11 +1,15 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
- * @module ui.components.profile-views.profile-home
+ * @module ui.components.project-views.branches.branches-tags
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
+ *
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
  *
  * @description This renders a branches and tags page.
  */
@@ -13,11 +17,11 @@
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
 
-// React Modules
+// React modules
 import React, { Component } from 'react';
 import { Button, Modal, ModalBody, UncontrolledTooltip } from 'reactstrap';
 
-// MBEE Modules
+// MBEE modules
 import BoxList from '../../general/box-list.jsx';
 import CreateBranch from './branch-new.jsx';
 import BranchListItem from '../../shared-views/list-items/branch-list-item.jsx';
@@ -96,16 +100,16 @@ class BranchesTags extends Component {
     const orgId = this.props.project.org;
     const projId = this.props.project.id;
     const page = Number(differentPage) || Number(this.state.pages.branch);
-    let opts = 'archived=true&tag=false&minified=true&limit=6';
+    let opts = 'includeArchived=true&tag=false&minified=true&limit=6';
     const base = `/api/orgs/${orgId}/projects/${projId}/branches`;
     // Verify needed get request options
     if ((retrieving === 'next') || differentPage) {
       const skipNum = (page * 6) - 1;
-      opts = `archived=true&tag=false&minified=true&limit=6&skip=${skipNum}`;
+      opts = `includeArchived=true&tag=false&minified=true&limit=6&skip=${skipNum}`;
     }
     else if ((retrieving === 'back') && (page !== 2)) {
       const skipNum = ((page - 1) * 6) - 6;
-      opts = `archived=true&tag=false&minified=true&limit=6&skip=${skipNum}`;
+      opts = `includeArchived=true&tag=false&minified=true&limit=6&skip=${skipNum}`;
     }
 
     const url = `${base}?${opts}`;
@@ -154,16 +158,16 @@ class BranchesTags extends Component {
     const orgId = this.props.project.org;
     const projId = this.props.project.id;
     const page = Number(differentPage) || Number(this.state.pages.tag);
-    let opts = 'archived=true&tag=true&minified=true&limit=6';
+    let opts = 'includeArchived=true&tag=true&minified=true&limit=6';
     const base = `/api/orgs/${orgId}/projects/${projId}/branches`;
     // Verify needed get request options
     if ((retrieving === 'next') || differentPage) {
       const skipNum = (page * 6) - 1;
-      opts = `archived=true&tag=true&minified=true&limit=6&skip=${skipNum}`;
+      opts = `includeArchived=true&tag=true&minified=true&limit=6&skip=${skipNum}`;
     }
     else if ((retrieving === 'back') && (page !== 2)) {
       const skipNum = ((page - 1) * 6) - 6;
-      opts = `archived=true&tag=true&minified=true&limit=6&skip=${skipNum}`;
+      opts = `includeArchived=true&tag=true&minified=true&limit=6&skip=${skipNum}`;
     }
 
     const url = `${base}?${opts}`;
@@ -370,7 +374,7 @@ class BranchesTags extends Component {
                   branch={this.state.branchSelected}/>
           </ModalBody>
         </Modal>
-        <div id='workspace-header' className='workspace-header header-box-depth'>
+        <div className='workspace-header header-box-depth'>
           <h2 className={btnDisClassName}>Branches / Tags</h2>
           { /* Verify user is an admin or write permissions */}
           {(!displayBtns)

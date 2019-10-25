@@ -1,11 +1,18 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module lib.get-public-data
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
+ *
+ * @owner Connor Doyle
+ *
+ * @author Austin Bieber
+ * @author Phillip Lee
+ * @author Leah De Laurell
+ * @author Connor Doyle
  *
  * @description Defines functions for returning JSON public data.
  */
@@ -22,10 +29,9 @@ const utils = M.require('lib.utils');
  * being returned.
  * @param {string} type - The type of item that the object is. Can be an org,
  * project, element or user.
- * @param {Object} options - A list of options passed in by the user to the API
- * Controller
+ * @param {object} options - A list of options passed in by the user to the API Controller.
  *
- * @return {object} The modified object.
+ * @returns {object} The modified object.
  */
 module.exports.getPublicData = function(object, type, options) {
   // If options is undefined, set it equal to an empty object
@@ -35,6 +41,8 @@ module.exports.getPublicData = function(object, type, options) {
 
   // Call correct getPublicData() function
   switch (type.toLowerCase()) {
+    case 'artifact':
+      return getArtifactPublicData(object, options);
     case 'element':
       return getElementPublicData(object, options);
     case 'branch':
@@ -51,13 +59,137 @@ module.exports.getPublicData = function(object, type, options) {
 };
 
 /**
- * @description Returns an elements public data
+ * @description Returns an artifacts public data.
+ *
+ * @param {object} artifact - The raw JSON of the artifact.
+ * @param {object} options - A list of options passed in by the user to
+ * the API Controller.
+ *
+ * @returns {object} The public data of the artifact.
+ */
+function getArtifactPublicData(artifact, options) {
+  // Parse the artifact ID
+  const idParts = utils.parseID(artifact._id);
+
+  let createdBy = null;
+  let lastModifiedBy = null;
+  let archivedBy;
+  let project;
+  let branch;
+
+  // If artifact.createdBy is defined
+  if (artifact.createdBy) {
+    // If artifact.createdBy is populated
+    if (typeof artifact.createdBy === 'object') {
+      // Get the public data of createdBy
+      createdBy = getUserPublicData(artifact.createdBy, {});
+    }
+    else {
+      createdBy = artifact.createdBy;
+    }
+  }
+
+  // If artifact.lastModifiedBy is defined
+  if (artifact.lastModifiedBy) {
+    // If artifact.lastModifiedBy is populated
+    if (typeof artifact.lastModifiedBy === 'object') {
+      // Get the public data of lastModifiedBy
+      lastModifiedBy = getUserPublicData(artifact.lastModifiedBy, {});
+    }
+    else {
+      lastModifiedBy = artifact.lastModifiedBy;
+    }
+  }
+
+  // If artifact.archivedBy is defined
+  if (artifact.archivedBy && artifact.archived) {
+    // If artifact.archivedBy is populated
+    if (typeof artifact.archivedBy === 'object') {
+      // Get the public data of archivedBy
+      archivedBy = getUserPublicData(artifact.archivedBy, {});
+    }
+    else {
+      archivedBy = artifact.archivedBy;
+    }
+  }
+
+  // If artifact.branch is defined
+  if (artifact.branch) {
+    // If artifact.branch is populated
+    if (typeof artifact.branch === 'object') {
+      // Get the public data of branch
+      branch = getBranchPublicData(artifact.branch, {});
+    }
+    else {
+      branch = utils.parseID(artifact.branch).pop();
+    }
+  }
+
+  // If artifact.project is defined
+  if (artifact.project) {
+    // If artifact.project is populated
+    if (typeof artifact.project === 'object') {
+      // Get the public data of project
+      project = getProjectPublicData(artifact.project, {});
+    }
+    else {
+      project = idParts[1];
+    }
+  }
+
+  const data = {
+    id: idParts.pop(),
+    name: artifact.name,
+    branch: branch,
+    project: project,
+    org: idParts[0],
+    filename: artifact.filename,
+    location: artifact.location,
+    strategy: artifact.strategy,
+    custom: artifact.custom || {},
+    createdOn: (artifact.createdOn) ? artifact.createdOn.toString() : undefined,
+    createdBy: createdBy,
+    updatedOn: (artifact.updatedOn) ? artifact.updatedOn.toString() : undefined,
+    lastModifiedBy: lastModifiedBy,
+    archived: artifact.archived,
+    archivedOn: (artifact.archivedOn) ? artifact.archivedOn.toString() : undefined,
+    archivedBy: archivedBy
+  };
+
+  // If the fields options is defined
+  if (options.hasOwnProperty('fields')) {
+    // If fields should be excluded
+    if (options.fields.every(f => f.startsWith('-'))) {
+      // For each of those fields
+      options.fields.forEach((f) => {
+        // If -id, ignore it
+        if (f === '-id') {
+          return;
+        }
+        // Remove the field from data
+        data[f.slice(1)] = undefined;
+      });
+    }
+    // If only specific fields should be included
+    else if (options.fields.every(f => !f.startsWith('-'))) {
+      const returnObj = { id: data.id };
+      // Add specific field to returnObj
+      options.fields.forEach((f) => {
+        returnObj[f] = (data.hasOwnProperty(f)) ? data[f] : undefined;
+      });
+      return returnObj;
+    }
+  }
+  return data;
+}
+
+/**
+ * @description Returns an elements public data.
  *
  * @param {object} element - The raw JSON of the element.
- * @param {Object} options - A list of options passed in by the user to the API
- * Controller
+ * @param {object} options - A list of options passed in by the user to the API Controller.
  *
- * @return {object} The public data of the element.
+ * @returns {object} The public data of the element.
  */
 function getElementPublicData(element, options) {
   // Parse the element ID
@@ -226,7 +358,7 @@ function getElementPublicData(element, options) {
     // If all contents are objects (they should be)
     if (element.contains.every(e => typeof e === 'object')) {
       // If the archived option is supplied
-      if (options.hasOwnProperty('archived') && options.archived === true) {
+      if (options.hasOwnProperty('includeArchived') && options.includeArchived === true) {
         // If the user specified 'contains' in the populate field of options
         if (options.populate && options.populate.includes('contains')) {
           data.contains = element.contains.map(e => getElementPublicData(e, {}));
@@ -253,7 +385,7 @@ function getElementPublicData(element, options) {
     // If all contents are objects (they should be)
     if (element.sourceOf.every(e => typeof e === 'object')) {
       // If the archived option is supplied
-      if (options.hasOwnProperty('archived') && options.archived === true) {
+      if (options.hasOwnProperty('includeArchived') && options.includeArchived === true) {
         // If user is populating sourceOf, return objects else just ids
         if (options.populate && options.populate.includes('sourceOf')) {
           data.sourceOf = element.sourceOf.map(e => getElementPublicData(e, {}));
@@ -281,7 +413,7 @@ function getElementPublicData(element, options) {
     // If all contents are objects (they should be)
     if (element.targetOf.every(e => typeof e === 'object')) {
       // If the archived option is supplied
-      if (options.hasOwnProperty('archived') && options.archived === true) {
+      if (options.hasOwnProperty('includeArchived') && options.includeArchived === true) {
         // If user is populating targetOf, return objects else just ids
         if (options.populate && options.populate.includes('targetOf')) {
           data.targetOf = element.targetOf.map(e => getElementPublicData(e, {}));
@@ -332,13 +464,12 @@ function getElementPublicData(element, options) {
 }
 
 /**
- * @description Returns a branch public data
+ * @description Returns a branch public data.
  *
  * @param {object} branch - The raw JSON of the branch.
- * @param {Object} options - A list of options passed in by the user to the API
- * Controller
+ * @param {object} options - A list of options passed in by the user to the API Controller.
  *
- * @return {object} The public data of the branch.
+ * @returns {object} The public data of the branch.
  */
 function getBranchPublicData(branch, options) {
   // Parse the branch ID
@@ -456,13 +587,12 @@ function getBranchPublicData(branch, options) {
 }
 
 /**
- * @description Returns a projects public data
+ * @description Returns a projects public data.
  *
  * @param {object} project - The raw JSON of the project.
- * @param {Object} options - A list of options passed in by the user to the API
- * Controller
+ * @param {object} options - A list of options passed in by the user to the API Controller.
  *
- * @return {object} The public data of the project.
+ * @returns {object} The public data of the project.
  */
 function getProjectPublicData(project, options) {
   const permissions = (project.permissions) ? {} : undefined;
@@ -560,13 +690,12 @@ function getProjectPublicData(project, options) {
 }
 
 /**
- * @description Returns an orgs public data
+ * @description Returns an orgs public data.
  *
  * @param {object} org - The raw JSON of the org.
- * @param {Object} options - A list of options passed in by the user to the API
- * Controller
+ * @param {object} options - A list of options passed in by the user to the API Controller.
  *
- * @return {object} The public data of the org.
+ * @returns {object} The public data of the org.
  */
 function getOrgPublicData(org, options) {
   const permissions = (org.permissions) ? {} : undefined;
@@ -622,7 +751,7 @@ function getOrgPublicData(org, options) {
     // If all contents are objects (they should be)
     if (org.projects.every(p => typeof p === 'object')) {
       // If the archived option is supplied
-      if (options.hasOwnProperty('archived') && options.archived === true) {
+      if (options.hasOwnProperty('includeArchived') && options.includeArchived === true) {
         projects = org.projects.map(p => getProjectPublicData(p, { archived: true }));
       }
       else {
@@ -678,13 +807,12 @@ function getOrgPublicData(org, options) {
 }
 
 /**
- * @description Returns a users public data
+ * @description Returns a users public data.
  *
  * @param {object} user - The raw JSON of the user.
- * @param {Object} options - A list of options passed in by the user to the API
- * Controller
+ * @param {object} options - A list of options passed in by the user to the API Controller.
  *
- * @return {object} The public data of the user.
+ * @returns {object} The public data of the user.
  */
 function getUserPublicData(user, options) {
   let createdBy = null;
@@ -729,7 +857,6 @@ function getUserPublicData(user, options) {
 
   const data = {
     username: user._id,
-    name: (user.fname && user.lname) ? user.name : undefined,
     fname: user.fname,
     preferredName: user.preferredName,
     lname: user.lname,
@@ -743,7 +870,8 @@ function getUserPublicData(user, options) {
     archivedOn: (user.archivedOn) ? user.archivedOn.toString() : undefined,
     archivedBy: archivedBy,
     admin: user.admin,
-    provider: user.provider
+    provider: user.provider,
+    failedlogins: (options.failedlogins) ? user.failedlogins : undefined
   };
 
   // If the fields options is defined

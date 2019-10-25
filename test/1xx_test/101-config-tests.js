@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module test.101-config-tests
  *
@@ -7,11 +7,15 @@
  *
  * @license MIT
  *
+ * @owner Connor Doyle
+ *
+ * @author Leah De Laurell
+ *
  * @description Tests the configuration was properly loaded into the global M
  * object. For now, it only tests the version number.
  */
 
-// Node modules
+// NPM modules
 const chai = require('chai');
 
 /* --------------------( Main )-------------------- */
@@ -30,25 +34,22 @@ describe(M.getModuleName(module.filename), () => {
 /**
  * @description Verifies the environment.
  */
-function environmentCheck(done) {
+async function environmentCheck() {
   // Verify inputted environment is configuration environment
   const processEnv = process.env.MBEE_ENV;
   if (typeof processEnv !== 'undefined') {
     chai.expect(processEnv).to.equal(M.env);
-    done();
   }
   else {
     chai.expect(M.env).to.equal('default');
-    done();
   }
 }
 
 /**
  * @description Verifies the configuration file.
  */
-function configCheck(done) {
+async function configCheck() {
   // Verify config file has properties db and auth
   chai.expect(M.config).hasOwnProperty('db');
   chai.expect(M.config).hasOwnProperty('auth');
-  done();
 }

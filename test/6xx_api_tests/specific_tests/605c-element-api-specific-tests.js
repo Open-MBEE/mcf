@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module test.605c-element-api-specific-tests
  *
@@ -7,16 +7,22 @@
  *
  * @license MIT
  *
+ * @owner Connor Doyle
+ *
+ * @author Connor Doyle
+ *
  * @description This tests specific functionality of the element API:
  * GET, POST, PATCH, and DELETE of an element.
  */
 
-// NPM modules
-const chai = require('chai');
-const request = require('request');
+// Node modules
 const path = require('path');
 const fs = require('fs');
 const zlib = require('zlib');
+
+// NPM modules
+const chai = require('chai');
+const request = require('request');
 
 // MBEE modules
 const db = M.require('lib.db');
@@ -43,53 +49,42 @@ describe(M.getModuleName(module.filename), () => {
   /**
    * Before: Create admin, organization, and project.
    */
-  before((done) => {
-    // Open the database connection
-    db.connect()
-    // Create test admin
-    .then(() => testUtils.createTestAdmin())
-    .then((user) => {
-      // Set admin global user
-      adminUser = user;
-
+  before(async () => {
+    try {
+      // Open the database connection
+      await db.connect();
+      // Create test admin
+      adminUser = await testUtils.createTestAdmin();
       // Create org
-      return testUtils.createTestOrg(adminUser);
-    })
-    .then((retOrg) => {
-      org = retOrg;
-
+      org = await testUtils.createTestOrg(adminUser);
       // Create project
-      return testUtils.createTestProject(adminUser, org.id);
-    })
-    .then((retProj) => {
+      const retProj = await testUtils.createTestProject(adminUser, org.id);
       projID = utils.parseID(retProj.id).pop();
-      done();
-    })
-    .catch((error) => {
+    }
+    catch (error) {
       M.log.error(error);
       // Expect no error
       chai.expect(error.message).to.equal(null);
-      done();
-    });
+    }
   });
 
   /**
-   * After: Delete organization and admin user
+   * After: Delete organization and admin user.
    */
-  after((done) => {
-    // Delete organization
-    testUtils.removeTestOrg(adminUser)
-    // Delete admin user
-    .then(() => testUtils.removeTestAdmin())
-    .then(() => fs.unlinkSync(zipfilepath))
-    .then(() => db.disconnect())
-    .then(() => done())
-    .catch((error) => {
+  after(async () => {
+    try {
+      // Delete organization
+      await testUtils.removeTestOrg(adminUser);
+      // Delete admin user
+      await testUtils.removeTestAdmin();
+      await fs.unlinkSync(zipfilepath);
+      await db.disconnect();
+    }
+    catch (error) {
       M.log.error(error);
       // Expect no error
       chai.expect(error).to.equal(null);
-      done();
-    });
+    }
   });
 
   /* Execute the tests */
@@ -101,6 +96,8 @@ describe(M.getModuleName(module.filename), () => {
 /**
  * @description Verifies that a gzip file can be uploaded, unzipped, and
  * the contents can be used to create elements.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function handleGzipUpload(done) {
   const elementData = testData.elements[0];

@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module ui.components.general.custom-data.key-data
  *
@@ -7,13 +7,17 @@
  *
  * @license MIT
  *
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ *
  * @description This renders the custom data keys and value pairs.
  */
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
 
-// React Modules
+// React modules
 import React, { Component } from 'react';
 /* eslint-enable no-unused-vars */
 
@@ -71,13 +75,17 @@ class KeyData extends Component {
         const nests = [];
 
         // Verify type of data
-        if (typeof data === 'object') {
+        if (typeof data === 'object' && data) {
           // Loop through data for recursive call
           nestedData = Object.keys(data).map((key) => nests.push(<KeyData key={`key-${key}`} keyName={key} data={data[key]}/>));
         }
+        else if (!data) {
+          nests.push(<span className='last-element'>{'null'}</span>);
+        }
         else {
           // Display the data
-          nests.push(<span className='last-element'>{data}</span>);
+          /* eslint-disable-next-line no-undef */
+          nests.push(<span className='last-element'>{decodeHTML(data)}</span>);
         }
 
         // Return the array
@@ -86,7 +94,7 @@ class KeyData extends Component {
       // custom =
     }
     // Verify type is object
-    else if (typeof custom === 'object') {
+    else if (typeof custom === 'object' && custom) {
       // Loop through object for recursive call
       nestedData = Object.keys(custom).map((key) => <KeyData key={`key-${key}`} keyName={key} data={custom[key]}/>);
     }
@@ -96,8 +104,12 @@ class KeyData extends Component {
         ? (<span className='last-element'>true</span>)
         : (<span className='last-element'>false</span>);
     }
+    else if (!custom) {
+      nestedData = (<span className='last-element'>{'null'}</span>);
+    }
     else {
-      nestedData = (<span className='last-element'>{custom}</span>);
+      /* eslint-disable-next-line no-undef */
+      nestedData = (<span className='last-element'>{decodeHTML(custom)}</span>);
     }
 
     return (

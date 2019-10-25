@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module ui.components.shared-views.delete
  *
@@ -7,13 +7,17 @@
  *
  * @license MIT
  *
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ *
  * @description This renders the delete page.
  */
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
 
-// React Modules
+// React modules
 import React, { Component } from 'react';
 import { Form, FormGroup, Label, Input, Button, UncontrolledAlert } from 'reactstrap';
 
@@ -198,7 +202,7 @@ class Delete extends Component {
     // Return the project delete form
     return (
       <div id='workspace'>
-        <div id='workspace-header' className='workspace-header'>
+        <div className='workspace-header'>
           <h2 className='workspace-title workspace-title-padding'>
             Delete {title}
           </h2>

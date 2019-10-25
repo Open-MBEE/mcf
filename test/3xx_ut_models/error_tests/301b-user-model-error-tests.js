@@ -1,25 +1,37 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
- * @module test.301b-user-model-tests
+ * @module test.301b-user-model-error-tests
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
  *
+ * @owner Connor Doyle
+ *
+ * @author Austin Bieber
+ *
  * @description Tests for expected errors within the user model.
  */
 
-// Node modules
+// NPM modules
 const chai = require('chai');
+const chaiAsPromised = require('chai-as-promised');
+
+// Use async chai
+chai.use(chaiAsPromised);
+// Initialize chai should function, used for expecting promise rejections
+const should = chai.should(); // eslint-disable-line no-unused-vars
 
 // MBEE modules
 const User = M.require('models.user');
 const db = M.require('lib.db');
+const validators = M.require('lib.validators');
 
 /* --------------------( Test Data )-------------------- */
 const testUtils = M.require('lib.test-utils');
 const testData = testUtils.importTestData('test_data.json');
+const customValidators = M.config.validators || {};
 
 /* --------------------( Main )-------------------- */
 /**
@@ -30,7 +42,7 @@ const testData = testUtils.importTestData('test_data.json');
  */
 describe(M.getModuleName(module.filename), () => {
   /**
-   * Before: runs before all tests. Open the database connection.
+   * Before: runs before all tests. Open database connection.
    */
   before((done) => {
     db.connect()
@@ -56,182 +68,154 @@ describe(M.getModuleName(module.filename), () => {
   /* Execute the tests */
   it('should reject when a username is too short', usernameTooShort);
   it('should reject when a username is too long', usernameTooLong);
-  it('should reject when a first name is too long', fnameTooLong);
-  it('should reject when a last name is too long', lnameTooLong);
-  it('should reject when a preferred name is too long', preferredNameTooLong);
+  it('should reject with an invalid username', usernameInvalid);
+  it('should reject with an invalid first name', fnameInvalid);
+  it('should reject with an invalid last name', lnameInvalid);
+  it('should reject with an invalid preferred name', preferredNameInvalid);
   it('should reject if the admin field is not a boolean', adminNotBoolean);
   it('should reject if the provider field is not a string', providerNotString);
   it('should reject if no username (_id) is provided', usernameNotProvided);
+  it('should reject with an invalid email', emailInvalid);
 });
 
 /* --------------------( Tests )-------------------- */
 /**
  * @description Attempts to create a user with a username that is too short.
  */
-function usernameTooShort(done) {
+async function usernameTooShort() {
   const userData = Object.assign({}, testData.users[0]);
 
   // Change username to be too short.
   userData._id = 'ab';
 
   // Create user object
-  const userObject = new User(userData);
+  const userObject = User.createDocument(userData);
 
   // Save user
-  userObject.save()
-  .then(() => {
-    // Should not succeed, force to fail
-    chai.assert.fail(true, false, 'User created successfully.');
-  })
-  .catch((error) => {
-    // If user created successfully, fail the test
-    if (error.message === 'User created successfully.') {
-      done(error);
-    }
-    else {
-      // Ensure error message is correct
-      chai.expect(error.message).to.equal('User validation failed: _id: '
-        + 'Too few characters in username');
-      done();
-    }
-  });
+  await userObject.save().should.eventually.be.rejectedWith('User validation failed: '
+    + `_id: Username length [${userData._id.length}] must not be less than 3 characters.`);
 }
 
 /**
  * @description Attempts to create a user with a username that is too long.
  */
-function usernameTooLong(done) {
+async function usernameTooLong() {
   const userData = Object.assign({}, testData.users[0]);
 
   // Change username to be too long.
   userData._id = 'usernamewiththirtysevencharacters1234';
 
   // Create user object
-  const userObject = new User(userData);
+  const userObject = User.createDocument(userData);
 
   // Save user
-  userObject.save()
-  .then(() => {
-    // Should not succeed, force to fail
-    chai.assert.fail(true, false, 'User created successfully.');
-  })
-  .catch((error) => {
-    // If user created successfully, fail the test
-    if (error.message === 'User created successfully.') {
-      done(error);
-    }
-    else {
-      // Ensure error message is correct
-      chai.expect(error.message).to.equal('User validation failed: _id: '
-        + 'Too many characters in username');
-      done();
-    }
-  });
+  await userObject.save().should.eventually.be.rejectedWith('User validation failed: '
+    + `_id: Username length [${userData._id.length}] must not be more than `
+    + `${validators.user.usernameLength} characters.`);
 }
 
 /**
- * @description Attempts to create a user with a first name that is too long.
+ * @description Attempts to create a user with an invalid username.
  */
-function fnameTooLong(done) {
-  const userData = Object.assign({}, testData.users[0]);
-  userData._id = userData.username;
+async function usernameInvalid() {
+  if (customValidators.hasOwnProperty('user_username')) {
+    M.log.verbose('Skipping valid username test due to an existing custom'
+      + ' validator.');
+    this.skip();
+  }
 
-  // Change fname to be too long.
-  userData.fname = 'thisusersfnameisthirtysevencharacters';
+  const userData = Object.assign({}, testData.users[0]);
+
+  // Change username to be invalid
+  userData._id = 'Inva3l!d_UserN&me';
 
   // Create user object
-  const userObject = new User(userData);
+  const userObject = User.createDocument(userData);
 
   // Save user
-  userObject.save()
-  .then(() => {
-    // Should not succeed, force to fail
-    chai.assert.fail(true, false, 'User created successfully.');
-  })
-  .catch((error) => {
-    // If user created successfully, fail the test
-    if (error.message === 'User created successfully.') {
-      done(error);
-    }
-    else {
-      // Ensure error message is correct
-      chai.expect(error.message).to.equal('User validation failed: fname: '
-        + 'Too many characters in first name');
-      done();
-    }
-  });
+  await userObject.save().should.eventually.be.rejectedWith('User validation failed: _id: '
+    + `Invalid username [${userData._id}].`);
 }
 
 /**
- * @description Attempts to create a user with a last name that is too long.
+ * @description Attempts to create a user with an invalid first name.
  */
-function lnameTooLong(done) {
+async function fnameInvalid() {
+  if (customValidators.hasOwnProperty('user_fname')) {
+    M.log.verbose('Skipping valid first name test due to an existing custom'
+      + ' validator.');
+    this.skip();
+  }
+
   const userData = Object.assign({}, testData.users[0]);
   userData._id = userData.username;
 
-  // Change lname to be too long.
-  userData.lname = 'thisuserslnameisthirtysevencharacters';
+  // Change first name to be invalid
+  userData.fname = 'Inva3l!d_FirstN&me';
 
   // Create user object
-  const userObject = new User(userData);
+  const userObject = User.createDocument(userData);
 
   // Save user
-  userObject.save()
-  .then(() => {
-    // Should not succeed, force to fail
-    chai.assert.fail(true, false, 'User created successfully.');
-  })
-  .catch((error) => {
-    // If user created successfully, fail the test
-    if (error.message === 'User created successfully.') {
-      done(error);
-    }
-    else {
-      // Ensure error message is correct
-      chai.expect(error.message).to.equal('User validation failed: lname: '
-        + 'Too many characters in last name');
-      done();
-    }
-  });
+  await userObject.save().should.eventually.be.rejectedWith('User validation failed: fname: '
+    + `Invalid first name [${userData.fname}].`);
 }
+
 
 /**
- * @description Attempts to create a user with a preferred name that's too long.
+ * @description Attempts to create a user with an invalid last name.
  */
-function preferredNameTooLong(done) {
+async function lnameInvalid() {
+  if (customValidators.hasOwnProperty('user_lname')) {
+    M.log.verbose('Skipping valid last name test due to an existing custom'
+      + ' validator.');
+    this.skip();
+  }
+
   const userData = Object.assign({}, testData.users[0]);
   userData._id = userData.username;
 
-  // Change preferredName to be too long.
-  userData.preferredName = 'apreferrednameisthirtysevencharacters';
+  // Change last name to be invalid
+  userData.lname = 'Inva3l!d_LastN&me';
 
   // Create user object
-  const userObject = new User(userData);
+  const userObject = User.createDocument(userData);
 
   // Save user
-  userObject.save()
-  .then(() => {
-    // Should not succeed, force to fail
-    chai.assert.fail(true, false, 'User created successfully.');
-  })
-  .catch((error) => {
-    // If user created successfully, fail the test
-    if (error.message === 'User created successfully.') {
-      done(error);
-    }
-    else {
-      // Ensure error message is correct
-      chai.expect(error.message).to.equal('User validation failed: '
-        + 'preferredName: Too many characters in preferred name');
-      done();
-    }
-  });
+  await userObject.save().should.eventually.be.rejectedWith('User validation failed: lname: '
+    + `Invalid last name [${userData.lname}].`);
 }
+
+
+/**
+ * @description Attempts to create a user with an invalid preferred name.
+ */
+async function preferredNameInvalid() {
+  if (customValidators.hasOwnProperty('user_fname')) {
+    M.log.verbose('Skipping valid preferred name test due to an existing custom'
+      + ' validator.');
+    this.skip();
+  }
+
+  const userData = Object.assign({}, testData.users[0]);
+  userData._id = userData.username;
+
+  // Change preferred name to be invalid
+  userData.preferredName = 'Inva3l!d_PreferredN&me';
+
+  // Create user object
+  const userObject = User.createDocument(userData);
+
+  // Save user
+  await userObject.save().should.eventually.be.rejectedWith('User validation failed: '
+    + `preferredName: Invalid preferred name [${userData.preferredName}].`);
+}
+
 
 /**
  * @description Attempts to create a user with an admin that's not a boolean.
  */
-function adminNotBoolean(done) {
+async function adminNotBoolean() {
   const userData = Object.assign({}, testData.users[0]);
   userData._id = userData.username;
 
@@ -239,32 +223,17 @@ function adminNotBoolean(done) {
   userData.admin = 123;
 
   // Create user object
-  const userObject = new User(userData);
+  const userObject = User.createDocument(userData);
 
   // Save user
-  userObject.save()
-  .then(() => {
-    // Should not succeed, force to fail
-    chai.assert.fail(true, false, 'User created successfully.');
-  })
-  .catch((error) => {
-    // If user created successfully, fail the test
-    if (error.message === 'User created successfully.') {
-      done(error);
-    }
-    else {
-      // Ensure error message is correct
-      chai.expect(error.message).to.equal('User validation failed: admin: '
-        + 'Cast to Boolean failed for value "123" at path "admin"');
-      done();
-    }
-  });
+  userObject.save().should.eventually.be.rejectedWith('User validation failed: admin: '
+    + 'Cast to Boolean failed for value "123" at path "admin"');
 }
 
 /**
  * @description Attempts to create a user with a provider that's not a string.
  */
-function providerNotString(done) {
+async function providerNotString() {
   const userData = Object.assign({}, testData.users[0]);
   userData._id = userData.username;
 
@@ -272,53 +241,47 @@ function providerNotString(done) {
   userData.provider = {};
 
   // Create user object
-  const userObject = new User(userData);
+  const userObject = User.createDocument(userData);
 
   // Save user
-  userObject.save()
-  .then(() => {
-    // Should not succeed, force to fail
-    chai.assert.fail(true, false, 'User created successfully.');
-  })
-  .catch((error) => {
-    // If user created successfully, fail the test
-    if (error.message === 'User created successfully.') {
-      done(error);
-    }
-    else {
-      // Ensure error message is correct
-      chai.expect(error.message).to.equal('User validation failed: provider: '
-        + 'Cast to String failed for value "{}" at path "provider"');
-      done();
-    }
-  });
+  userObject.save().should.eventually.be.rejectedWith('User validation failed: provider: '
+    + 'Cast to String failed for value "{}" at path "provider"');
 }
 
 /**
- * @description Attempts to create a user with no username.
+ * @description Attempts to create a user with no username (_id).
  */
-function usernameNotProvided(done) {
+async function usernameNotProvided() {
   const userData = Object.assign({}, testData.users[0]);
 
   // Create user object
-  const userObject = new User(userData);
+  const userObject = User.createDocument(userData);
 
   // Save user
-  userObject.save()
-  .then(() => {
-    // Should not succeed, force to fail
-    chai.assert.fail(true, false, 'User created successfully.');
-  })
-  .catch((error) => {
-    // If user created successfully, fail the test
-    if (error.message === 'User created successfully.') {
-      done(error);
-    }
-    else {
-      // Ensure error message is correct
-      chai.expect(error.message).to.equal('User validation failed: _id: '
-          + 'Username is required.');
-      done();
-    }
-  });
+  userObject.save().should.eventually.be.rejectedWith('User validation failed: _id: '
+    + 'Username is required.');
+}
+
+/**
+ * @description Attempts to create a user with an invalid email.
+ */
+async function emailInvalid() {
+  if (customValidators.hasOwnProperty('user_email')) {
+    M.log.verbose('Skipping valid email test due to an existing custom'
+      + ' validator.');
+    this.skip();
+  }
+
+  const userData = Object.assign({}, testData.users[0]);
+  userData._id = userData.username;
+
+  // Change email to be invalid
+  userData.email = 'invalid_email';
+
+  // Create user object
+  const userObject = User.createDocument(userData);
+
+  // Save user
+  await userObject.save().should.eventually.be.rejectedWith('User validation failed: email: '
+    + `Invalid email [${userData.email}].`);
 }

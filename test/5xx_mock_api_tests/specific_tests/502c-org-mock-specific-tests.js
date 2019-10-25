@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module test.502c-org-mock-specific-tests
  *
@@ -7,15 +7,21 @@
  *
  * @license MIT
  *
+ * @owner Connor Doyle
+ *
+ * @author Connor Doyle
+ *
  * @description This tests mock requests of the API controller functionality:
  * GET, POST, PATCH, and DELETE orgs.
  */
 
-// NPM modules
-const chai = require('chai');
+// Node modules
 const path = require('path');
 const fs = require('fs');
 const zlib = require('zlib');
+
+// NPM modules
+const chai = require('chai');
 
 // MBEE modules
 const OrgController = M.require('controllers.organization-controller');
@@ -39,40 +45,35 @@ describe(M.getModuleName(module.filename), () => {
   /**
    * After: Connect to database. Create an admin user.
    */
-  before((done) => {
-    // Open the database connection
-    db.connect()
-    // Create test admin
-    .then(() => testUtils.createTestAdmin())
-    .then((_adminUser) => {
-      // Set global admin user
-      adminUser = _adminUser;
-      done();
-    })
-    .catch((error) => {
+  before(async () => {
+    try {
+      // Open the database connection
+      await db.connect();
+      // Create test admin
+      adminUser = await testUtils.createTestAdmin();
+    }
+    catch (error) {
       M.log.error(error);
       // Expect no error
       chai.expect(error).to.equal(null);
-      done();
-    });
+    }
   });
 
   /**
-   * After: Remove test admin
-   * Close database connection.
+   * After: Remove test admin. Close database connection.
    */
-  after((done) => {
-    // Remove test admin
-    testUtils.removeTestAdmin()
-    .then(() => fs.unlinkSync(filepath))
-    .then(() => db.disconnect())
-    .then(() => done())
-    .catch((error) => {
+  after(async () => {
+    try {
+      // Remove test admin
+      await testUtils.removeTestAdmin();
+      await fs.unlinkSync(filepath);
+      await db.disconnect();
+    }
+    catch (error) {
       M.log.error(error);
       // Expect no error
       chai.expect(error).to.equal(null);
-      done();
-    });
+    }
   });
 
   /* Execute tests */
@@ -86,6 +87,8 @@ describe(M.getModuleName(module.filename), () => {
 /**
  * @description Verifies that a gzip file can be uploaded, unzipped, and
  * the contents can be used to create orgs.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function postGzip(done) {
   const orgData = testData.orgs[0];
@@ -141,6 +144,8 @@ function postGzip(done) {
 /**
  * @description Verifies that a gzip file can be uploaded, unzipped, and
  * the contents can be used to create or replace orgs.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function putGzip(done) {
   const orgData = testData.orgs[0];
@@ -196,6 +201,8 @@ function putGzip(done) {
 /**
  * @description Verifies that a gzip file can be uploaded, unzipped, and
  * the contents can be used to update organizations.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function patchGzip(done) {
   const orgData = testData.orgs[0];

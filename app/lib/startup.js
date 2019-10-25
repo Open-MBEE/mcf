@@ -1,11 +1,15 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module lib.startup
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
+ *
+ * @owner Austin Bieber
+ *
+ * @author Josh Kaplan
  *
  * @description Prints an MBEE startup logo.
  */
@@ -70,7 +74,9 @@ image['12'] = '               \u001b[33m(%%%)\u001b[39m                   ';
 image['13'] = '                 \u001b[33m!\u001b[39m                     ';
 image['14'] = '\u001b[39m';
 
-// Print the logo to the console
+/**
+ * @description Print the logo to the console.
+ */
 function printLogo() {
   console.log(image['1']);  // eslint-disable-line no-console
   console.log(image['2']);  // eslint-disable-line no-console

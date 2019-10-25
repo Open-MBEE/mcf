@@ -1,11 +1,17 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module lib.logger
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
+ *
+ * @owner Connor Doyle
+ *
+ * @author Josh Kaplan
+ * @author Jake Ursetta
+ * @author Connor Doyle
  *
  * @description Defines the MBEE logger. The logger should be used instead of
  * using `console.log`. The logger adds the ability to write to log
@@ -16,15 +22,18 @@
  *
  * You can the use the logger:
  *   - `log.info('Hello World')`
- *   - `log.error('An error has occurred')`
+ *   - `log.error('An error has occurred')`.
  */
+
 
 // Node modules
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
+
+// NPM modules
 const winston = require('winston');
 const { combine, timestamp, label, printf } = winston.format;
-const { execSync } = require('child_process');
 
 // This defines our log levels
 const levels = {
@@ -153,56 +162,66 @@ if (!fs.existsSync(path.join(M.root, 'logs'))) {
 
 /**
  * @description This creates the logger. Defines log level, log formatting and
- * transports.
- *
- * There are four transports (location which the log is written to):
+ * transports. There are four transports (location which the log is written to):
  * the console, an error file, a combined log, and a debug log.
+ *
+ * @param {string} subcommand - The subcommand used with 'node mbee'.
+ * @param {string} opts - The options used with 'node mbee {subcommand}'.
+ *
+ * @returns {object} Returns an instance of the winston logger.
  */
-const logger = winston.createLogger({
-  level: M.config.log.level,
-  levels: levels,
-  format: combine(
-    label({ label: 'MBEE' }),
-    winston.format.colorize(),
-    timestamp(),
-    formatter
-  ),
-  transports: [
-    // console transport - logs to the console.
-    new winston.transports.Console(),
-    // error log transport - logs error-level and below to error log file
-    new winston.transports.File({
-      filename: path.join('logs', M.config.log.error_file),
-      level: 'error'
-    }),
-    // combined log transport - logs default-level and below to combined log file
-    // NOTE: Default level specified in config file
-    new winston.transports.File({
-      filename: path.join('logs', M.config.log.file),
-      level: M.config.log.level
-    }),
-    // debug log transport - logs debug-level and below to debug log file
-    new winston.transports.File({
-      filename: path.join('logs', M.config.log.debug_file),
-      level: 'debug'
-    })
-  ],
-  exitOnError: false
-});
+function makeLogger(subcommand, opts) {
+  const loggerConfig = {
+    level: M.config.log.level,
+    levels: levels,
+    format: combine(
+      label({ label: 'MBEE' }),
+      winston.format.colorize(),
+      timestamp(),
+      formatter
+    ),
+    transports: [
+      // The Console transport is not included here for cleaner console output during testing.
+      // error log transport - logs error-level and below to error log file
+      new winston.transports.File({
+        filename: path.join('logs', M.config.log.error_file),
+        level: 'error'
+      }),
+      // combined log transport - logs default-level and below to combined log file
+      // NOTE: Default level specified in config file
+      new winston.transports.File({
+        filename: path.join('logs', M.config.log.file),
+        level: M.config.log.level
+      }),
+      // debug log transport - logs debug-level and below to debug log file
+      new winston.transports.File({
+        filename: path.join('logs', M.config.log.debug_file),
+        level: 'debug'
+      })
+    ],
+    exitOnError: false
+  };
+  // Add in a transport to log to the console if not running tests
+  if (!(subcommand === 'test' && opts.includes('--suppress-console'))) {
+    loggerConfig.transports.push(new winston.transports.Console());
+  }
+  return winston.createLogger(loggerConfig);
+}
+
 
 // Add defined colors to winston logger
 winston.addColors(colors);
 
 /**
- * @description Log the response to an HTTP request
+ * @description Log the response to an HTTP request.
  *
  * @param {number} responseLength - The length of the response in bytes.
- * @param {Object} req - Request object from express.
- * @param {Object} res - Response object from express.
+ * @param {object} req - Request object from express.
+ * @param {object} res - Response object from express.
  */
 function logResponse(responseLength, req, res) {
   // Set username to anonymous if req.user is not defined
-  const username = (req.user) ? req.user.username : 'anonymous';
+  const username = (req.user) ? (req.user._id || req.user.username) : 'anonymous';
   const date = JSON.stringify(new Date()).replace(/"/g, '');
   let ip = req.ip;
   // If IP is ::1, set it equal to 127.0.0.1
@@ -220,6 +239,6 @@ function logResponse(responseLength, req, res) {
 }
 
 module.exports = {
-  logger,
+  makeLogger,
   logResponse
 };

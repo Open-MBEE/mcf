@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module test.503c-project-mock-specific-tests
  *
@@ -7,15 +7,21 @@
  *
  * @license MIT
  *
+ * @owner Connor Doyle
+ *
+ * @author Connor Doyle
+ *
  * @description This tests mock requests of the API controller functionality:
  * GET, POST, PATCH, and DELETE projects.
  */
 
-// NPM modules
-const chai = require('chai');
+// Node modules
 const path = require('path');
 const fs = require('fs');
 const zlib = require('zlib');
+
+// NPM modules
+const chai = require('chai');
 
 // MBEE modules
 const ProjectController = M.require('controllers.project-controller');
@@ -39,51 +45,42 @@ let org = null;
  */
 describe(M.getModuleName(module.filename), () => {
   /**
-   * After: Connect to database. Create an admin user and organization
+   * After: Connect to database. Create an admin user and organization.
    */
-  before((done) => {
-    // Open the database connection
-    db.connect()
-    // Create test admin
-    .then(() => testUtils.createTestAdmin())
-    .then((_adminUser) => {
-      // Set global admin user
-      adminUser = _adminUser;
-
+  before(async () => {
+    try {
+      // Open the database connection
+      await db.connect();
+      // Create test admin
+      adminUser = await testUtils.createTestAdmin();
       // Create organization
-      return testUtils.createTestOrg(adminUser);
-    })
-    .then((retOrg) => {
-      // Set global organization
-      org = retOrg;
-      done();
-    })
-    .catch((error) => {
+      org = await testUtils.createTestOrg(adminUser);
+    }
+    catch (error) {
       M.log.error(error);
       // Expect no error
       chai.expect(error).to.equal(null);
-      done();
-    });
+    }
   });
 
   /**
    * After: Remove Organization.
    * Close database connection.
    */
-  after((done) => {
-    // Remove organization
-    // Note: Projects under organization will also be removed
-    testUtils.removeTestOrg(adminUser)
-    .then(() => testUtils.removeTestAdmin())
-    .then(() => fs.unlinkSync(filepath))
-    .then(() => db.disconnect())
-    .then(() => done())
-    .catch((error) => {
+  after(async () => {
+    try {
+      // Remove organization
+      // Note: Projects under organization will also be removed
+      await testUtils.removeTestOrg(adminUser);
+      await testUtils.removeTestAdmin();
+      await fs.unlinkSync(filepath);
+      await db.disconnect();
+    }
+    catch (error) {
       M.log.error(error);
       // Expect no error
       chai.expect(error).to.equal(null);
-      done();
-    });
+    }
   });
 
   /* Execute tests */
@@ -97,6 +94,8 @@ describe(M.getModuleName(module.filename), () => {
 /**
  * @description Verifies that a gzip file can be uploaded, unzipped, and
  * the contents can be used to create projects.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function postGzip(done) {
   const projectData = testData.projects[0];
@@ -150,6 +149,8 @@ function postGzip(done) {
 /**
  * @description Verifies that a gzip file can be uploaded, unzipped, and
  * the contents can be used to create or replace projects.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function putGzip(done) {
   const projectData = testData.projects[1];
@@ -203,6 +204,8 @@ function putGzip(done) {
 /**
  * @description Verifies that a gzip file can be uploaded, unzipped, and
  * the contents can be used to update projects.
+ *
+ * @param {Function} done - The mocha callback.
  */
 function patchGzip(done) {
   const projectData = testData.projects[2];

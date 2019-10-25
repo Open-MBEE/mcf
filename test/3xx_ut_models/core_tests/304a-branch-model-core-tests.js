@@ -1,32 +1,38 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
- * @module test.304a-branch-model-tests
+ * @module test.304a-branch-model-core-tests
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
  *
+ * @owner Connor Doyle
+ *
+ * @author Leah De Laurell
+ *
  * @description This tests the Branch Model functionality. These tests
  * find, update and delete the branches.
  */
 
-// Node modules
+// NPM modules
 const chai = require('chai');
+const chaiAsPromised = require('chai-as-promised');
+
+// Use async chai
+chai.use(chaiAsPromised);
+const should = chai.should(); // eslint-disable-line no-unused-vars
 
 // MBEE modules
 const Branch = M.require('models.branch');
-const Org = M.require('models.organization');
-const Project = M.require('models.project');
 const db = M.require('lib.db');
 const utils = M.require('lib.utils');
 /* --------------------( Test Data )-------------------- */
 // Variables used across test functions
 const testUtils = M.require('lib.test-utils');
 const testData = testUtils.importTestData('test_data.json');
-let org = null;
-let project = null;
-let projID = null;
+const org = testData.orgs[0];
+const project = testData.projects[0];
 
 /* --------------------( Main )-------------------- */
 /**
@@ -37,40 +43,11 @@ let projID = null;
  */
 describe(M.getModuleName(module.filename), () => {
   /**
-   * Before: runs before all tests
+   * Before: runs before all tests. Opens database connection.
    */
   before((done) => {
     db.connect()
-    .then(() => {
-      // Create the organization model object
-      const newOrg = new Org({
-        _id: testData.orgs[0].id,
-        name: testData.orgs[0].name
-      });
-
-      // Save the organization model object to the database
-      return newOrg.save();
-    })
-    .then((retOrg) => {
-      // Update organization for test data
-      org = retOrg;
-
-      // Create the project model object
-      const newProject = new Project({
-        _id: utils.createID(org.id, testData.projects[1].id),
-        name: testData.projects[1].name,
-        org: org._id
-      });
-
-        // Save the project model object to the database
-      return newProject.save();
-    })
-    .then((retProj) => {
-      // Update project for test data
-      project = retProj;
-      projID = utils.parseID(project.id).pop();
-      done();
-    })
+    .then(() => done())
     .catch((error) => {
       M.log.error(error);
       // Expect no error
@@ -80,12 +57,10 @@ describe(M.getModuleName(module.filename), () => {
   });
 
   /**
-   * After: runs after all tests
+   * After: runs after all tests. Closes database connection.
    */
   after((done) => {
-    // Remove the org created in before()
-    testUtils.removeTestOrg()
-    .then(() => db.disconnect())
+    db.disconnect()
     .then(() => done())
     .catch((error) => {
       M.log.error(error);
@@ -104,101 +79,79 @@ describe(M.getModuleName(module.filename), () => {
 
 /* --------------------( Tests )-------------------- */
 /**
- * @description Creates a branch using the branch model
+ * @description Creates a branch using the branch model.
  */
-function createBranch(done) {
+async function createBranch() {
   // Create new branch object
-  const newBranch = new Branch({
-    _id: utils.createID(org.id, projID, testData.branches[0].id),
+  const newBranch = Branch.createDocument({
+    _id: utils.createID(org.id, project.id, testData.branches[0].id),
     name: testData.branches[0].name,
-    project: utils.createID(org.id, projID),
+    project: utils.createID(org.id, project.id),
     source: testData.branches[0].source
   });
 
   // Save branch object to database
-  newBranch.save()
-  .then((createdBranch) => {
-    // Check branch object saved correctly
-    chai.expect(createdBranch._id).to.equal(
-      utils.createID(project._id, testData.branches[0].id)
-    );
-    chai.expect(createdBranch.name).to.equal(testData.branches[0].name);
-    chai.expect(createdBranch.project).to.equal(project._id);
-    done();
-  })
-  .catch((error) => {
-    M.log.error(error);
-    // Expect no error
-    chai.expect(error).to.equal(null);
-    done();
-  });
+  const createdBranch = await newBranch.save();
+  // Check branch object saved correctly
+  createdBranch._id.should.equal(utils.createID(org.id, project.id, testData.branches[0].id));
+  createdBranch.name.should.equal(testData.branches[0].name);
+  createdBranch.project.should.equal(utils.createID(org.id, project.id));
 }
 
 /**
- * @description Find a branch using the branch model
+ * @description Find a branch using the branch model.
  */
-function findBranch(done) {
+async function findBranch() {
   // Find the branch
-  Branch.findOne({ _id: utils.createID(project._id, testData.branches[0].id) })
-  .then((branch) => {
-    // Verify found branch is correct
-    chai.expect(branch.name).to.equal(testData.branches[0].name);
-    done();
-  })
-  .catch((error) => {
-    M.log.error(error);
-    // Expect no error
-    chai.expect(error).to.equal(null);
-    done();
-  });
+  const branch = await Branch.findOne(
+    { _id: utils.createID(org.id, project.id, testData.branches[0].id) }
+  );
+  // Verify found branch is correct
+  branch.name.should.equal(testData.branches[0].name);
 }
 
 /**
- * @description Update a branch using the branch model
+ * @description Update a branch using the branch model.
  */
-function updateBranch(done) {
-  // Update the branch
-  Branch.findOneAndUpdate(
-    { _id: utils.createID(project._id, testData.branches[0].id) },
-    { name: `${testData.branches[0]}_edit` }
-  )
-  // Find the updated branch
-  .then(() => Branch.findOne({
-    _id: utils.createID(project._id, testData.branches[0].id) }))
-  .then((branch) => {
-    // Verify the found branch was update successfully
-    chai.expect(branch.name).to.equal(`${testData.branches[0]}_edit`);
-    done();
-  })
-  .catch((error) => {
+async function updateBranch() {
+  try {
+    const branchID = utils.createID(org.id, project.id, testData.branches[0].id);
+    // Update the name of the branch created in the createBranch() test
+    await Branch.updateOne({ _id: branchID }, { name: 'Updated Name' });
+
+    // Find the updated branch
+    const foundBranch = await Branch.findOne({ _id: branchID });
+
+    // Verify branch is updated correctly
+    foundBranch._id.should.equal(branchID);
+    foundBranch.name.should.equal('Updated Name');
+  }
+  catch (error) {
     M.log.error(error);
-    // Expect no error
-    chai.expect(error).to.equal(null);
-    done();
-  });
+    // There should be no error
+    should.not.exist(error);
+  }
 }
 
 /**
- * @description Delete a branch using the branch model
+ * @description Delete a branch using the branch model.
  */
-function deleteBranch(done) {
-  // Create the branch ID to remove
-  const branchID = utils.createID(project._id, testData.branches[0].id);
+async function deleteBranch() {
+  try {
+    const branchID = utils.createID(org.id, project.id, testData.branches[0].id);
 
-  // Find and delete the branch
-  Branch.findOneAndRemove({ _id: branchID })
+    // Remove the branch
+    await Branch.deleteMany({ _id: branchID });
 
-  // Attempt to find the branch
-  .then(() => Branch.findOne({ _id: branchID }))
-  .then((branch) => {
-    // Expect no branches to be found
-    chai.expect(branch).to.equal(null);
-    done();
-  })
-  .catch((error) => {
+    // Attempt to find the branch
+    const foundBranch = await Branch.findOne({ _id: branchID });
+
+    // foundBranch should be null
+    should.not.exist(foundBranch);
+  }
+  catch (error) {
     M.log.error(error);
-    // Expect no error
-    chai.expect(error).to.equal(null);
-    done();
-  });
+    // There should be no error
+    should.not.exist(error);
+  }
 }

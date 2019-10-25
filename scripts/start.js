@@ -1,12 +1,16 @@
 #!/usr/bin/env node
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module scripts.start
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
+ *
+ * @owner Connor Doyle
+ *
+ * @author Josh Kaplan
  *
  * @description Initializes and starts the http/https servers and listens
  * for incoming requests.
@@ -37,7 +41,9 @@ const startup = M.require('lib.startup');
 
 
 /**
- * @description Starts the MBEE server using the configuration file
+ * @description Starts the MBEE server using the configuration file.
+ *
+ * @param {string} args - Additional arguments to pass in when starting the MBEE server.
  */
 function start(args) {
   M.log.debug(`${`+ mbee.js executed as ${process.argv.join(' ')} `

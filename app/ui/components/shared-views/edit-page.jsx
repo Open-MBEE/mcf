@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module ui.components.shared-views.edit-page
  *
@@ -7,13 +7,18 @@
  *
  * @license MIT
  *
+ * @owner James Eckstein
+ *
+ * @author Leah De Laurell
+ * @author Jake Ursetta
+ *
  * @description This renders the edit page.
  */
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
 
-// React Modules
+// React modules
 import React, { Component } from 'react';
 import {
   Form,
@@ -24,6 +29,9 @@ import {
   Button,
   UncontrolledAlert
 } from 'reactstrap';
+
+// MBEE modules
+import CustomEdit from '../general/custom-data/custom-edit.jsx';
 
 /* eslint-enable no-unused-vars */
 
@@ -39,21 +47,21 @@ class EditPage extends Component {
     let visibility;
     let archived;
 
-    if (this.props.org) {
-      name = this.props.org.name;
-      archived = this.props.org.archived;
-      custom = this.props.org.custom;
+    if (props.org) {
+      name = props.org.name;
+      archived = props.org.archived;
+      custom = props.org.custom;
     }
-    else if (this.props.branch) {
-      name = this.props.branch.name;
-      archived = this.props.branch.archived;
-      custom = this.props.branch.custom;
+    else if (props.branch) {
+      name = props.branch.name;
+      archived = props.branch.archived;
+      custom = props.branch.custom;
     }
     else {
-      name = this.props.project.name;
-      archived = this.props.project.archived;
-      custom = this.props.project.custom;
-      visibility = this.props.visibility;
+      name = props.project.name;
+      archived = props.project.archived;
+      custom = props.project.custom;
+      visibility = props.project.visibility;
     }
 
     this.state = {
@@ -61,16 +69,41 @@ class EditPage extends Component {
       visibility: visibility,
       archived: archived,
       custom: JSON.stringify(custom || {}, null, 2),
-      error: null
+      error: null,
+      message: ''
     };
 
     // Bind component function
     this.handleChange = this.handleChange.bind(this);
     this.onSubmit = this.onSubmit.bind(this);
+    this.customChange = this.customChange.bind(this);
   }
 
-  componentDidMount() {
-    $('textarea[name="custom"]').autoResize();
+  customChange(rows, error) {
+    const newState = { message: error };
+
+    if (error.length === 0) {
+      // Create custom data object from rows of key/value pairs.
+      const custom = {};
+      rows.forEach((row) => {
+        let value = '';
+
+        // Parse custom data input values
+        try {
+          value = JSON.parse(row.value);
+        }
+        catch (err) {
+          // Treat input as string
+          value = row.value;
+        }
+
+        Object.assign(custom, { [row.key]: value });
+      });
+
+      newState.custom = JSON.stringify(custom, null, 2);
+    }
+
+    this.setState(newState);
   }
 
   // Define handle change function
@@ -84,9 +117,6 @@ class EditPage extends Component {
       // Change the state with new value
       this.setState({ [event.target.name]: event.target.value });
     }
-
-    // Resize custom data field
-    $('textarea[name="custom"]').autoResize();
   }
 
   // Define the submit function
@@ -97,11 +127,8 @@ class EditPage extends Component {
 
     // Initialize variables
     let url;
-    const data = {
-      name: this.state.name,
-      custom: JSON.parse(this.state.custom)
-    };
-
+    const custom = JSON.parse(this.state.custom);
+    const data = { name: this.state.name, custom: custom };
 
     if (this.props.org) {
       url = `/api/orgs/${this.props.org.id}`;
@@ -116,6 +143,11 @@ class EditPage extends Component {
     }
 
     data.archived = this.state.archived;
+
+    // Remove blank key/value pair in custom data
+    if (data.custom[''] === '') {
+      delete data.custom[''];
+    }
 
     $.ajax({
       method: 'PATCH',
@@ -139,20 +171,18 @@ class EditPage extends Component {
 
   render() {
     // Initialize variables
-    let customInvalid;
-    let disableSubmit;
+    let disableSubmit = !!(this.state.message.length > 0);
     let title;
 
     if (this.props.org) {
       title = 'Organization';
     }
     else if (this.props.branch) {
-      title = ` [${this.props.branch.id}] Branch`;
+      title = `[${this.props.branch.id}] Branch`;
     }
     else {
       title = 'Project';
     }
-
 
     // Verify if custom data is correct JSON format
     try {
@@ -160,14 +190,13 @@ class EditPage extends Component {
     }
     catch (err) {
       // Set invalid fields
-      customInvalid = true;
       disableSubmit = true;
     }
 
     // Render organization edit page
     return (
       <div id='workspace'>
-        <div id='workspace-header' className='workspace-header'>
+        <div className='workspace-header'>
           <h2 className='workspace-title workspace-title-padding'>Edit {title}</h2>
         </div>
         <div id='workspace-body' className='extra-padding'>
@@ -198,9 +227,8 @@ class EditPage extends Component {
                     <Input type="select"
                            name="visibility"
                            id="visibility"
-                           value={this.state.visibility || ''}
+                           value={this.state.visibility}
                            onChange={this.handleChange}>
-                      <option>Choose one...</option>
                       <option value='internal'>Internal</option>
                       <option value='private'>Private</option>
                     </Input>
@@ -208,18 +236,9 @@ class EditPage extends Component {
               }
               {/* Form section for custom data */}
               <FormGroup>
-                <Label for="custom">Custom Data</Label>
-                <Input type="textarea"
-                       name="custom"
-                       id="custom"
-                       placeholder="Custom Data"
-                       value={this.state.custom || ''}
-                       invalid={customInvalid}
-                       onChange={this.handleChange}/>
-                {/* Verify fields are valid, or display feedback */}
-                <FormFeedback>
-                    Invalid: Custom data must be valid JSON
-                </FormFeedback>
+                <CustomEdit data={this.state.custom}
+                            customChange={this.customChange}
+                            handleChange={this.handleChange}/>
               </FormGroup>
               {/* Form section for archiving */}
               <FormGroup check className='bottom-spacing'>

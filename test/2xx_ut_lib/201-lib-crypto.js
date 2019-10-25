@@ -1,5 +1,5 @@
 /**
- * Classification: UNCLASSIFIED
+ * @classification UNCLASSIFIED
  *
  * @module test.201-lib-crypto
  *
@@ -7,11 +7,15 @@
  *
  * @license MIT
  *
+ * @owner Connor Doyle
+ *
+ * @author Leah De Laurell
+ *
  * @description Tests loading the MBEE crypto library and executing the encrypt
  * and decrypt functions in the library.
  */
 
-// Node modules
+// NPM modules
 const chai = require('chai');
 
 // MBEE modules
@@ -35,31 +39,28 @@ describe(M.getModuleName(module.filename), () => {
  * @description Checks that the crypto library has encrypt and decrypt
  * functions.
  */
-function checkCryptoFunctions(done) {
+async function checkCryptoFunctions() {
   chai.expect(mbeeCrypto.hasOwnProperty('encrypt')).to.equal(true);
   chai.expect(mbeeCrypto.hasOwnProperty('decrypt')).to.equal(true);
   chai.expect(typeof mbeeCrypto.encrypt).to.equal('function');
   chai.expect(typeof mbeeCrypto.decrypt).to.equal('function');
-  done();
 }
 
 /**
  * @description Performs a md5 hash on a string message.
  */
-function md5HashTest(done) {
+async function md5HashTest() {
   const hash = mbeeCrypto.md5Hash('hello world');
   chai.expect(hash).to.equal('5eb63bbbe01eeed093cb22bb8f5acdc3');
-  done();
 }
 
 /**
  * @description Encrypts and decrypts a string message. Expected to pass by
  * returning 'Test String' after encrypting and decrypting.
  */
-function encryptTest(done) {
+async function encryptTest() {
   const encrypted = mbeeCrypto.encrypt('Test String');
   const decrypted = mbeeCrypto.decrypt(encrypted);
   chai.expect(encrypted).to.not.equal('Test String');
   chai.expect(decrypted).to.equal('Test String');
-  done();
 }
