@@ -53,8 +53,8 @@ describe(M.getModuleName(module.filename), () => {
       // Create org
       org = await testUtils.createTestOrg(adminUser);
       // Create project
-      const retProj = await testUtils.createTestProject(adminUser, org.id);
-      projID = utils.parseID(retProj.id).pop();
+      const retProj = await testUtils.createTestProject(adminUser, org._id);
+      projID = utils.parseID(retProj._id).pop();
     }
     catch (error) {
       M.log.error(error);
@@ -106,7 +106,7 @@ describe(M.getModuleName(module.filename), () => {
 function postElement(done) {
   const elemData = testData.elements[0];
   request({
-    url: `${test.url}/api/orgs/${org.id}/projects/${projID}/branches/master/elements/${elemData.id}`,
+    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements/${elemData.id}`,
     headers: testUtils.getHeaders(),
     ca: testUtils.readCaFile(),
     method: 'POST',
@@ -172,7 +172,7 @@ function postElements(done) {
     testData.elements[5]
   ];
   request({
-    url: `${test.url}/api/orgs/${org.id}/projects/${projID}/branches/master/elements`,
+    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements`,
     headers: testUtils.getHeaders(),
     ca: testUtils.readCaFile(),
     method: 'POST',
@@ -242,7 +242,7 @@ function postElements(done) {
 function putElement(done) {
   const elemData = testData.elements[0];
   request({
-    url: `${test.url}/api/orgs/${org.id}/projects/${projID}/branches/master/elements/${elemData.id}`,
+    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements/${elemData.id}`,
     headers: testUtils.getHeaders(),
     ca: testUtils.readCaFile(),
     method: 'PUT',
@@ -309,7 +309,7 @@ function putElements(done) {
     testData.elements[6]
   ];
   request({
-    url: `${test.url}/api/orgs/${org.id}/projects/${projID}/branches/master/elements`,
+    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements`,
     headers: testUtils.getHeaders(),
     ca: testUtils.readCaFile(),
     method: 'PUT',
@@ -379,7 +379,7 @@ function putElements(done) {
 function getElement(done) {
   const elemData = testData.elements[0];
   request({
-    url: `${test.url}/api/orgs/${org.id}/projects/${projID}/branches/master/elements/${elemData.id}`,
+    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements/${elemData.id}`,
     headers: testUtils.getHeaders(),
     ca: testUtils.readCaFile(),
     method: 'GET'
@@ -445,7 +445,7 @@ function getElements(done) {
     testData.elements[6]
   ];
   request({
-    url: `${test.url}/api/orgs/${org.id}/projects/${projID}/branches/master/elements`,
+    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements`,
     headers: testUtils.getHeaders(),
     ca: testUtils.readCaFile(),
     method: 'GET',
@@ -516,7 +516,7 @@ function getElements(done) {
 function searchElement(done) {
   const elemData = testData.elements[0];
   request({
-    url: `${test.url}/api/orgs/${org.id}/projects/${projID}/branches/master/elements/search?q="${elemData.name}"`,
+    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements/search?q="${elemData.name}"`,
     headers: testUtils.getHeaders(),
     ca: testUtils.readCaFile(),
     method: 'GET'
@@ -584,7 +584,7 @@ function patchElement(done) {
     name: `${elemData.name}_edit`
   };
   request({
-    url: `${test.url}/api/orgs/${org.id}/projects/${projID}/branches/master/elements/${elemData.id}`,
+    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements/${elemData.id}`,
     headers: testUtils.getHeaders(),
     ca: testUtils.readCaFile(),
     method: 'PATCH',
@@ -655,7 +655,7 @@ function patchElements(done) {
     name: `${e.name}_edit`
   }));
   request({
-    url: `${test.url}/api/orgs/${org.id}/projects/${projID}/branches/master/elements`,
+    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements`,
     headers: testUtils.getHeaders(),
     ca: testUtils.readCaFile(),
     method: 'PATCH',
@@ -726,7 +726,7 @@ function patchElements(done) {
 function deleteElement(done) {
   const elemData = testData.elements[0];
   request({
-    url: `${test.url}/api/orgs/${org.id}/projects/${projID}/branches/master/elements/${elemData.id}`,
+    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements/${elemData.id}`,
     headers: testUtils.getHeaders(),
     ca: testUtils.readCaFile(),
     method: 'DELETE'
@@ -761,7 +761,7 @@ function deleteElements(done) {
     testData.elements[6]
   ];
   request({
-    url: `${test.url}/api/orgs/${org.id}/projects/${projID}/branches/master/elements`,
+    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements`,
     headers: testUtils.getHeaders(),
     ca: testUtils.readCaFile(),
     method: 'DELETE',

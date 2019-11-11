@@ -85,14 +85,15 @@ describe(M.getModuleName(module.filename), () => {
  */
 async function createUser() {
   try {
-    const userData = testData.users[1];
-    userData._id = userData.username;
+    const user = JSON.parse(JSON.stringify(testData.users[1]));
+    user._id = user.username;
     // Create a hash of the password
-    const derivedKey = crypto.pbkdf2Sync(userData.password, userData._id.toString(), 1000, 32, 'sha256');
-    // Create a new User object
-    const user = User.createDocument(userData);
+    const derivedKey = crypto.pbkdf2Sync(user.password, user._id.toString(), 1000, 32, 'sha256');
+    // Hash the user password
+    User.hashPassword(user);
+
     // Save user object to the database
-    const savedUser = await user.save();
+    const savedUser = (await User.insertMany(user))[0];
     // Ensure that the user password is stored as a hash
     savedUser.password.should.equal(derivedKey.toString('hex'));
   }
@@ -151,7 +152,7 @@ async function verifyValidPassword() {
     // Find the created user from the previous createUser test.
     const user = await User.findOne({ _id: testData.users[1].username });
     // Verify the user's password
-    const result = await user.verifyPassword(testData.users[1].password);
+    const result = await User.verifyPassword(user, testData.users[1].password);
     // expected - verifyPassword() returned true
     result.should.equal(true);
   }

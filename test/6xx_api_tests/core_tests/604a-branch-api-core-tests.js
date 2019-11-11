@@ -60,10 +60,10 @@ describe(M.getModuleName(module.filename), () => {
       org = retOrg;
 
       // Create project
-      return testUtils.createTestProject(adminUser, org.id);
+      return testUtils.createTestProject(adminUser, org._id);
     })
     .then((retProj) => {
-      projID = utils.parseID(retProj.id).pop();
+      projID = utils.parseID(retProj._id).pop();
       done();
     })
     .catch((error) => {
@@ -114,7 +114,7 @@ describe(M.getModuleName(module.filename), () => {
 function postBranch(done) {
   const branchData = testData.branches[1];
   request({
-    url: `${test.url}/api/orgs/${org.id}/projects/${projID}/branches/${branchData.id}`,
+    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/${branchData.id}`,
     headers: testUtils.getHeaders(),
     ca: testUtils.readCaFile(),
     method: 'POST',
@@ -165,7 +165,7 @@ function postBranches(done) {
   ];
 
   request({
-    url: `${test.url}/api/orgs/${org.id}/projects/${projID}/branches`,
+    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches`,
     headers: testUtils.getHeaders(),
     ca: testUtils.readCaFile(),
     method: 'POST',
@@ -220,7 +220,7 @@ function postBranches(done) {
 function getBranch(done) {
   const branchData = testData.branches[0];
   request({
-    url: `${test.url}/api/orgs/${org.id}/projects/${projID}/branches/${branchData.id}`,
+    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/${branchData.id}`,
     headers: testUtils.getHeaders(),
     ca: testUtils.readCaFile(),
     method: 'GET'
@@ -265,7 +265,7 @@ function getBranches(done) {
     testData.branches[0]
   ];
   request({
-    url: `${test.url}/api/orgs/${org.id}/projects/${projID}/branches`,
+    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches`,
     headers: testUtils.getHeaders(),
     ca: testUtils.readCaFile(),
     method: 'GET',
@@ -324,7 +324,7 @@ function patchBranch(done) {
     name: `${branchData.name}_edit`
   };
   request({
-    url: `${test.url}/api/orgs/${org.id}/projects/${projID}/branches/${branchData.id}`,
+    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/${branchData.id}`,
     headers: testUtils.getHeaders(),
     ca: testUtils.readCaFile(),
     method: 'PATCH',
@@ -378,7 +378,7 @@ function patchBranches(done) {
     name: `${b.name}_edit`
   }));
   request({
-    url: `${test.url}/api/orgs/${org.id}/projects/${projID}/branches`,
+    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches`,
     headers: testUtils.getHeaders(),
     ca: testUtils.readCaFile(),
     method: 'PATCH',
@@ -433,7 +433,7 @@ function patchBranches(done) {
 function deleteBranch(done) {
   const branchData = testData.branches[1];
   request({
-    url: `${test.url}/api/orgs/${org.id}/projects/${projID}/branches/${branchData.id}`,
+    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/${branchData.id}`,
     headers: testUtils.getHeaders(),
     ca: testUtils.readCaFile(),
     method: 'DELETE'
@@ -467,7 +467,7 @@ function deleteBranches(done) {
     testData.branches[6]
   ];
   request({
-    url: `${test.url}/api/orgs/${org.id}/projects/${projID}/branches`,
+    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches`,
     headers: testUtils.getHeaders(),
     ca: testUtils.readCaFile(),
     method: 'DELETE',

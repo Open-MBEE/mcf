@@ -87,16 +87,16 @@ describe(M.getModuleName(module.filename), () => {
  */
 async function createElement() {
   // Create new element object
-  const newElement = Element.createDocument({
+  const newElement = {
     _id: utils.createID(org.id, project.id, branch.id, testData.elements[0].id),
     name: testData.elements[0].name,
     project: utils.createID(org.id, project.id),
     parent: null,
     branch: utils.createID(org.id, project.id, branch.id)
-  });
+  };
 
   // Save element object to database
-  const createdElement = await newElement.save();
+  const createdElement = (await Element.insertMany(newElement))[0];
   // Check element object saved correctly
   createdElement._id.should.equal(
     utils.createID(org.id, project.id, branch.id, testData.elements[0].id)

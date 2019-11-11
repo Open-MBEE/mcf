@@ -27,7 +27,6 @@ const { execSync } = require('child_process');
 const path = require('path');
 
 // MBEE modules
-const Artifact = M.require('models.artifact');
 const Branch = M.require('models.branch');
 const Element = M.require('models.element');
 const Organization = M.require('models.organization');
@@ -107,7 +106,6 @@ async function cleanDB() {
 async function initModels() {
   try {
     // Initialize all models
-    await Artifact.init();
     await Branch.init();
     await Element.init();
     await Organization.init();
@@ -134,15 +132,15 @@ async function createDefaultOrg() {
     chai.expect(org).to.equal(null);
 
     // Create default org object
-    const defOrg = Organization.createDocument({
+    const defOrg = {
       _id: M.config.server.defaultOrganizationId,
       name: M.config.server.defaultOrganizationName,
       createdBy: null,
       lastModifiedBy: null
-    });
+    };
 
     // Save the default org
-    await defOrg.save();
+    await Organization.insertMany(defOrg);
   }
   catch (error) {
     M.log.error(error);

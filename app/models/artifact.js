@@ -145,9 +145,6 @@ ArtifactSchema.plugin(extensions);
  * @description Returns artifact fields that can be changed
  * @memberOf ArtifactSchema
  */
-ArtifactSchema.method('getValidUpdateFields', function() {
-  return ['filename', 'name', 'custom', 'archived', 'location'];
-});
 ArtifactSchema.static('getValidUpdateFields', function() {
   return ['filename', 'name', 'custom', 'archived', 'location'];
 });
@@ -156,9 +153,6 @@ ArtifactSchema.static('getValidUpdateFields', function() {
  * @description Returns a list of fields a requesting user can populate
  * @memberOf ArtifactSchema
  */
-ArtifactSchema.method('getValidPopulateFields', function() {
-  return ['archivedBy', 'lastModifiedBy', 'createdBy', 'project', 'branch'];
-});
 ArtifactSchema.static('getValidPopulateFields', function() {
   return ['archivedBy', 'lastModifiedBy', 'createdBy', 'project', 'branch'];
 });

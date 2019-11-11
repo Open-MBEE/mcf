@@ -136,7 +136,10 @@ function sanitize(data) {
 
 class Schema extends mongoose.Schema {
 
-  constructor(definition, options) {
+  constructor(definition, options = {}) {
+    // Set the minimize option to false, allowing for empty objects to be stored in the database
+    options.minimize = false;
+
     super(definition, options);
 
     // Required for virtual getters
@@ -280,18 +283,6 @@ class Model {
   }
 
   /**
-   * @description Creates a mongoose Document based on the model's schema.
-   * Creates a new instance of the mongoose Model.
-   *
-   * @param {object} doc - The object to convert to a Document.
-   *
-   * @returns {Document} Returns a database document.
-   */
-  createDocument(doc) {
-    return new this.model(doc); // eslint-disable-line new-cap
-  }
-
-  /**
    * @description Counts the number of documents that matches a filter. Calls
    * the mongoose countDocuments() function.
    * @async
@@ -303,6 +294,9 @@ class Model {
    * @returns {Promise<number>} The number of documents which matched the filter.
    */
   async countDocuments(filter, cb) {
+    // Validate the query
+    this.validateQuery(filter);
+
     return this.model.countDocuments(filter, cb);
   }
 
@@ -333,6 +327,9 @@ class Model {
    * operation.
    */
   async deleteMany(conditions, options, cb) {
+    // Validate the query
+    this.validateQuery(conditions);
+
     return this.model.deleteMany(conditions, options, cb);
   }
 
@@ -364,15 +361,24 @@ class Model {
    * documents can be populated. Populating a field returns the entire
    * referenced document instead of that document's ID. If no document exists,
    * null is returned.
-   * @param {boolean} [options.lean] - If false (by default), every document
-   * returned will contain methods that were declared in the Schema. If true,
-   * just the raw JSON will be returned from the database.
    * @param {Function} [cb] - A callback function to run.
    *
    * @returns {Promise<object[]>} An array containing the found documents, if
    * any.
    */
   async find(filter, projection, options, cb) {
+    // Validate the query
+    this.validateQuery(filter);
+
+    // Set lean option to true
+    if (!options) {
+      options = { lean: true }; // eslint-disable-line no-param-reassign
+    }
+    else {
+      options.lean = true;
+    }
+
+    // Call model.find()
     return this.model.find(filter, projection, options, cb);
   }
 
@@ -392,14 +398,23 @@ class Model {
    * documents can be populated. Populating a field returns the entire
    * referenced document instead of that document's ID. If no document exists,
    * null is returned.
-   * @param {boolean} [options.lean] - If false (by default), every document
-   * returned will contain methods that were declared in the Schema. If true,
-   * just the raw JSON will be returned from the database.
    * @param {Function} [cb] - A callback function to run.
    *
    * @returns {Promise<object>} The found document, if any.
    */
   async findOne(conditions, projection, options, cb) {
+    // Validate the query
+    this.validateQuery(conditions);
+
+    // Set lean option to true
+    if (!options) {
+      options = { lean: true }; // eslint-disable-line no-param-reassign
+    }
+    else {
+      options.lean = true;
+    }
+
+    // Call model.findOne()
     return this.model.findOne(conditions, projection, options, cb);
   }
 
@@ -421,9 +436,6 @@ class Model {
    *
    * @param {object[]} docs - An array of documents to insert.
    * @param {object} [options] - An object containing options.
-   * @param {boolean} [options.lean] - If false (by default), every document
-   * returned will contain methods that were declared in the Schema. If true,
-   * just the raw JSON will be returned from the database.
    * @param {boolean} [options.skipValidation] - If true, will not validate
    * the documents which are being created.
    * @param {Function} [cb] - A callback function to run.
@@ -433,10 +445,12 @@ class Model {
   async insertMany(docs, options, cb) {
     let useCollection = false;
 
-    // Replace the lean option with rawResult
-    if (options && options.lean) {
+    // Define the rawResult option
+    if (!options) {
+      options = { rawResult: true }; // eslint-disable-line no-param-reassign
+    }
+    else {
       options.rawResult = true;
-      delete options.lean;
     }
 
     // Set useCollection if skipValidation is true
@@ -445,24 +459,19 @@ class Model {
       delete options.skipValidation;
     }
 
-    let documents = [];
+    let responseQuery = {};
 
     // If useCollection is true, use the MongoDB function directly
     if (useCollection) {
-      documents = await this.model.collection.insertMany(docs);
+      responseQuery = await this.model.collection.insertMany(docs);
     }
     else {
       // Insert the documents
-      documents = await this.model.insertMany(docs, options, cb);
+      responseQuery = await this.model.insertMany(docs, options, cb);
     }
 
-    if (options && options.rawResult) {
-      // Query returned, return just the documents
-      return documents.ops;
-    }
-    else {
-      return documents;
-    }
+    // Return responseQuery.ops, the array of inserted documents
+    return responseQuery.ops;
   }
 
   /**
@@ -479,6 +488,9 @@ class Model {
    * @returns {Promise<object[]>} The updated objects.
    */
   async updateMany(filter, doc, options, cb) {
+    // Validate the query
+    this.validateQuery(filter);
+
     return this.model.updateMany(filter, doc, options, cb);
   }
 
@@ -496,7 +508,35 @@ class Model {
    * @returns {Promise<object>} The updated document.
    */
   async updateOne(filter, doc, options, cb) {
+    // Validate the query
+    this.validateQuery(filter);
+
     return this.model.updateOne(filter, doc, options, cb);
+  }
+
+  /**
+   * @description Validates a query to ensure it is not using any illegal,
+   * mongo specific keys.
+   *
+   * @param {object} query - The query to validate.
+   *
+   * @throws {ServerError}
+   */
+  validateQuery(query) {
+    // Loop over all keys in the query
+    Object.keys(query).forEach((k) => {
+      // If the value is an object, call recursively
+      if (typeof query[k] === 'object' && query[k] !== null) {
+        this.validateQuery(query[k]);
+      }
+
+      const validKeys = ['$in', '$search', '$text'];
+      // If the key starts with '$' and is not in the validKeys array, throw an error
+      if (k.startsWith('$') && !validKeys.includes(k)) {
+        throw new M.ServerError(`The mongo keyword ${k} is no longer supported`
+           + ' after implementation of the database abstraction.', 'critical');
+      }
+    });
   }
 
 }

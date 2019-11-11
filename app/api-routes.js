@@ -4073,6 +4073,422 @@ api.route('/orgs/:orgid/projects/:projectid/artifacts/blob')
   APIController.deleteBlob
 );
 
+
+/**
+ * @swagger
+ * /api/orgs/{orgid}/projects/{projectid}/branches/{branchid}/artifacts:
+ *   get:
+ *     tags:
+ *       - artifacts
+ *     description: Returns an array of artifacts public data on a specified branch.
+ *                  Requesting user must have read access on the project to find
+ *                  artifacts.
+ *     produces:
+ *       - application/json
+ *     parameters:
+ *       - name: orgid
+ *         description: The ID of the organization containing the specified
+ *                      project.
+ *         in: path
+ *         required: true
+ *         type: string
+ *       - name: projectid
+ *         description: The ID of the project containing the specified branch.
+ *         in: path
+ *         required: true
+ *         type: string
+ *       - name: branchid
+ *         description: The ID of the branch containing the searched artifacts.
+ *         in: path
+ *         required: true
+ *         type: string
+ *       - in: body
+ *         schema:
+ *           type: array
+ *           items:
+ *             type: string
+ *         description: An array of artifact IDs to search for. If both query
+ *                      parameter and body are not provided, all artifacts the
+ *                      user has access to (under the specified branch) are
+ *                      found.
+ *       - name: ids
+ *         description: Comma separated list of IDs to search for. If both query
+ *                      parameter and body are not provided, all artifacts the
+ *                      user has access to (under the specified branch) are
+ *                      found.
+ *         in: query
+ *         type: string
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object. [archivedBy, lastModifiedBy, createdBy,
+ *                      project, branch]
+ *         in: query
+ *         type: string
+ *         required: false
+ *       - name: includeArchived
+ *         description: If true, archived objects will be also be searched
+ *                      through. Overridden by the archived search option
+ *         in: query
+ *         type: boolean
+ *       - name: fields
+ *         description: Comma separated list of specific fields to return. By
+ *                      default the id field is returned. To specifically NOT
+ *                      include a field, include a '-' in front of the field
+ *                      (-name). [archived, archivedBy, archivedOn, createdBy,
+ *                      createdOn, custom, lastModifiedBy, name, org, project,
+ *                      updatedOn, branch, filename, location, strategy]
+ *         in: query
+ *         type: string
+ *       - name: limit
+ *         description: The maximum number of objects to return. A limit of 0 is
+ *                      equivalent to setting no limit.
+ *         in: query
+ *         type: number
+ *       - name: skip
+ *         description: The number of objects to skip returning. For example,
+ *                      if 10 objects are found and skip is 5, the first five
+ *                      objects will NOT be returned. NOTE, skip cannot be a
+ *                      negative number.
+ *         in: query
+ *         type: number
+ *       - name: sort
+ *         description: Provide a particular field to sort the results by.
+ *                      You may also add a negative sign in front of the field
+ *                      to indicate sorting in reverse order.
+ *         in: query
+ *         type: string
+ *       - name: format
+ *         description: The desired format of the response. If jmi1, the
+ *                      artifacts are returned in an array of artifact objects. If
+ *                      jmi2, an object is returned where keys are the artifact
+ *                      ids, and values are the artifact object.
+ *         in: query
+ *         type: string
+ *         default: jmi1
+ *         enum: [jmi1, jmi2]
+ *       - name: minified
+ *         description: If true, the returned JSON is minified. If false, the
+ *                      returned JSON is formatted based on the format specified
+ *                      in the config. The default value is false.
+ *         in: query
+ *         type: boolean
+ *         default: false
+ *       - name: name
+ *         description: Search for artifacts with a specific name.
+ *         in: query
+ *         type: string
+ *       - name: createdBy
+ *         description: Search for artifacts created by a specific user.
+ *         in: query
+ *         type: string
+ *       - name: lastModifiedBy
+ *         description: Search for artifacts last modified by a specific user.
+ *         in: query
+ *         type: string
+ *       - name: archived
+ *         description: Search only for archived artifacts. If false, only returns
+ *                      unarchived artifacts. Overrides the includeArchived option.
+ *         in: query
+ *         type: boolean
+ *       - name: archivedBy
+ *         description: Search for artifacts archived by a specific user.
+ *         in: query
+ *         type: string
+ *       - name: custom
+ *         description: Search for a specific key/value pair in the custom data.
+ *                      To find a specific key, separate the keys using dot
+ *                      notation. For example, custom.hello
+ *         in: query
+ *         type: string
+ *     responses:
+ *       200:
+ *         description: OK, Succeeded to GET artifacts, returns artifact public
+ *                      data.
+ *       400:
+ *         description: Bad Request, Failed to GET artifacts due to invalid data.
+ *       401:
+ *         description: Unauthorized, Failed to GET artifacts due to not being
+ *                      logged in.
+ *       403:
+ *         description: Forbidden, Failed to GET artifacts due to not having
+ *                      permissions.
+ *       404:
+ *         description: Not Found, Failed to GET artifacts due to artifact not
+ *                      existing.
+ *       500:
+ *         description: Internal Server Error, Failed to GET artifacts due to
+ *                      server side issue.
+ *
+ *   post:
+ *     tags:
+ *       - artifacts
+ *     description: Creates multiple artifacts from given data in request body.
+ *                  Requesting user must have at least write access on the
+ *                  project to create an artifact.
+ *     produces:
+ *       - application/json
+ *     parameters:
+ *       - name: orgid
+ *         description: The ID of the organization containing the specified
+ *                      project.
+ *         in: path
+ *         required: true
+ *         type: string
+ *       - name: projectid
+ *         description: The ID of the project containing the specified branch.
+ *         in: path
+ *         required: true
+ *         type: string
+ *       - name: branchid
+ *         description: The ID of the branch containing the new artifacts.
+ *         in: path
+ *         required: true
+ *         type: string
+ *       - name: body
+ *         description: An array of objects containing new artifact data.
+ *         in: body
+ *         required: true
+ *         schema:
+ *           type: array
+ *           items:
+ *             type: object
+ *             required:
+ *               - id
+ *               - location
+ *               - filename
+ *             properties:
+ *               id:
+ *                 type: string
+ *                 description: The ID of the artifact.
+ *               name:
+ *                 type: string
+ *               filename:
+ *                 type: string
+ *                 description: Blob file name associated with this artifact.
+ *               location:
+ *                 type: string
+ *                 description: Blob storage location.
+ *               custom:
+ *                 type: object
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object.
+ *         in: query
+ *         type: string
+ *         required: false
+ *       - name: fields
+ *         description: Comma separated list of specific fields to return. By
+ *                      default the id field is returned. To specifically NOT
+ *                      include a field, include a '-' in front of the field
+ *                      (-name). [archived, archivedBy, archivedOn, createdBy,
+ *                      createdOn, custom, lastModifiedBy, name, org, project,
+ *                      updatedOn, branch, filename, location, strategy]
+ *         in: query
+ *         type: string
+ *       - name: minified
+ *         description: If true, the returned JSON is minified. If false, the
+ *                      returned JSON is formatted based on the format specified
+ *                      in the config. The default value is false.
+ *         in: query
+ *         type: boolean
+ *         default: false
+ *     responses:
+ *       200:
+ *         description: OK, Succeeded to POST artifacts, returns artifact public
+ *                      data.
+ *       400:
+ *         description: Bad Request, Failed to POST artifacts due to invalid data.
+ *       401:
+ *         description: Unauthorized, Failed to POST artifacts due to not being
+ *                      logged in.
+ *       403:
+ *         description: Forbidden, Failed to POST artifacts due to not having
+ *                      permissions.
+ *       404:
+ *         description: Not Found, Failed to POST artifacts due to branch, project
+ *                      or org not existing.
+ *       500:
+ *         description: Internal Server Error, Failed to POST artifacts due to
+ *                      server side issue.
+ *   patch:
+ *     tags:
+ *       - artifacts
+ *     description: Updates multiple artifacts. Artifacts that are currently
+ *                  archived must first be unarchived before making any other
+ *                  updates. Requesting user must have at least write access
+ *                  on the project to update an artifact.
+ *     produces:
+ *       - application/json
+ *     parameters:
+ *       - name: orgid
+ *         description: The ID of the organization containing the specified
+ *                      project.
+ *         in: path
+ *         required: true
+ *         type: string
+ *       - name: projectid
+ *         description: The ID of the project containing the specified branch.
+ *         in: path
+ *         required: true
+ *         type: string
+ *       - name: branchid
+ *         description: The ID of the branch containing the artifacts to be
+ *                      updated.
+ *         in: path
+ *         required: true
+ *         type: string
+ *       - in: body
+ *         name: artifacts
+ *         description: An array of objects containing updates to multiple
+ *                      artifacts.
+ *         schema:
+ *           type: array
+ *           items:
+ *             type: object
+ *             required:
+ *               - id
+ *             properties:
+ *               id:
+ *                 type: string
+ *                 description: The current ID of the artifact, cannot be updated.
+ *               name:
+ *                 type: string
+ *                 description: Name of Artifact.
+ *               filename:
+ *                 type: string
+ *                 description: Filename of Artifact.
+ *               location:
+ *                 type: string
+ *                 description: Storage location of Artifact.
+ *               custom:
+ *                 type: object
+ *                 description: NOTE when updating the custom data, the object
+ *                              is completely replaced.
+ *               archived:
+ *                 type: boolean
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object.
+ *         in: query
+ *         type: string
+ *         required: false
+ *       - name: fields
+ *         description: Comma separated list of specific fields to return. By
+ *                      default the id field is returned. To specifically NOT
+ *                      include a field, include a '-' in front of the field
+ *                      (-name). [archived, archivedBy, archivedOn, createdBy,
+ *                      createdOn, custom, lastModifiedBy, name, org, project,
+ *                      updatedOn, branch, filename, location, strategy]
+ *         in: query
+ *         type: string
+ *       - name: minified
+ *         description: If true, the returned JSON is minified. If false, the
+ *                      returned JSON is formatted based on the format specified
+ *                      in the config. The default value is false.
+ *         in: query
+ *         type: boolean
+ *         default: false
+ *     responses:
+ *       200:
+ *         description: OK, Succeeded to PATCH artifacts, returns artifact public
+ *                      data.
+ *       400:
+ *         description: Bad Request, Failed to PATCH artifacts due to invalid
+ *                      data.
+ *       401:
+ *         description: Unauthorized, Failed to PATCH artifacts due to not being
+ *                      logged in.
+ *       403:
+ *         description: Forbidden, Failed to PATCH artifacts due to updating an
+ *                      immutable field.
+ *       404:
+ *         description: Not Found, Failed to PATCH artifacts due to artifact not
+ *                      existing.
+ *       500:
+ *         description: Internal Server Error, Failed to PATCH artifacts due to
+ *                      server side issue.
+ *   delete:
+ *     tags:
+ *       -  artifacts
+ *     description: Deletes multiple artifacts.
+ *     produces:
+ *       - application/json
+ *     parameters:
+ *       - name: orgid
+ *         description: The ID of the organization containing the specified
+ *                      project.
+ *         in: path
+ *         required: true
+ *         type: string
+ *       - name: projectid
+ *         description: The ID of the project containing the specified branch.
+ *         in: path
+ *         required: true
+ *         type: string
+ *       - name: branchid
+ *         description: The ID of the branch containing the artifacts to be
+ *                      deleted.
+ *         in: path
+ *         required: true
+ *         type: string
+ *       - name: artifactIDs
+ *         description: An array of artifact IDs to delete. Can optionally be an
+ *                      array of objects containing id key/value pairs.
+ *         in: body
+ *         required: true
+ *         schema:
+ *           type: array
+ *           items:
+ *             type: string
+ *       - name: minified
+ *         description: If true, the returned JSON is minified. If false, the
+ *                      returned JSON is formatted based on the format specified
+ *                      in the config. The default value is false.
+ *         in: query
+ *         type: boolean
+ *         default: false
+ *     responses:
+ *       200:
+ *         description: OK, Succeeded to DELETE artifacts, returns deleted
+ *                      artifact's id.
+ *       400:
+ *         description: Bad Request, Failed to DELETE artifacts due to invalid
+ *                      data.
+ *       401:
+ *         description: Unauthorized, Failed to DELETE artifacts due to not being
+ *                      logged in.
+ *       403:
+ *         description: Forbidden, Failed to DELETE artifacts due to not having
+ *                      permissions.
+ *       404:
+ *         description: Not Found, Failed to DELETE artifacts due to artifacts not
+ *                      existing.
+ *       500:
+ *         description: Internal Server Error, Failed to DELETE artifacts due to
+ *                      server side issue.
+ */
+api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts')
+.get(
+  AuthController.authenticate,
+  Middleware.logRoute,
+  APIController.getArtifacts
+)
+.post(
+  AuthController.authenticate,
+  Middleware.logRoute,
+  APIController.postArtifacts
+)
+.patch(
+  AuthController.authenticate,
+  Middleware.logRoute,
+  APIController.patchArtifacts
+)
+.delete(
+  AuthController.authenticate,
+  Middleware.logRoute,
+  APIController.deleteArtifacts
+);
+
 /**
  * @swagger
  * /api/orgs/{orgid}/projects/{projectid}/branches/{branchid}/artifacts/{artifactid}:

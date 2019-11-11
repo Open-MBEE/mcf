@@ -7,7 +7,7 @@
  *
  * @license MIT
  *
- * @owner Leah De Laurell
+ * @owner Connor Doyle
  *
  * @author Josh Kaplan
  * @author Leah De Laurell

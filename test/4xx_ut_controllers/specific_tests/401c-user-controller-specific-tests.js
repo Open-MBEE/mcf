@@ -72,8 +72,6 @@ describe(M.getModuleName(module.filename), () => {
   // -------------- Find --------------
   it('should only find archived users when the option archived is provided', optionArchivedFind);
   it('should include archived users in the find results', optionIncludeArchivedFind);
-  it('should return a raw JSON version of a user instead of a document with instance '
-    + 'methods from find()', optionLeanFind);
   it('should populate allowed fields when finding a user', optionPopulateFind);
   it('should return a limited number of users from find()', optionLimitFind);
   it('should return a second batch of users with the limit and skip option'
@@ -81,20 +79,14 @@ describe(M.getModuleName(module.filename), () => {
   it('should sort find results', optionSortFind);
   // ------------- Create -------------
   it('should create an archived user', createArchivedUser);
-  it('should return a raw JSON version of a user instead of a document with'
-    + ' instance methods from create()', optionLeanCreate);
   it('should populate allowed fields when creating a user', optionPopulateCreate);
   it('should return a user with only the specific fields specified from'
     + ' create()', optionFieldsCreate);
   // ------------- Update -------------
   it('should archive a user', archiveUser);
-  it('should return a raw JSON version of a user instead of a document with'
-    + ' instance methods from update()', optionLeanUpdate);
   it('should populate allowed fields when updating a user', optionPopulateUpdate);
   it('should only include specified fields when updating a user', optionFieldsUpdate);
   // ------------- Replace ------------
-  it('should return a raw JSON version of a user instead of a document with'
-    + ' instance methods from createOrReplace()', optionLeanReplace);
   it('should populate allowed fields when replacing a user', optionPopulateReplace);
   it('should return a user with only the specific fields specified from'
     + ' createOrReplace()', optionFieldsReplace);
@@ -105,8 +97,6 @@ describe(M.getModuleName(module.filename), () => {
     optionArchivedSearch);
   it('should include archived users in the search results when the option includeArchived'
     + ' is provided', optionIncludeArchivedSearch);
-  it('should return a raw JSON version of a user instead of a document with'
-    + ' instance methods from search()', optionLeanSearch);
   it('should populate allowed fields when searching a user', optionPopulateSearch);
   it('should return a limited number of users from search()', optionLimitSearch);
   it('should return a second batch of users with the limit and skip option '
@@ -139,42 +129,6 @@ async function createArchivedUser() {
     chai.expect(createdUser.archived).to.equal(true);
     chai.expect(createdUser.archivedBy).to.equal(adminUser._id);
     chai.expect(createdUser.archivedOn).to.not.equal(null);
-    // Remove the test user
-    await UserController.remove(adminUser, userData.username);
-  }
-  catch (error) {
-    M.log.error(error.message);
-    // Expect no error
-    chai.expect(error.message).to.equal(null);
-  }
-}
-
-/**
- * @description Validates that the lean option returns a raw JSON object
- * rather than a user object when a user is created with the lean option.
- */
-async function optionLeanCreate() {
-  try {
-    // Create user object
-    const userData = {
-      username: 'testuser00',
-      password: 'Abc123!@',
-      fname: 'Test'
-    };
-    // create options object to specify lean
-    const options = { lean: true };
-
-    // Create the user with the lean option
-    const createdUsers = await UserController.create(adminUser, userData, options);
-    const createdUser = createdUsers[0];
-
-    // Verify user created properly
-    chai.expect(createdUser._id).to.equal(userData.username);
-    chai.expect(createdUser.fname).to.equal(userData.fname);
-
-    // Expect the instance method getValidUpdateFields to be undefined
-    chai.expect(typeof createdUser.getValidUpdateFields).to.equal('undefined');
-
     // Remove the test user
     await UserController.remove(adminUser, userData.username);
   }
@@ -270,7 +224,7 @@ async function optionFieldsCreate() {
     const expectedFields = findOptions.fields.concat(fieldsAlwaysProvided);
 
     // Create a list of visible user fields.
-    const visibleFields = Object.keys(createdUser._doc);
+    const visibleFields = Object.keys(createdUser);
 
     // Check that the only keys in the user are the expected ones
     chai.expect(visibleFields).to.have.members(expectedFields);
@@ -280,7 +234,7 @@ async function optionFieldsCreate() {
     const notFindUser = notFindUsers[0];
 
     // Create a list of visible user fields. Object.keys(createdUser) returns hidden fields as well
-    const visibleFields2 = Object.keys(notFindUser._doc);
+    const visibleFields2 = Object.keys(notFindUser);
 
     // Check that the keys in the notFindOptions are not in createdUser
     chai.expect(visibleFields2).to.not.have.members(['createdOn', 'updatedOn']);
@@ -435,49 +389,6 @@ async function optionIncludeArchivedFind() {
     chai.expect(archivedUser.archivedOn).to.not.equal(null);
     chai.expect(archivedUser.archivedBy).to.equal(adminUser._id);
     // Remove test user
-    await UserController.remove(adminUser, userData.username);
-  }
-  catch (error) {
-    M.log.error(error.message);
-    // Expect no error
-    chai.expect(error.message).to.equal(null);
-  }
-}
-
-/**
- * @description Validates that the lean option will return raw JSON when
- * specified to the find function.
- */
-async function optionLeanFind() {
-  try {
-    // Create user object
-    const userData = {
-      username: 'testuser00',
-      password: 'Abc123!@',
-      fname: 'Test'
-    };
-    // Create the options object with lean: true
-    const options = { lean: true };
-
-    // Create a user
-    const createdUsers = await UserController.create(adminUser, userData);
-    const createdUser = createdUsers[0];
-
-    // Verify user created properly
-    chai.expect(createdUser._id).to.equal(userData.username);
-    chai.expect(createdUser.fname).to.equal(userData.fname);
-
-    // Find the user with the lean option
-    const foundUsers = await UserController.find(adminUser, userData.username, options);
-    const foundUser = foundUsers[0];
-
-    // Verify found user
-    chai.expect(foundUser._id).to.equal(userData.username);
-    chai.expect(foundUser.fname).to.equal(userData.fname);
-
-    // Expect the instance method getValidUpdateFields to be undefined
-    chai.expect(typeof foundUser.getValidUpdateFields).to.equal('undefined');
-
     await UserController.remove(adminUser, userData.username);
   }
   catch (error) {
@@ -655,55 +566,6 @@ async function optionSkipFind() {
 }
 
 /**
- * @description Validates that the lean option when specified with the update function
- * will cause the returned objects to be lean.
- */
-async function optionLeanUpdate() {
-  try {
-    // Create user object
-    const userData = {
-      username: 'testuser00',
-      password: 'Abc123!@',
-      fname: 'Test'
-    };
-    // Create the update object
-    const updateUser = {
-      username: userData.username,
-      fname: 'Updated'
-    };
-    // Create options object
-    const options = { lean: true };
-
-    // Create the test user
-    const createdUsers = await UserController.create(adminUser, userData);
-    const createdUser = createdUsers[0];
-
-    // Validate user properties
-    chai.expect(createdUser._id).to.equal(userData.username);
-    chai.expect(createdUser.fname).to.equal(userData.fname);
-
-    // Update the user
-    const updatedUsers = await UserController.update(adminUser, updateUser, options);
-    const updatedUser = updatedUsers[0];
-
-    // Verify user properties
-    chai.expect(updatedUser._id).to.equal(userData.username);
-    chai.expect(updatedUser.fname).to.equal(updateUser.fname);
-
-    // Expect the instance method getValidUpdateFields to be undefined
-    chai.expect(typeof updatedUser.getValidUpdateFields).to.equal('undefined');
-
-    // Remove test user
-    await UserController.remove(adminUser, userData.username);
-  }
-  catch (error) {
-    M.log.error(error.message);
-    // Expect no error
-    chai.expect(error.message).to.equal(null);
-  }
-}
-
-/**
  * @description Validates that the populate option when specified with the update
  * function will cause the returned objects to populate the specified fields with objects.
  */
@@ -813,7 +675,7 @@ async function optionFieldsUpdate() {
     const expectedFields = findOptions.fields.concat(fieldsAlwaysProvided);
 
     // Create a list of visible user fields.
-    const visibleFields = Object.keys(updatedUser._doc);
+    const visibleFields = Object.keys(updatedUser);
 
     // Check that the only keys in the user are the expected ones
     chai.expect(visibleFields).to.have.members(expectedFields);
@@ -832,60 +694,10 @@ async function optionFieldsUpdate() {
     const expectedFields2 = notFindOptions.fields;
 
     // Create a list of visible user fields.
-    const visibleFields2 = Object.keys(updatedUser2._doc);
+    const visibleFields2 = Object.keys(updatedUser2);
 
     // Check that the only keys in the user are the expected ones
     chai.expect(visibleFields2).to.not.have.members(expectedFields2);
-
-    // Remove test user
-    await UserController.remove(adminUser, userData.username);
-  }
-  catch (error) {
-    M.log.error(error.message);
-    // Expect no error
-    chai.expect(error.message).to.equal(null);
-  }
-}
-
-/**
- * @description Validates that the lean option when specified with the createOrReplace function
- * will cause the returned objects to be lean.
- */
-async function optionLeanReplace() {
-  try {
-    // Create the user object
-    const userData = {
-      username: 'testuser00',
-      password: 'Abc123!@',
-      fname: 'Test'
-    };
-    // Create the replace user object
-    const replaceUserObj = {
-      username: userData.username,
-      password: 'Abc123!@',
-      fname: 'Replaced'
-    };
-    // Create the options object
-    const options = { lean: true };
-
-    // Create the test user
-    const createdUsers = await UserController.create(adminUser, userData);
-    const createdUser = createdUsers[0];
-
-    // Validate created user
-    chai.expect(createdUser._id).to.equal(userData.username);
-    chai.expect(createdUser.fname).to.equal(userData.fname);
-
-    // Replace the user
-    const replacedUsers = await UserController.createOrReplace(adminUser, replaceUserObj, options);
-    const replacedUser = replacedUsers[0];
-
-    // Check that user was replaced properly
-    chai.expect(replacedUser._id).to.equal(userData.username);
-    chai.expect(replacedUser.fname).to.equal(replaceUserObj.fname);
-
-    // Expect the instance method getValidUpdateFields to be undefined
-    chai.expect(typeof replacedUser.getValidUpdateFields).to.equal('undefined');
 
     // Remove test user
     await UserController.remove(adminUser, userData.username);
@@ -1016,7 +828,7 @@ async function optionFieldsReplace() {
     const expectedFields = findOptions.fields.concat(fieldsAlwaysProvided);
 
     // Create a list of visible user fields.
-    const visibleFields = Object.keys(replacedUser._doc);
+    const visibleFields = Object.keys(replacedUser);
 
     // Check that the only keys in the user are the expected ones
     chai.expect(visibleFields).to.have.members(expectedFields);
@@ -1030,7 +842,7 @@ async function optionFieldsReplace() {
     chai.expect(notFindUser.fname).to.equal(replaceUserObj2.fname);
 
     // Create a list of visible user fields.
-    const visibleFields2 = Object.keys(notFindUser._doc);
+    const visibleFields2 = Object.keys(notFindUser);
 
     // Check that the keys in the notFindOptions are not in createdUser
     chai.expect(visibleFields2).to.not.have.members(['createdOn', 'updatedOn']);
@@ -1133,49 +945,6 @@ async function optionIncludeArchivedSearch() {
     });
 
     // Remove the test user
-    await UserController.remove(adminUser, userData.username);
-  }
-  catch (error) {
-    M.log.error(error.message);
-    // Expect no error
-    chai.expect(error.message).to.equal(null);
-  }
-}
-
-/**
- * @description Validates that the lean option when specified in the search function
- * returns lean results.
- */
-async function optionLeanSearch() {
-  try {
-    // Create the user object
-    const userData = {
-      username: 'testuser00',
-      password: 'Abc123!@',
-      fname: 'First'
-    };
-    // Search term
-    const searchQuery = 'First';
-    // Create options object
-    const options = { lean: true };
-    // Create user via UserController
-    const createdUsers = await UserController.create(adminUser, userData);
-    const createdUser = createdUsers[0];
-
-    // Verify user created
-    chai.expect(createdUser._id).to.equal(userData.username);
-    chai.expect(createdUser.fname).to.equal(userData.fname);
-
-    // Search for users
-    const foundUsers = await UserController.search(adminUser, searchQuery, options);
-    foundUsers.forEach((foundUser) => {
-      // Validate search text in found users
-      chai.expect(foundUser.fname || foundUser.lname
-        || foundUser.preferredName).to.equal(searchQuery);
-      // Expect the instance method getValidUpdateFields to be undefined
-      chai.expect(typeof foundUser.getValidUpdateFields).to.equal('undefined');
-    });
-
     await UserController.remove(adminUser, userData.username);
   }
   catch (error) {

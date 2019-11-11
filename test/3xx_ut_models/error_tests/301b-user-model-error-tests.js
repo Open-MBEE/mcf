@@ -44,25 +44,25 @@ describe(M.getModuleName(module.filename), () => {
   /**
    * Before: runs before all tests. Open database connection.
    */
-  before((done) => {
-    db.connect()
-    .then(() => done())
-    .catch((error) => {
+  before(async () => {
+    try {
+      db.connect();
+    }
+    catch (error) {
       chai.expect(error.message).to.equal(null);
-      done();
-    });
+    }
   });
 
   /**
    * After: runs after all tests. Close database connection.
    */
-  after((done) => {
-    db.disconnect()
-    .then(() => done())
-    .catch((error) => {
+  after(async () => {
+    try {
+      db.disconnect();
+    }
+    catch (error) {
       chai.expect(error.message).to.equal(null);
-      done();
-    });
+    }
   });
 
   /* Execute the tests */
@@ -83,35 +83,46 @@ describe(M.getModuleName(module.filename), () => {
  * @description Attempts to create a user with a username that is too short.
  */
 async function usernameTooShort() {
-  const userData = Object.assign({}, testData.users[0]);
+  try {
+    const userData = Object.assign({}, testData.users[0]);
 
-  // Change username to be too short.
-  userData._id = 'ab';
+    // Change username to be too short.
+    userData._id = 'ab';
+    delete userData.id;
 
-  // Create user object
-  const userObject = User.createDocument(userData);
-
-  // Save user
-  await userObject.save().should.eventually.be.rejectedWith('User validation failed: '
-    + `_id: Username length [${userData._id.length}] must not be less than 3 characters.`);
+    // Expect insertMany() to fail with specific error message
+    await User.insertMany(userData).should.eventually.be.rejectedWith('User '
+      + `validation failed: _id: Username length [${userData._id.length}] must `
+      + 'not be less than 3 characters.');
+  }
+  catch (error) {
+    M.log.error(error);
+    // There should be no error
+    should.not.exist(error);
+  }
 }
 
 /**
  * @description Attempts to create a user with a username that is too long.
  */
 async function usernameTooLong() {
-  const userData = Object.assign({}, testData.users[0]);
+  try {
+    const userData = Object.assign({}, testData.users[0]);
 
-  // Change username to be too long.
-  userData._id = 'usernamewiththirtysevencharacters1234';
+    // Change username to be too long.
+    userData._id = 'usernamewiththirtysevencharacters1234';
+    delete userData.id;
 
-  // Create user object
-  const userObject = User.createDocument(userData);
-
-  // Save user
-  await userObject.save().should.eventually.be.rejectedWith('User validation failed: '
-    + `_id: Username length [${userData._id.length}] must not be more than `
-    + `${validators.user.usernameLength} characters.`);
+    // Expect insertMany() to fail with specific error message
+    await User.insertMany(userData).should.eventually.be.rejectedWith('User '
+      + `validation failed: _id: Username length [${userData._id.length}] must `
+      + `not be more than ${validators.user.usernameLength} characters.`);
+  }
+  catch (error) {
+    M.log.error(error);
+    // There should be no error
+    should.not.exist(error);
+  }
 }
 
 /**
@@ -123,18 +134,22 @@ async function usernameInvalid() {
       + ' validator.');
     this.skip();
   }
+  try {
+    const userData = Object.assign({}, testData.users[0]);
 
-  const userData = Object.assign({}, testData.users[0]);
+    // Change username to be invalid
+    userData._id = 'Inva3l!d_UserN&me';
+    delete userData.id;
 
-  // Change username to be invalid
-  userData._id = 'Inva3l!d_UserN&me';
-
-  // Create user object
-  const userObject = User.createDocument(userData);
-
-  // Save user
-  await userObject.save().should.eventually.be.rejectedWith('User validation failed: _id: '
-    + `Invalid username [${userData._id}].`);
+    // Expect insertMany() to fail with specific error message
+    await User.insertMany(userData).should.eventually.be.rejectedWith('User '
+      + `validation failed: _id: Invalid username [${userData._id}].`);
+  }
+  catch (error) {
+    M.log.error(error);
+    // There should be no error
+    should.not.exist(error);
+  }
 }
 
 /**
@@ -146,21 +161,24 @@ async function fnameInvalid() {
       + ' validator.');
     this.skip();
   }
+  try {
+    const userData = Object.assign({}, testData.users[0]);
+    userData._id = userData.username;
 
-  const userData = Object.assign({}, testData.users[0]);
-  userData._id = userData.username;
+    // Change first name to be invalid
+    userData.fname = 'Inva3l!d_FirstN&me';
+    delete userData.id;
 
-  // Change first name to be invalid
-  userData.fname = 'Inva3l!d_FirstN&me';
-
-  // Create user object
-  const userObject = User.createDocument(userData);
-
-  // Save user
-  await userObject.save().should.eventually.be.rejectedWith('User validation failed: fname: '
-    + `Invalid first name [${userData.fname}].`);
+    // Expect insertMany() to fail with specific error message
+    await User.insertMany(userData).should.eventually.be.rejectedWith('User '
+      + `validation failed: fname: Invalid first name [${userData.fname}].`);
+  }
+  catch (error) {
+    M.log.error(error);
+    // There should be no error
+    should.not.exist(error);
+  }
 }
-
 
 /**
  * @description Attempts to create a user with an invalid last name.
@@ -171,19 +189,23 @@ async function lnameInvalid() {
       + ' validator.');
     this.skip();
   }
+  try {
+    const userData = Object.assign({}, testData.users[0]);
+    userData._id = userData.username;
 
-  const userData = Object.assign({}, testData.users[0]);
-  userData._id = userData.username;
+    // Change last name to be invalid
+    userData.lname = 'Inva3l!d_LastN&me';
+    delete userData.id;
 
-  // Change last name to be invalid
-  userData.lname = 'Inva3l!d_LastN&me';
-
-  // Create user object
-  const userObject = User.createDocument(userData);
-
-  // Save user
-  await userObject.save().should.eventually.be.rejectedWith('User validation failed: lname: '
-    + `Invalid last name [${userData.lname}].`);
+    // Expect insertMany() to fail with specific error message
+    await User.insertMany(userData).should.eventually.be.rejectedWith('User '
+      + `validation failed: lname: Invalid last name [${userData.lname}].`);
+  }
+  catch (error) {
+    M.log.error(error);
+    // There should be no error
+    should.not.exist(error);
+  }
 }
 
 
@@ -196,70 +218,91 @@ async function preferredNameInvalid() {
       + ' validator.');
     this.skip();
   }
+  try {
+    const userData = Object.assign({}, testData.users[0]);
+    userData._id = userData.username;
 
-  const userData = Object.assign({}, testData.users[0]);
-  userData._id = userData.username;
+    // Change preferred name to be invalid
+    userData.preferredName = 'Inva3l!d_PreferredN&me';
+    delete userData.id;
 
-  // Change preferred name to be invalid
-  userData.preferredName = 'Inva3l!d_PreferredN&me';
-
-  // Create user object
-  const userObject = User.createDocument(userData);
-
-  // Save user
-  await userObject.save().should.eventually.be.rejectedWith('User validation failed: '
-    + `preferredName: Invalid preferred name [${userData.preferredName}].`);
+    // Expect insertMany() to fail with specific error message
+    await User.insertMany(userData).should.eventually.be.rejectedWith('User '
+      + 'validation failed: preferredName: Invalid preferred name '
+      + `[${userData.preferredName}].`);
+  }
+  catch (error) {
+    M.log.error(error);
+    // There should be no error
+    should.not.exist(error);
+  }
 }
-
 
 /**
  * @description Attempts to create a user with an admin that's not a boolean.
  */
 async function adminNotBoolean() {
-  const userData = Object.assign({}, testData.users[0]);
-  userData._id = userData.username;
+  try {
+    const userData = Object.assign({}, testData.users[0]);
+    userData._id = userData.username;
 
-  // Change admin to not be a boolean.
-  userData.admin = 123;
+    // Change admin to not be a boolean.
+    userData.admin = 123;
+    delete userData.id;
 
-  // Create user object
-  const userObject = User.createDocument(userData);
-
-  // Save user
-  userObject.save().should.eventually.be.rejectedWith('User validation failed: admin: '
-    + 'Cast to Boolean failed for value "123" at path "admin"');
+    // Expect insertMany() to fail with specific error message
+    await User.insertMany(userData).should.eventually.be.rejectedWith('User '
+      + 'validation failed: admin: Cast to Boolean failed for value "123" at '
+      + 'path "admin"');
+  }
+  catch (error) {
+    M.log.error(error);
+    // There should be no error
+    should.not.exist(error);
+  }
 }
 
 /**
  * @description Attempts to create a user with a provider that's not a string.
  */
 async function providerNotString() {
-  const userData = Object.assign({}, testData.users[0]);
-  userData._id = userData.username;
+  try {
+    const userData = Object.assign({}, testData.users[0]);
+    userData._id = userData.username;
 
-  // Change provider to not be a string.
-  userData.provider = {};
+    // Change provider to not be a string.
+    userData.provider = {};
+    delete userData.id;
 
-  // Create user object
-  const userObject = User.createDocument(userData);
-
-  // Save user
-  userObject.save().should.eventually.be.rejectedWith('User validation failed: provider: '
-    + 'Cast to String failed for value "{}" at path "provider"');
+    // Expect insertMany() to fail with specific error message
+    await User.insertMany(userData).should.eventually.be.rejectedWith('User '
+      + 'validation failed: provider: Cast to String failed for value "{}" at '
+      + 'path "provider"');
+  }
+  catch (error) {
+    M.log.error(error);
+    // There should be no error
+    should.not.exist(error);
+  }
 }
 
 /**
  * @description Attempts to create a user with no username (_id).
  */
 async function usernameNotProvided() {
-  const userData = Object.assign({}, testData.users[0]);
+  try {
+    const userData = Object.assign({}, testData.users[0]);
+    delete userData.id;
 
-  // Create user object
-  const userObject = User.createDocument(userData);
-
-  // Save user
-  userObject.save().should.eventually.be.rejectedWith('User validation failed: _id: '
-    + 'Username is required.');
+    // Expect insertMany() to fail with specific error message
+    await User.insertMany(userData).should.eventually.be.rejectedWith('User '
+      + 'validation failed: _id: Username is required.');
+  }
+  catch (error) {
+    M.log.error(error);
+    // There should be no error
+    should.not.exist(error);
+  }
 }
 
 /**
@@ -271,17 +314,21 @@ async function emailInvalid() {
       + ' validator.');
     this.skip();
   }
+  try {
+    const userData = Object.assign({}, testData.users[0]);
+    userData._id = userData.username;
 
-  const userData = Object.assign({}, testData.users[0]);
-  userData._id = userData.username;
+    // Change email to be invalid
+    userData.email = 'invalid_email';
+    delete userData.id;
 
-  // Change email to be invalid
-  userData.email = 'invalid_email';
-
-  // Create user object
-  const userObject = User.createDocument(userData);
-
-  // Save user
-  await userObject.save().should.eventually.be.rejectedWith('User validation failed: email: '
-    + `Invalid email [${userData.email}].`);
+    // Expect insertMany() to fail with specific error message
+    await User.insertMany(userData).should.eventually.be.rejectedWith('User '
+      + `validation failed: email: Invalid email [${userData.email}].`);
+  }
+  catch (error) {
+    M.log.error(error);
+    // There should be no error
+    should.not.exist(error);
+  }
 }

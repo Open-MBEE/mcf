@@ -7,7 +7,7 @@
  *
  * @license MIT
  *
- * @owner Leah De Laurell
+ * @owner Connor Doyle
  *
  * @author Leah De Laurell
  *
@@ -68,8 +68,6 @@ const permissions = M.require('lib.permissions');
  * @param {number} [options.skip = 0] - A non-negative number that specifies the
  * number of documents to skip returning. For example, if 10 documents are found
  * and skip is 5, the first 5 documents will NOT be returned.
- * @param {boolean} [options.lean = false] - A boolean value that if true
- * returns raw JSON instead of converting the data to objects.
  * @param {string} [options.sort] - Provide a particular field to sort the results by.
  * You may also add a negative sign in front of the field to indicate sorting in
  * reverse order.
@@ -126,7 +124,7 @@ async function find(requestingUser, organizationID, projectID, branches, options
 
     // Initialize and ensure options are valid
     const validatedOptions = utils.validateOptions(options, ['populate',
-      'includeArchived', 'fields', 'limit', 'skip', 'lean', 'sort'], Branch);
+      'includeArchived', 'fields', 'limit', 'skip', 'sort'], Branch);
 
     // Ensure options are valid
     if (options) {
@@ -198,8 +196,7 @@ async function find(requestingUser, organizationID, projectID, branches, options
       { limit: validatedOptions.limit,
         skip: validatedOptions.skip,
         sort: validatedOptions.sort,
-        populate: validatedOptions.populateString,
-        lean: validatedOptions.lean
+        populate: validatedOptions.populateString
       });
   }
   catch (error) {
@@ -231,8 +228,6 @@ async function find(requestingUser, organizationID, projectID, branches, options
  * @param {string[]} [options.fields] - An array of fields to return. By default
  * includes the _id and id fields. To NOT include a field, provide a '-' in
  * front.
- * @param {boolean} [options.lean = false] - A boolean value that if true
- * returns raw JSON instead of converting the data to objects.
  *
  * @returns {Promise<object[]>} Array of created branch objects.
  *
@@ -271,8 +266,7 @@ async function create(requestingUser, organizationID, projectID, branches, optio
     let elementsCloning;
 
     // Initialize and ensure options are valid
-    const validatedOptions = utils.validateOptions(options, ['populate', 'fields',
-      'lean'], Branch);
+    const validatedOptions = utils.validateOptions(options, ['populate', 'fields'], Branch);
 
     // Define array to store branch data
     let branchesToCreate = [];
@@ -338,7 +332,7 @@ async function create(requestingUser, organizationID, projectID, branches, optio
     sourceID = utils.createID(orgID, projID, sourceID);
 
     // Find the source branch to verify existence
-    const foundSourceBranch = await Branch.findOne({ _id: sourceID }, '_id', { lean: true });
+    const foundSourceBranch = await Branch.findOne({ _id: sourceID }, '_id');
     // Check that the branch was found
     if (!foundSourceBranch) {
       throw new M.NotFoundError(`Branch [${utils.parseID(sourceID).pop()}] not found in the `
@@ -349,7 +343,7 @@ async function create(requestingUser, organizationID, projectID, branches, optio
     const searchQuery = { _id: { $in: arrIDs } };
 
     // Find any existing, conflicting branches
-    const foundBranches = await Branch.find(searchQuery, '_id', { lean: true });
+    const foundBranches = await Branch.find(searchQuery, '_id');
 
     // If there are any foundBranches, there is a conflict
     if (foundBranches.length > 0) {
@@ -386,7 +380,7 @@ async function create(requestingUser, organizationID, projectID, branches, optio
       newBranches = createdBranches;
 
       // Find all the elements in the branch we are branching from
-      const elementsToClone = await Element.find({ branch: sourceID }, null, { lean: true });
+      const elementsToClone = await Element.find({ branch: sourceID }, null);
 
       let elementsToCreate = [];
       // Grabbing all the element ids
@@ -474,7 +468,7 @@ async function create(requestingUser, organizationID, projectID, branches, optio
 
       await Promise.all(promises);
       // Create the new elements
-      const newElements = await Element.insertMany(elementsToCreate, { lean: true });
+      const newElements = await Element.insertMany(elementsToCreate);
 
       if (newElements.length !== (newBranches.length * elementsCloning.length)) {
         // Not all elements were created
@@ -505,9 +499,7 @@ async function create(requestingUser, organizationID, projectID, branches, optio
 
     return await Branch.find({ _id: { $in: arrIDs } },
       validatedOptions.fieldsString,
-      { populate: validatedOptions.populateString,
-        lean: validatedOptions.lean
-      });
+      { populate: validatedOptions.populateString });
   }
   catch (error) {
     throw errors.captureError(error);
@@ -540,8 +532,6 @@ async function create(requestingUser, organizationID, projectID, branches, optio
  * @param {string[]} [options.fields] - An array of fields to return. By default
  * includes the _id and id fields. To NOT include a field, provide a '-' in
  * front.
- * @param {boolean} [options.lean = false] - A boolean value that if true
- * returns raw JSON instead of converting the data to objects.
  *
  * @returns {Promise<object[]>} Array of updated branch objects.
  *
@@ -572,8 +562,7 @@ async function update(requestingUser, organizationID, projectID, branches, optio
     const bulkArray = [];
 
     // Initialize and ensure options are valid
-    const validatedOptions = utils.validateOptions(options, ['populate', 'fields',
-      'lean'], Branch);
+    const validatedOptions = utils.validateOptions(options, ['populate', 'fields'], Branch);
 
     // Check the type of the branches parameter
     if (Array.isArray(saniBranches)) {
@@ -626,7 +615,7 @@ async function update(requestingUser, organizationID, projectID, branches, optio
     const searchQuery = { _id: { $in: arrIDs } };
 
     // Return when all branches have been found
-    const foundBranches = await Branch.find(searchQuery, null, { lean: true });
+    const foundBranches = await Branch.find(searchQuery, null);
 
     foundBranches.forEach(branch => {
       // Check permissions
@@ -673,11 +662,27 @@ async function update(requestingUser, organizationID, projectID, branches, optio
 
         // Get validator for field if one exists
         if (validators.branch.hasOwnProperty(key)) {
-          // If validation fails, throw error
-          if (!RegExp(validators.branch[key]).test(updateBranch[key])) {
-            throw new M.DataFormatError(
-              `Invalid ${key}: [${updateBranch[key]}]`, 'warn'
-            );
+          // If the validator is a regex string
+          if (typeof validators.branch[key] === 'string') {
+            // If validation fails, throw error
+            if (!RegExp(validators.branch[key]).test(updateBranch[key])) {
+              throw new M.DataFormatError(
+                `Invalid ${key}: [${updateBranch[key]}]`, 'warn'
+              );
+            }
+          }
+          // If the validator is a function
+          else if (typeof validators.branch[key] === 'function') {
+            if (!validators.branch[key](updateBranch[key])) {
+              throw new M.DataFormatError(
+                `Invalid ${key}: [${updateBranch[key]}]`, 'warn'
+              );
+            }
+          }
+          // Improperly formatted validator
+          else {
+            throw new M.ServerError(`Branch validator [${key}] is neither a `
+              + 'function nor a regex string.');
           }
         }
 
@@ -720,9 +725,7 @@ async function update(requestingUser, organizationID, projectID, branches, optio
 
 
     const foundUpdatedBranches = await Branch.find(searchQuery, validatedOptions.fieldsString,
-      { populate: validatedOptions.populateString,
-        lean: validatedOptions.lean
-      });
+      { populate: validatedOptions.populateString });
 
     // Emit the event branches-updated
     EventEmitter.emit('branches-updated', foundUpdatedBranches);
@@ -796,7 +799,7 @@ async function remove(requestingUser, organizationID, projectID, branches, optio
     const project = await helper.findAndValidate(Project, utils.createID(orgID, projID));
 
     // Find all the branches to delete
-    const foundBranches = await Branch.find(searchQuery, null, { lean: true });
+    const foundBranches = await Branch.find(searchQuery, null);
 
     foundBranches.forEach(branch => {
       // Check permissions

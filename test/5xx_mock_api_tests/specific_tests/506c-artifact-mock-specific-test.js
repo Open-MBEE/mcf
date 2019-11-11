@@ -1,18 +1,18 @@
 /**
  * @classification UNCLASSIFIED
  *
- * @module test.503c-project-mock-specific-tests
+ * @module test.506c-artifact-mock-specific-tests
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
  * @license MIT
  *
- * @owner Connor Doyle
+ * @owner Phillip Lee
  *
- * @author Connor Doyle
+ * @author Phillip Lee
  *
  * @description This tests mock requests of the API controller functionality:
- * GET, POST, PATCH, and DELETE projects.
+ * GZIP with POST and PATCH artifacts.
  */
 
 // Node modules
@@ -24,9 +24,13 @@ const zlib = require('zlib');
 const chai = require('chai');
 
 // MBEE modules
+const ArtifactController = M.require('controllers.artifact-controller');
 const ProjectController = M.require('controllers.project-controller');
 const apiController = M.require('controllers.api-controller');
 const db = M.require('lib.db');
+const utils = M.require('lib.utils');
+const jmi = M.require('lib.jmi-conversions');
+
 
 /* --------------------( Test Data )-------------------- */
 const testUtils = M.require('lib.test-utils');
@@ -34,7 +38,9 @@ const testData = testUtils.importTestData('test_data.json');
 const filepath = path.join(M.root, '/test/testzip.json');
 let adminUser = null;
 let org = null;
-
+let proj = null;
+let projID = null;
+const branchID = 'master';
 
 /* --------------------( Main )-------------------- */
 /**
@@ -45,7 +51,7 @@ let org = null;
  */
 describe(M.getModuleName(module.filename), () => {
   /**
-   * After: Connect to database. Create an admin user and organization.
+   * After: Connect to database. Create an admin user, organization, and project.
    */
   before(async () => {
     try {
@@ -55,6 +61,11 @@ describe(M.getModuleName(module.filename), () => {
       adminUser = await testUtils.createTestAdmin();
       // Create organization
       org = await testUtils.createTestOrg(adminUser);
+      // Define project data
+      const projData = testData.projects[0];
+      // Create project
+      proj = await ProjectController.create(adminUser, org._id, projData);
+      projID = utils.parseID(proj[0]._id).pop();
     }
     catch (error) {
       M.log.error(error);
@@ -64,7 +75,7 @@ describe(M.getModuleName(module.filename), () => {
   });
 
   /**
-   * After: Remove Organization.
+   * After: Remove Organization and project.
    * Close database connection.
    */
   after(async () => {
@@ -84,29 +95,33 @@ describe(M.getModuleName(module.filename), () => {
   });
 
   /* Execute tests */
-  it('should post projects from an uploaded gzip file', postGzip);
-  it('should put projects from an uploaded gzip file', putGzip);
-  it('should patch projects from an uploaded gzip file', patchGzip);
+  it('should create artifacts from an uploaded gzip file', postGzip);
+  it('should patch artifacts from an uploaded gzip file', patchGzip);
 });
 
 /* --------------------( Tests )-------------------- */
 
 /**
  * @description Verifies that a gzip file can be uploaded, unzipped, and
- * the contents can be used to create projects.
+ * the contents can be used to create artifacts.
  *
  * @param {Function} done - The mocha callback.
  */
 function postGzip(done) {
-  const projectData = testData.projects[0];
+  const artifactData = [
+    testData.artifacts[1],
+    testData.artifacts[2]
+  ];
 
   // Create a gzip file for testing
-  const zippedData = zlib.gzipSync(JSON.stringify(projectData));
+  const zippedData = zlib.gzipSync(JSON.stringify(artifactData));
   fs.appendFileSync((filepath), zippedData);
 
   // Initialize the request attributes
   const params = {
-    orgid: org._id
+    orgid: org._id,
+    projectid: projID,
+    branchid: branchID
   };
   const body = {};
   const method = 'POST';
@@ -127,68 +142,22 @@ function postGzip(done) {
   // Verifies the response data
   res.send = function send(_data) {
     // Verify response body
-    const createdProjects = JSON.parse(_data);
-    const createdProject = createdProjects[0];
+    const createdArtifacts = JSON.parse(_data);
 
-    // Verify project created properly
-    chai.expect(createdProject.id).to.equal(projectData.id);
-    chai.expect(createdProject.name).to.equal(projectData.name);
-    chai.expect(createdProject.custom || {}).to.deep.equal(projectData.custom);
+    // Convert createdArtifacts to JMI type 2 for easier lookup
+    const jmi2Artifacts = jmi.convertJMI(1, 2, createdArtifacts, 'id');
 
-    // Clear the data used for testing
-    fs.truncateSync(filepath);
+    // Loop through each artifact data object
+    artifactData.forEach((artObj) => {
+      const artifactID = artObj.id;
+      const createdArt = jmi2Artifacts[artifactID];
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
-  };
-
-  // POSTs a project
-  apiController.postProjects(req, res);
-}
-
-/**
- * @description Verifies that a gzip file can be uploaded, unzipped, and
- * the contents can be used to create or replace projects.
- *
- * @param {Function} done - The mocha callback.
- */
-function putGzip(done) {
-  const projectData = testData.projects[1];
-
-  // Create a gzip file for testing
-  const zippedData = zlib.gzipSync(JSON.stringify(projectData));
-  fs.appendFileSync((filepath), zippedData);
-
-  // Initialize the request attributes
-  const params = {
-    orgid: org._id
-  };
-  const body = {};
-  const method = 'PUT';
-  const query = {};
-  const headers = 'application/gzip';
-
-  // Create a read stream of the zip file and give it request-like attributes
-  const req = testUtils.createReadStreamRequest(adminUser, params, body, method, query,
-    filepath, headers);
-  req.headers['accept-encoding'] = 'gzip';
-
-  // Set response as empty object
-  const res = {};
-
-  // Verifies status code and headers
-  testUtils.createResponse(res);
-
-  // Verifies the response data
-  res.send = function send(_data) {
-    // Verify response body
-    const createdProjects = JSON.parse(_data);
-    const createdProject = createdProjects[0];
-
-    // Verify project created properly
-    chai.expect(createdProject.id).to.equal(projectData.id);
-    chai.expect(createdProject.name).to.equal(projectData.name);
-    chai.expect(createdProject.custom || {}).to.deep.equal(projectData.custom);
+      // Verify artifact created properly
+      chai.expect(createdArt.id).to.equal(artifactID);
+      chai.expect(createdArt.name).to.equal(artObj.name);
+      chai.expect(createdArt.custom || {}).to.deep.equal(artObj.custom);
+      chai.expect(createdArt.project).to.equal(projID);
+    });
 
     // Clear the data used for testing
     fs.truncateSync(filepath);
@@ -197,31 +166,33 @@ function putGzip(done) {
     setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
   };
 
-  // PUTs a project
-  apiController.putProjects(req, res);
+  // POSTs an artifact
+  apiController.postArtifacts(req, res);
 }
 
 /**
  * @description Verifies that a gzip file can be uploaded, unzipped, and
- * the contents can be used to update projects.
+ * the contents can be used to update artifacts.
  *
  * @param {Function} done - The mocha callback.
  */
 function patchGzip(done) {
-  const projectData = testData.projects[2];
+  const artifactData = [
+    testData.artifacts[3],
+    testData.artifacts[4]];
 
-  // Create the project to be patched
-  ProjectController.create(adminUser, org._id, projectData)
+  // Create the artifact to be patched
+  ArtifactController.create(adminUser, org._id, projID, branchID, artifactData)
   .then(() => {
-    projectData.name = 'updated';
-
     // Create a gzip file for testing
-    const zippedData = zlib.gzipSync(JSON.stringify(projectData));
+    const zippedData = zlib.gzipSync(JSON.stringify(artifactData));
     fs.appendFileSync((filepath), zippedData);
 
     // Initialize the request attributes
     const params = {
-      orgid: org._id
+      orgid: org._id,
+      projectid: projID,
+      branchid: branchID
     };
     const body = {};
     const method = 'PATCH';
@@ -242,13 +213,21 @@ function patchGzip(done) {
     // Verifies the response data
     res.send = function send(_data) {
       // Verify response body
-      const updatedProjects = JSON.parse(_data);
-      const updatedProject = updatedProjects[0];
+      const updatedArtifacts = JSON.parse(_data);
+      // Convert createdArtifacts to JMI type 2 for easier lookup
+      const jmi2Artifacts = jmi.convertJMI(1, 2, updatedArtifacts, 'id');
 
-      // Verify project updated properly
-      chai.expect(updatedProject.id).to.equal(projectData.id);
-      chai.expect(updatedProject.name).to.equal(projectData.name);
-      chai.expect(updatedProject.custom || {}).to.deep.equal(projectData.custom);
+      // Loop through each artifact data object
+      artifactData.forEach((artObj) => {
+        const artifactID = artObj.id;
+        const updatedArtifact = jmi2Artifacts[artifactID];
+
+        // Verify artifact updated properly
+        chai.expect(updatedArtifact.id).to.equal(artifactID);
+        chai.expect(updatedArtifact.name).to.equal(artObj.name);
+        chai.expect(updatedArtifact.custom || {}).to.deep.equal(artObj.custom);
+        chai.expect(updatedArtifact.project).to.equal(projID);
+      });
 
       // Clear the data used for testing
       fs.truncateSync(filepath);
@@ -257,7 +236,7 @@ function patchGzip(done) {
       setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
     };
 
-    // PATCHes a project
-    apiController.patchProjects(req, res);
+    // PATCH artifacts
+    apiController.patchArtifacts(req, res);
   });
 }

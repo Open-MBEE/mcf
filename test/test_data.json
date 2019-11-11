@@ -211,13 +211,25 @@
       "id": "batchelem9",
       "name": "Batch Element 9",
       "parent": "model",
-      "archived": "true"
+      "archived": true
+    },
+    {
+      "id": "batchelem10",
+      "name": "Batch Element 10"
+    },
+    {
+      "id": "batchelem11",
+      "name": "Batch Element 11"
+    },
+    {
+      "id": "batchelem12",
+      "name": "Batch Element 12"
     }
   ],
   "artifacts": [
     {
       "id": "artifact00",
-      "name": "logo image",
+      "name": "artifact 00",
       "filename": "logo.png",
       "location": "/test/test_files/",
       "custom": {
@@ -226,7 +238,7 @@
     },
     {
       "id": "artifact01",
-      "name": "concept image",
+      "name": "artifact 01",
       "filename": "mbee-concept.png",
       "location": "/test/test_files/",
       "custom": {
@@ -235,7 +247,24 @@
     },
     {
       "id": "artifact02",
-      "name": "hello world text",
+      "name": "artifact 02",
+      "filename": "text.txt",
+      "location": "/test/test_files/",
+      "custom": {
+        "custom_key": "custom_value"
+      }
+    },
+    {
+      "id": "artifact03",
+      "name": "artifact 03",
+      "filename": "text.txt",
+      "location": "/test/test_files/",
+      "custom": {
+        "custom_key": "custom_value"
+      }
+    },{
+      "id": "artifact04",
+      "name": "artifact 04",
       "filename": "text.txt",
       "location": "/test/test_files/",
       "custom": {

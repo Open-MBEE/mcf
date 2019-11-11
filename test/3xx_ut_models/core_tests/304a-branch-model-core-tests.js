@@ -83,15 +83,15 @@ describe(M.getModuleName(module.filename), () => {
  */
 async function createBranch() {
   // Create new branch object
-  const newBranch = Branch.createDocument({
+  const newBranch = {
     _id: utils.createID(org.id, project.id, testData.branches[0].id),
     name: testData.branches[0].name,
     project: utils.createID(org.id, project.id),
     source: testData.branches[0].source
-  });
+  };
 
   // Save branch object to database
-  const createdBranch = await newBranch.save();
+  const createdBranch = (await Branch.insertMany(newBranch))[0];
   // Check branch object saved correctly
   createdBranch._id.should.equal(utils.createID(org.id, project.id, testData.branches[0].id));
   createdBranch.name.should.equal(testData.branches[0].name);

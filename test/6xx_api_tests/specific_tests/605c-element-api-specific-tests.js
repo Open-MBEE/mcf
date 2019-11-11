@@ -58,8 +58,8 @@ describe(M.getModuleName(module.filename), () => {
       // Create org
       org = await testUtils.createTestOrg(adminUser);
       // Create project
-      const retProj = await testUtils.createTestProject(adminUser, org.id);
-      projID = utils.parseID(retProj.id).pop();
+      const retProj = await testUtils.createTestProject(adminUser, org._id);
+      projID = utils.parseID(retProj._id).pop();
     }
     catch (error) {
       M.log.error(error);
@@ -107,7 +107,7 @@ function handleGzipUpload(done) {
   fs.appendFileSync((zipfilepath), zippedData);
 
   request({
-    url: `${test.url}/api/orgs/${org.id}/projects/${projID}/branches/master/elements`,
+    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements`,
     // Send the 'application/gzip' header
     headers: testUtils.getHeaders('application/gzip'),
     ca: testUtils.readCaFile(),

@@ -109,9 +109,10 @@ async function validateTest() {
  * @description Checks to make sure validate function rejects invalid config objects.
  */
 async function rejectInvalidConfigTest() {
-  const invalidConfig = {};
+  let invalidConfig = Object.assign({}, M.config);
 
   // Test rejection if auth is not defined
+  delete invalidConfig.auth;
   try {
     configUtils.validate(invalidConfig);
   }
@@ -138,7 +139,8 @@ async function rejectInvalidConfigTest() {
   }
 
   // Test rejection if db is not defined
-  invalidConfig.auth = M.config.auth;
+  invalidConfig = Object.assign({}, M.config);
+  delete invalidConfig.db;
   try {
     configUtils.validate(invalidConfig);
   }
@@ -147,7 +149,8 @@ async function rejectInvalidConfigTest() {
   }
 
   // Test rejection if log is not defined
-  invalidConfig.db = M.config.db;
+  invalidConfig = Object.assign({}, M.config);
+  delete invalidConfig.log;
   try {
     configUtils.validate(invalidConfig);
   }
@@ -156,7 +159,8 @@ async function rejectInvalidConfigTest() {
   }
 
   // Test rejection if server is not defined
-  invalidConfig.log = M.config.log;
+  invalidConfig = Object.assign({}, M.config);
+  delete invalidConfig.server;
   try {
     configUtils.validate(invalidConfig);
   }
@@ -165,7 +169,8 @@ async function rejectInvalidConfigTest() {
   }
 
   // Test rejection if test is not defined
-  invalidConfig.server = M.config.server;
+  invalidConfig = Object.assign({}, M.config);
+  delete invalidConfig.test;
   try {
     configUtils.validate(invalidConfig);
   }
@@ -174,11 +179,36 @@ async function rejectInvalidConfigTest() {
   }
 
   // Test rejection if artifact is not defined
-  invalidConfig.test = M.config.test;
+  invalidConfig = Object.assign({}, M.config);
+  delete invalidConfig.artifact;
   try {
     configUtils.validate(invalidConfig);
   }
   catch (error) {
     error.message.should.equal('Configuration file: "artifact" is not defined.');
+  }
+
+  // Test rejection if custom id excludes root element
+  invalidConfig = Object.assign({}, M.config);
+  invalidConfig.validators = {
+    id: '([A-Z])+'
+  };
+  try {
+    configUtils.validate(invalidConfig);
+  }
+  catch (error) {
+    error.message.should.equal('Configuration file: custom id regex excludes root id "model".');
+  }
+
+  // Test rejection if custom element id excludes root element
+  invalidConfig = Object.assign({}, M.config);
+  invalidConfig.validators = {
+    element_id: '([A-Z])+'
+  };
+  try {
+    configUtils.validate(invalidConfig);
+  }
+  catch (error) {
+    error.message.should.equal('Configuration file: custom element id regex excludes root id "model".');
   }
 }

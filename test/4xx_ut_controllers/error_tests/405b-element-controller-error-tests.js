@@ -68,18 +68,18 @@ describe(M.getModuleName(module.filename), () => {
       org = retOrg;
 
       // Create project
-      return testUtils.createTestProject(adminUser, org.id);
+      return testUtils.createTestProject(adminUser, org._id);
     })
     .then((retProj) => {
       // Set global project
       proj = retProj;
-      projID = utils.parseID(proj.id).pop();
+      projID = utils.parseID(proj._id).pop();
       branchID = testData.branches[0].id;
 
-      return testUtils.createTag(adminUser, org.id, projID);
+      return testUtils.createTag(adminUser, org._id, projID);
     })
     .then((tag) => {
-      tagID = utils.parseID(tag.id).pop();
+      tagID = utils.parseID(tag._id).pop();
 
       const elemDataObjects = [
         testData.elements[1],
@@ -91,7 +91,7 @@ describe(M.getModuleName(module.filename), () => {
         testData.elements[7],
         testData.elements[8]
       ];
-      return ElementController.create(adminUser, org.id, projID, branchID, elemDataObjects);
+      return ElementController.create(adminUser, org._id, projID, branchID, elemDataObjects);
     })
     .then(() => done())
     .catch((error) => {
@@ -161,7 +161,7 @@ async function updateSourceToSelf() {
   };
 
   // Attempt to update the element; should be rejected with specific error message
-  await ElementController.update(adminUser, org.id, projID, branchID, update)
+  await ElementController.update(adminUser, org._id, projID, branchID, update)
   .should.eventually.be.rejectedWith('Element\'s source cannot be self'
     + ` [${elemDataObject.id}].`);
 }
@@ -180,7 +180,7 @@ async function updateTargetToSelf() {
   };
 
   // Attempt to update the element; should be rejected with specific error message
-  await ElementController.update(adminUser, org.id, projID, branchID, update)
+  await ElementController.update(adminUser, org._id, projID, branchID, update)
   .should.eventually.be.rejectedWith('Element\'s target cannot be self'
     + ` [${elemDataObject.id}].`);
 }
@@ -199,9 +199,9 @@ async function updateNonExistentSource() {
   };
 
   // Attempt to update the element; should be rejected with specific error message
-  await ElementController.update(adminUser, org.id, projID, branchID, update)
+  await ElementController.update(adminUser, org._id, projID, branchID, update)
   .should.eventually.be.rejectedWith('The source element '
-    + '[NonExistentElement] was not found in the project [project00].');
+    + `[NonExistentElement] was not found in the project [${projID}].`);
 }
 
 /**
@@ -218,9 +218,9 @@ async function updateNonExistentTarget() {
   };
 
   // Attempt to update the element; should be rejected with specific error message
-  await ElementController.update(adminUser, org.id, projID, branchID, update)
+  await ElementController.update(adminUser, org._id, projID, branchID, update)
   .should.eventually.be.rejectedWith('The target element '
-    + '[NonExistentElement] was not found in the project [project00].');
+    + `[NonExistentElement] was not found in the project [${projID}].`);
 }
 
 /**
@@ -237,7 +237,7 @@ async function updateSourceWithNoTarget() {
   };
 
   // Attempt to update the element; should be rejected with specific error message
-  await ElementController.update(adminUser, org.id, projID, branchID, update)
+  await ElementController.update(adminUser, org._id, projID, branchID, update)
   .should.eventually.be.rejectedWith('If source element is provided, target'
     + ' element is required.');
 }
@@ -256,7 +256,7 @@ async function updateTargetWithNoSource() {
   };
 
   // Attempt to update the element; should be rejected with specific error message
-  await ElementController.update(adminUser, org.id, projID, branchID, update)
+  await ElementController.update(adminUser, org._id, projID, branchID, update)
   .should.eventually.be.rejectedWith('If target element is provided, source'
       + ' element is required.');
 }
@@ -268,7 +268,7 @@ async function createInTag() {
   const elementObj = testData.elements[0];
 
   // Attempt to create an element; should be rejected with specific error message
-  await ElementController.create(adminUser, org.id, projID, tagID, elementObj)
+  await ElementController.create(adminUser, org._id, projID, tagID, elementObj)
   .should.eventually.be.rejectedWith(`[${tagID}] is a tag and does`
     + ' not allow elements to be created, updated, or deleted.');
 }
@@ -285,7 +285,7 @@ async function updateInTag() {
 
 
   // Update element via controller; should be rejected with specific error message
-  await ElementController.update(adminUser, org.id, projID, tagID, updateObj)
+  await ElementController.update(adminUser, org._id, projID, tagID, updateObj)
   .should.eventually.be.rejectedWith(`[${tagID}] is a tag and `
     + 'does not allow elements to be created, updated, or deleted.');
 }
@@ -295,7 +295,7 @@ async function updateInTag() {
  */
 async function deleteInTag() {
   // Attempt deleting an element via controller; should be rejected with specific error message
-  await ElementController.remove(adminUser, org.id, projID, tagID, testData.elements[1].id)
+  await ElementController.remove(adminUser, org._id, projID, tagID, testData.elements[1].id)
   .should.eventually.be.rejectedWith(`[${tagID}] is a tag and`
     + ' does not allow elements to be created, updated, or deleted.');
 }
@@ -304,12 +304,17 @@ async function deleteInTag() {
  * @description Verifies invalid Id PUT call does not delete existing elements.
  */
 async function putInvalidId() {
+  if (M.config.validators && M.config.validators.hasOwnProperty('element_id')) {
+    M.log.verbose('Skipping valid element project test due to an existing custom'
+      + ' validator.');
+    this.skip();
+  }
   // Create the test element objects
   const testElemObj0 = testData.elements[7];
   const testElemObj1 = testData.elements[8];
-  const invalidElemObj = { id: 'INVALID_ID', name: 'element name' };
+  const invalidElemObj = { id: '!!', name: 'element name' };
 
-  await ElementController.createOrReplace(adminUser, org.id, projID, branchID,
+  await ElementController.createOrReplace(adminUser, org._id, projID, branchID,
     [testElemObj0, testElemObj1, invalidElemObj])
   .should.eventually.be.rejectedWith('Element validation failed: _id: '
     + `Invalid element ID [${invalidElemObj.id}].`);
@@ -317,7 +322,7 @@ async function putInvalidId() {
   let foundElements;
   try {
     // Expected error, find valid elements
-    foundElements = await ElementController.find(adminUser, org.id, projID, branchID,
+    foundElements = await ElementController.find(adminUser, org._id, projID, branchID,
       [testElemObj0.id, testElemObj1.id]);
   }
   catch (error) {
@@ -340,7 +345,7 @@ async function putWithoutId() {
   const invalidElemObj = { name: 'missing id' };
 
   // Try to put elements; should be rejected with specific error message
-  await ElementController.createOrReplace(adminUser, org.id, projID, branchID,
+  await ElementController.createOrReplace(adminUser, org._id, projID, branchID,
     [testElemObj0, testElemObj1, invalidElemObj])
   .should.eventually.be.rejectedWith('Element #3 does not have an id.');
 
@@ -348,7 +353,7 @@ async function putWithoutId() {
   try {
     // Expected error, find valid elements
     foundElems = await ElementController.find(adminUser,
-      org.id, projID, branchID, [testElemObj0.id, testElemObj1.id]);
+      org._id, projID, branchID, [testElemObj0.id, testElemObj1.id]);
   }
   catch (error) {
     M.log.error(error);
