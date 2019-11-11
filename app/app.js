@@ -32,7 +32,6 @@ const db = M.require('lib.db');
 const utils = M.require('lib.utils');
 const middleware = M.require('lib.middleware');
 const migrate = M.require('lib.migrate');
-const Artifact = M.require('models.artifact');
 const Branch = M.require('models.branch');
 const Element = M.require('models.element');
 const Organization = M.require('models.organization');
@@ -134,49 +133,42 @@ function initApp() {
 
 /**
  * @description Creates a default organization if one does not already exist.
+ * @async
  *
  * @returns {Promise} Resolves an empty promise upon completion.
  */
-function createDefaultOrganization() {
-  return new Promise((resolve, reject) => {
-    // Initialize createdOrg
-    let createdOrg = false;
-    // Initialize userIDs
-    let userIDs = null;
-
+async function createDefaultOrganization() {
+  try {
     // Find all users
-    User.find({})
-    .then(users => {
-      // Set userIDs to the _id of the users array
-      userIDs = users.map(u => u._id);
-      // Find the default organization
-      return Organization.findOne({ _id: M.config.server.defaultOrganizationId });
-    })
-    .then(org => {
-      // Check if org is NOT null
-      if (org !== null) {
-        // Default organization exists, prune user permissions to only include
-        // users currently in the database.
-        Object.keys(org.permissions).forEach((user) => {
-          if (!userIDs.includes(user)) {
-            delete org.permissions.user;
-          }
-        });
+    const users = await User.find({});
+    // Set userIDs to the _id of the users array
+    const userIDs = users.map(u => u._id);
 
-        // Mark the permissions field modified, require for 'mixed' fields
-        org.markModified('permissions');
+    // Find the default organization
+    const defaultOrgQuery = { _id: M.config.server.defaultOrganizationId };
+    const org = await Organization.findOne(defaultOrgQuery);
 
-        // Save the update organization
-        return org.save();
-      }
-      // Set createdOrg to true
-      createdOrg = true;
+    // Check if org is NOT null
+    if (org !== null) {
+      // Default organization exists, prune user permissions to only include
+      // users currently in the database.
+      Object.keys(org.permissions)
+      .forEach((user) => {
+        if (!userIDs.includes(user)) {
+          delete org.permissions.user;
+        }
+      });
+
+      // Save the updated organization
+      await Organization.updateOne(defaultOrgQuery, { permissions: org.permissions });
+    }
+    else {
       // Default organization does NOT exist, create it and add all active users
       // to permissions list
-      const defaultOrg = Organization.createDocument({
+      const defaultOrg = {
         _id: M.config.server.defaultOrganizationId,
         name: M.config.server.defaultOrganizationName
-      });
+      };
 
       // Add each existing user to default org
       userIDs.forEach((user) => {
@@ -184,70 +176,59 @@ function createDefaultOrganization() {
       });
 
       // Save new default organization
-      return defaultOrg.save();
-    })
-    // Resolve on success of saved organization
-    .then(() => {
-      if (createdOrg) {
-        M.log.info('Default Organization Created');
-      }
-      return resolve();
-    })
-    // Catch and reject error
-    .catch(error => reject(error));
-  });
+      await Organization.insertMany(defaultOrg);
+
+      M.log.info('Default Organization Created');
+    }
+  }
+  catch (error) {
+    throw new M.ServerError('Failed to create the default organization.', 'error');
+  }
 }
 
 /**
  * @description Creates a default admin if a global admin does not already exist.
+ * @async
  *
  * @returns {Promise} Resolves an empty promise upon completion.
  */
-function createDefaultAdmin() {
-  return new Promise((resolve, reject) => {
-    // Initialize userCreated
-    let userCreated = false;
+async function createDefaultAdmin() {
+  try {
     // Search for a user who is a global admin
-    User.findOne({ admin: true })
-    .then(user => {
-      // Check if the user is NOT null
-      if (user !== null) {
-        // Global admin already exists, resolve
-        return resolve();
-      }
-      // set userCreated to true
-      userCreated = true;
+    const user = await User.findOne({ admin: true });
+
+    // If user is null, create the admin user
+    if (user === null) {
       // No global admin exists, create local user as global admin
-      const adminUserData = User.createDocument({
+      const adminUserData = {
         // Set username and password of global admin user from configuration.
         _id: M.config.server.defaultAdminUsername,
         password: M.config.server.defaultAdminPassword,
         provider: 'local',
         admin: true
-      });
-      // Save new global admin user
-      return adminUserData.save();
-    })
-    .then(() => Organization.findOne({ _id: M.config.server.defaultOrganizationId }))
-    .then((defaultOrg) => {
+      };
+
+      User.hashPassword(adminUserData);
+
+      // Save the admin user
+      await User.insertMany(adminUserData);
+
+      // Find the default org
+      const defaultOrgQuery = { _id: M.config.server.defaultOrganizationId };
+      const defaultOrg = await Organization.findOne(defaultOrgQuery);
+
       // Add default admin to default org
       defaultOrg.permissions[M.config.server.defaultAdminUsername] = ['read', 'write'];
 
-      defaultOrg.markModified('permissions');
-
       // Save the updated default org
-      return defaultOrg.save();
-    })
-    // Resolve on success of saved admin
-    .then(() => {
-      if (userCreated) {
-        M.log.info('Default Admin Created');
-      }
-      return resolve();
-    })
-    // Catch and reject error
-    .catch(error => reject(error));
-  });
+      await Organization.updateOne(defaultOrgQuery, { permissions: defaultOrg.permissions });
+
+      M.log.info('Default Admin Created');
+    }
+  }
+  catch (error) {
+    throw new M.ServerError('Failed to create the default admin.', 'error');
+  }
 }
 
 /**
@@ -257,7 +238,6 @@ function createDefaultAdmin() {
  * @returns {Promise} Returns an empty promise upon completion.
  */
 async function initModels() {
-  await Artifact.init();
   await Branch.init();
   await Element.init();
   await Organization.init();

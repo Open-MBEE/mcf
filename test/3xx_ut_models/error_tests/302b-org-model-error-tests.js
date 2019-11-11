@@ -44,25 +44,25 @@ describe(M.getModuleName(module.filename), () => {
   /**
    * Before: runs before all tests. Open database connection.
    */
-  before((done) => {
-    db.connect()
-    .then(() => done())
-    .catch((error) => {
+  before(async () => {
+    try {
+      db.connect();
+    }
+    catch (error) {
       chai.expect(error.message).to.equal(null);
-      done();
-    });
+    }
   });
 
   /**
    * After: runs after all tests. Close database connection.
    */
-  after((done) => {
-    db.disconnect()
-    .then(() => done())
-    .catch((error) => {
+  after(async () => {
+    try {
+      db.disconnect();
+    }
+    catch (error) {
       chai.expect(error.message).to.equal(null);
-      done();
-    });
+    }
   });
 
   /* Execute the tests */
@@ -79,35 +79,46 @@ describe(M.getModuleName(module.filename), () => {
  * @description Attempts to create an org with an id that is too short.
  */
 async function idTooShort() {
-  const orgData = Object.assign({}, testData.orgs[0]);
+  try {
+    const orgData = Object.assign({}, testData.orgs[0]);
 
-  // Change id to be too short.
-  orgData._id = '0';
+    // Change id to be too short.
+    orgData._id = '0';
+    delete orgData.id;
 
-  // Create org object
-  const orgObject = Org.createDocument(orgData);
-
-  // Save org
-  await orgObject.save().should.eventually.be.rejectedWith('Organization validation failed:'
-    + ` _id: Org ID length [${orgData._id.length}] must not be less than 2 characters.`);
+    // Expect insertMany() to fail with specific error message
+    await Org.insertMany(orgData).should.eventually.be.rejectedWith('Organization '
+      + `validation failed: _id: Org ID length [${orgData._id.length}] must not`
+      + ' be less than 2 characters.');
+  }
+  catch (error) {
+    M.log.error(error);
+    // There should be no error
+    should.not.exist(error);
+  }
 }
 
 /**
  * @description Attempts to create an org with an id that is too long.
  */
 async function idTooLong() {
-  const orgData = Object.assign({}, testData.orgs[0]);
+  try {
+    const orgData = Object.assign({}, testData.orgs[0]);
 
-  // Change id to be too long (64 characters max)
-  orgData._id = '01234567890123456789012345678901234567890123456789012345678912345';
+    // Change id to be too long (64 characters max)
+    orgData._id = '01234567890123456789012345678901234567890123456789012345678912345';
+    delete orgData.id;
 
-  // Create org object
-  const orgObject = Org.createDocument(orgData);
-
-  // Save org
-  await orgObject.save().should.eventually.be.rejectedWith('Organization validation failed: '
-    + `_id: Org ID length [${orgData._id.length}] must not be more than `
-    + `${validators.org.idLength} characters.`);
+    // Expect insertMany() to fail with specific error message
+    await Org.insertMany(orgData).should.eventually.be.rejectedWith('Organization'
+      + ` validation failed: _id: Org ID length [${orgData._id.length}] must `
+      + `not be more than ${validators.org.idLength} characters.`);
+  }
+  catch (error) {
+    M.log.error(error);
+    // There should be no error
+    should.not.exist(error);
+  }
 }
 
 /**
@@ -119,69 +130,89 @@ async function invalidID() {
       + ' validator.');
     this.skip();
   }
-  const orgData = Object.assign({}, testData.orgs[0]);
+  try {
+    const orgData = Object.assign({}, testData.orgs[0]);
 
-  // Change id to be invalid
-  orgData._id = 'INVALID_ID';
+    // Change id to be invalid
+    orgData._id = '!!';
+    delete orgData.id;
 
-  // Create org object
-  const orgObject = Org.createDocument(orgData);
-
-  // Save org
-  await orgObject.save().should.eventually.be.rejectedWith('Organization validation failed: '
-    + `_id: Invalid org ID [${orgData._id}].`);
+    // Expect insertMany() to fail with specific error message
+    await Org.insertMany(orgData).should.eventually.be.rejectedWith('Organization'
+      + ` validation failed: _id: Invalid org ID [${orgData._id}].`);
+  }
+  catch (error) {
+    M.log.error(error);
+    // There should be no error
+    should.not.exist(error);
+  }
 }
 
 /**
  * @description Attempts to create an org with no id.
  */
 async function idNotProvided() {
-  const orgData = Object.assign({}, testData.orgs[0]);
+  try {
+    const orgData = Object.assign({}, testData.orgs[0]);
+    delete orgData.id;
 
-  // Create org object
-  const orgObject = Org.createDocument(orgData);
-
-  // Save org
-  await orgObject.save().should.eventually.be.rejectedWith('Organization validation failed: '
-    + '_id: Path `_id` is required.');
+    // Expect insertMany() to fail with specific error message
+    await Org.insertMany(orgData).should.eventually.be.rejectedWith('Organization'
+      + ' validation failed: _id: Path `_id` is required.');
+  }
+  catch (error) {
+    M.log.error(error);
+    // There should be no error
+    should.not.exist(error);
+  }
 }
 
 /**
  * @description Attempts to create an org with no name.
  */
 async function nameNotProvided() {
-  const orgData = Object.assign({}, testData.orgs[0]);
-  orgData._id = orgData.id;
+  try {
+    const orgData = Object.assign({}, testData.orgs[0]);
+    orgData._id = orgData.id;
 
-  // Delete org name
-  delete orgData.name;
+    // Delete org name
+    delete orgData.name;
+    delete orgData.id;
 
-  // Create org object
-  const orgObject = Org.createDocument(orgData);
-
-  // Save org
-  await orgObject.save().should.eventually.be.rejectedWith('Organization validation failed: '
-    + 'name: Path `name` is required.');
+    // Expect insertMany() to fail with specific error message
+    await Org.insertMany(orgData).should.eventually.be.rejectedWith('Organization'
+      + ' validation failed: name: Path `name` is required.');
+  }
+  catch (error) {
+    M.log.error(error);
+    // There should be no error
+    should.not.exist(error);
+  }
 }
 
 /**
  * @description Attempts to create an org with an invalid permissions object.
  */
 async function permissionsInvalid() {
-  const orgData = Object.assign({}, testData.orgs[0]);
-  orgData._id = orgData.id;
+  try {
+    const orgData = Object.assign({}, testData.orgs[0]);
+    orgData._id = orgData.id;
 
-  // Set invalid permissions
-  orgData.permissions = {
-    invalid: 'permissions'
-  };
+    // Set invalid permissions
+    orgData.permissions = {
+      invalid: 'permissions'
+    };
+    delete orgData.id;
 
-  // Create org object
-  const orgObject = Org.createDocument(orgData);
-
-  // Expect save() to fail with specific error message
-  await orgObject.save().should.eventually.be.rejectedWith(
-    'Organization validation failed: permissions: The organization permissions '
-    + 'object is not properly formatted.'
-  );
+    // Expect insertMany() to fail with specific error message
+    await Org.insertMany(orgData).should.eventually.be.rejectedWith(
+      'Organization validation failed: permissions: The organization '
+      + 'permissions object is not properly formatted.'
+    );
+  }
+  catch (error) {
+    M.log.error(error);
+    // There should be no error
+    should.not.exist(error);
+  }
 }

@@ -108,7 +108,7 @@ module.exports.checkParamsDataType = function(dataTypes, data, dataName) {
 module.exports.findAndValidate = async function(model, id, archived = false) {
   // Perform the find operation on the model
   const query = { _id: id };
-  const result = await model.findOne(query, null, { lean: true });
+  const result = await model.findOne(query, null);
   // Get the name of the particular model
   const name = model.modelName;
 

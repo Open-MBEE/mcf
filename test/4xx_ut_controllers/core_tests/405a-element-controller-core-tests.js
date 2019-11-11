@@ -61,12 +61,12 @@ describe(M.getModuleName(module.filename), () => {
       org = retOrg;
 
       // Create project
-      return testUtils.createTestProject(adminUser, org.id);
+      return testUtils.createTestProject(adminUser, org._id);
     })
     .then((retProj) => {
       // Set global project
       proj = retProj;
-      projID = utils.parseID(proj.id).pop();
+      projID = utils.parseID(proj._id).pop();
       branchID = testData.branches[0].id;
       done();
     })
@@ -128,19 +128,17 @@ function createElement(done) {
   const elemData = testData.elements[0];
 
   // Create element via controller
-  ElementController.create(adminUser, org.id, projID, branchID, elemData)
+  ElementController.create(adminUser, org._id, projID, branchID, elemData)
   .then((createdElements) => {
     // Expect createdElements array to contain 1 element
     chai.expect(createdElements.length).to.equal(1);
     const createdElem = createdElements[0];
-
     // Verify element created properly
-    chai.expect(createdElem.id).to.equal(utils.createID(org.id, projID, branchID, elemData.id));
-    chai.expect(createdElem._id).to.equal(utils.createID(org.id, projID, branchID, elemData.id));
+    chai.expect(createdElem._id).to.equal(utils.createID(org._id, projID, branchID, elemData.id));
     chai.expect(createdElem.name).to.equal(elemData.name);
     chai.expect(createdElem.custom || {}).to.deep.equal(elemData.custom);
-    chai.expect(createdElem.project).to.equal(utils.createID(org.id, projID));
-    chai.expect(createdElem.branch).to.equal(utils.createID(org.id, projID, branchID));
+    chai.expect(createdElem.project).to.equal(utils.createID(org._id, projID));
+    chai.expect(createdElem.branch).to.equal(utils.createID(org._id, projID, branchID));
 
     // If documentation was provided, verify it
     if (elemData.hasOwnProperty('documentation')) {
@@ -148,17 +146,17 @@ function createElement(done) {
     }
     // If source was provided, verify it
     if (elemData.hasOwnProperty('source')) {
-      const sourceID = utils.createID(org.id, projID, branchID, elemData.source);
+      const sourceID = utils.createID(org._id, projID, branchID, elemData.source);
       chai.expect(createdElem.source).to.equal(sourceID);
     }
     // If target was provided, verify it
     if (elemData.hasOwnProperty('target')) {
-      const targetID = utils.createID(org.id, projID, branchID, elemData.target);
+      const targetID = utils.createID(org._id, projID, branchID, elemData.target);
       chai.expect(createdElem.target).to.equal(targetID);
     }
     // If parent was provided, verify it
     if (elemData.hasOwnProperty('parent')) {
-      const parentID = utils.createID(org.id, projID, branchID, elemData.parent);
+      const parentID = utils.createID(org._id, projID, branchID, elemData.parent);
       chai.expect(createdElem.parent).to.equal(parentID);
     }
 
@@ -195,7 +193,7 @@ function createElements(done) {
   ];
 
   // Create elements via controller
-  ElementController.create(adminUser, org.id, projID, branchID, elemDataObjects)
+  ElementController.create(adminUser, org._id, projID, branchID, elemDataObjects)
   .then((createdElements) => {
     // Expect createdElements not to be empty
     chai.expect(createdElements.length).to.equal(elemDataObjects.length);
@@ -204,16 +202,15 @@ function createElements(done) {
     const jmi2Elements = jmi.convertJMI(1, 2, createdElements);
     // Loop through each element data object
     elemDataObjects.forEach((elemObj) => {
-      const elementID = utils.createID(org.id, projID, branchID, elemObj.id);
+      const elementID = utils.createID(org._id, projID, branchID, elemObj.id);
       const createdElem = jmi2Elements[elementID];
 
       // Verify elements created properly
-      chai.expect(createdElem.id).to.equal(elementID);
       chai.expect(createdElem._id).to.equal(elementID);
       chai.expect(createdElem.name).to.equal(elemObj.name);
       chai.expect(createdElem.custom || {}).to.deep.equal(elemObj.custom);
-      chai.expect(createdElem.project).to.equal(utils.createID(org.id, projID));
-      chai.expect(createdElem.branch).to.equal(utils.createID(org.id, projID, branchID));
+      chai.expect(createdElem.project).to.equal(utils.createID(org._id, projID));
+      chai.expect(createdElem.branch).to.equal(utils.createID(org._id, projID, branchID));
 
       // If documentation was provided, verify it
       if (elemObj.hasOwnProperty('documentation')) {
@@ -225,17 +222,17 @@ function createElements(done) {
       }
       // If source was provided, verify it
       if (elemObj.hasOwnProperty('source')) {
-        const sourceID = utils.createID(org.id, projID, branchID, elemObj.source);
+        const sourceID = utils.createID(org._id, projID, branchID, elemObj.source);
         chai.expect(createdElem.source).to.equal(sourceID);
       }
       // If target was provided, verify it
       if (elemObj.hasOwnProperty('target')) {
-        const targetID = utils.createID(org.id, projID, branchID, elemObj.target);
+        const targetID = utils.createID(org._id, projID, branchID, elemObj.target);
         chai.expect(createdElem.target).to.equal(targetID);
       }
       // If parent was provided, verify it
       if (elemObj.hasOwnProperty('parent')) {
-        const parentID = utils.createID(org.id, projID, branchID, elemObj.parent);
+        const parentID = utils.createID(org._id, projID, branchID, elemObj.parent);
         chai.expect(createdElem.parent).to.equal(parentID);
       }
 
@@ -266,19 +263,18 @@ function createOrReplaceElement(done) {
   const elemData = testData.elements[0];
 
   // Create or replace element via controller
-  ElementController.createOrReplace(adminUser, org.id, projID, branchID, elemData)
+  ElementController.createOrReplace(adminUser, org._id, projID, branchID, elemData)
   .then((replacedElements) => {
     // Expect replacedElements array to contain 1 element
     chai.expect(replacedElements.length).to.equal(1);
     const replacedElem = replacedElements[0];
 
     // Verify element created/replaced properly
-    chai.expect(replacedElem.id).to.equal(utils.createID(org.id, projID, branchID, elemData.id));
-    chai.expect(replacedElem._id).to.equal(utils.createID(org.id, projID, branchID, elemData.id));
+    chai.expect(replacedElem._id).to.equal(utils.createID(org._id, projID, branchID, elemData.id));
     chai.expect(replacedElem.name).to.equal(elemData.name);
     chai.expect(replacedElem.custom || {}).to.deep.equal(elemData.custom);
-    chai.expect(replacedElem.project).to.equal(utils.createID(org.id, projID));
-    chai.expect(replacedElem.branch).to.equal(utils.createID(org.id, projID, branchID));
+    chai.expect(replacedElem.project).to.equal(utils.createID(org._id, projID));
+    chai.expect(replacedElem.branch).to.equal(utils.createID(org._id, projID, branchID));
 
     // If documentation was provided, verify it
     if (elemData.hasOwnProperty('documentation')) {
@@ -286,17 +282,17 @@ function createOrReplaceElement(done) {
     }
     // If source was provided, verify it
     if (elemData.hasOwnProperty('source')) {
-      const sourceID = utils.createID(org.id, projID, branchID, elemData.source);
+      const sourceID = utils.createID(org._id, projID, branchID, elemData.source);
       chai.expect(replacedElem.source).to.equal(sourceID);
     }
     // If target was provided, verify it
     if (elemData.hasOwnProperty('target')) {
-      const targetID = utils.createID(org.id, projID, branchID, elemData.target);
+      const targetID = utils.createID(org._id, projID, branchID, elemData.target);
       chai.expect(replacedElem.target).to.equal(targetID);
     }
     // If parent was provided, verify it
     if (elemData.hasOwnProperty('parent')) {
-      const parentID = utils.createID(org.id, projID, branchID, elemData.parent);
+      const parentID = utils.createID(org._id, projID, branchID, elemData.parent);
       chai.expect(replacedElem.parent).to.equal(parentID);
     }
 
@@ -333,7 +329,7 @@ function createOrReplaceElements(done) {
   ];
 
   // Create or replace elements via controller
-  ElementController.createOrReplace(adminUser, org.id, projID, branchID, elemDataObjects)
+  ElementController.createOrReplace(adminUser, org._id, projID, branchID, elemDataObjects)
   .then((replacedElements) => {
     // Expect replacedElements not to be empty
     chai.expect(replacedElements.length).to.equal(elemDataObjects.length);
@@ -342,16 +338,15 @@ function createOrReplaceElements(done) {
     const jmi2Elements = jmi.convertJMI(1, 2, replacedElements);
     // Loop through each element data object
     elemDataObjects.forEach((elemObj) => {
-      const elementID = utils.createID(org.id, projID, branchID, elemObj.id);
+      const elementID = utils.createID(org._id, projID, branchID, elemObj.id);
       const replacedElem = jmi2Elements[elementID];
 
       // Verify elements created/replaced properly
-      chai.expect(replacedElem.id).to.equal(elementID);
       chai.expect(replacedElem._id).to.equal(elementID);
       chai.expect(replacedElem.name).to.equal(elemObj.name);
       chai.expect(replacedElem.custom || {}).to.deep.equal(elemObj.custom);
-      chai.expect(replacedElem.project).to.equal(utils.createID(org.id, projID));
-      chai.expect(replacedElem.branch).to.equal(utils.createID(org.id, projID, branchID));
+      chai.expect(replacedElem.project).to.equal(utils.createID(org._id, projID));
+      chai.expect(replacedElem.branch).to.equal(utils.createID(org._id, projID, branchID));
 
       // If documentation was provided, verify it
       if (elemObj.hasOwnProperty('documentation')) {
@@ -363,17 +358,17 @@ function createOrReplaceElements(done) {
       }
       // If source was provided, verify it
       if (elemObj.hasOwnProperty('source')) {
-        const sourceID = utils.createID(org.id, projID, branchID, elemObj.source);
+        const sourceID = utils.createID(org._id, projID, branchID, elemObj.source);
         chai.expect(replacedElem.source).to.equal(sourceID);
       }
       // If target was provided, verify it
       if (elemObj.hasOwnProperty('target')) {
-        const targetID = utils.createID(org.id, projID, branchID, elemObj.target);
+        const targetID = utils.createID(org._id, projID, branchID, elemObj.target);
         chai.expect(replacedElem.target).to.equal(targetID);
       }
       // If parent was provided, verify it
       if (elemObj.hasOwnProperty('parent')) {
-        const parentID = utils.createID(org.id, projID, branchID, elemObj.parent);
+        const parentID = utils.createID(org._id, projID, branchID, elemObj.parent);
         chai.expect(replacedElem.parent).to.equal(parentID);
       }
 
@@ -404,19 +399,18 @@ function findElement(done) {
   const elemData = testData.elements[0];
 
   // Find element via controller
-  ElementController.find(adminUser, org.id, projID, branchID, elemData.id)
+  ElementController.find(adminUser, org._id, projID, branchID, elemData.id)
   .then((foundElements) => {
     // Expect foundElements array to contains 1 element
     chai.expect(foundElements.length).to.equal(1);
     const foundElement = foundElements[0];
 
     // Verify correct element found
-    chai.expect(foundElement.id).to.equal(utils.createID(org.id, projID, branchID, elemData.id));
-    chai.expect(foundElement._id).to.equal(utils.createID(org.id, projID, branchID, elemData.id));
+    chai.expect(foundElement._id).to.equal(utils.createID(org._id, projID, branchID, elemData.id));
     chai.expect(foundElement.name).to.equal(elemData.name);
     chai.expect(foundElement.custom || {}).to.deep.equal(elemData.custom);
-    chai.expect(foundElement.project).to.equal(utils.createID(org.id, projID));
-    chai.expect(foundElement.branch).to.equal(utils.createID(org.id, projID, branchID));
+    chai.expect(foundElement.project).to.equal(utils.createID(org._id, projID));
+    chai.expect(foundElement.branch).to.equal(utils.createID(org._id, projID, branchID));
 
     // If documentation was provided, verify it
     if (elemData.hasOwnProperty('documentation')) {
@@ -424,17 +418,17 @@ function findElement(done) {
     }
     // If source was provided, verify it
     if (elemData.hasOwnProperty('source')) {
-      const sourceID = utils.createID(org.id, projID, branchID, elemData.source);
+      const sourceID = utils.createID(org._id, projID, branchID, elemData.source);
       chai.expect(foundElement.source).to.equal(sourceID);
     }
     // If target was provided, verify it
     if (elemData.hasOwnProperty('target')) {
-      const targetID = utils.createID(org.id, projID, branchID, elemData.target);
+      const targetID = utils.createID(org._id, projID, branchID, elemData.target);
       chai.expect(foundElement.target).to.equal(targetID);
     }
     // If parent was provided, verify it
     if (elemData.hasOwnProperty('parent')) {
-      const parentID = utils.createID(org.id, projID, branchID, elemData.parent);
+      const parentID = utils.createID(org._id, projID, branchID, elemData.parent);
       chai.expect(foundElement.parent).to.equal(parentID);
     }
 
@@ -474,7 +468,7 @@ function findElements(done) {
   const elemIDs = elemDataObjects.map(e => e.id);
 
   // Find elements via controller
-  ElementController.find(adminUser, org.id, projID, branchID, elemIDs)
+  ElementController.find(adminUser, org._id, projID, branchID, elemIDs)
   .then((foundElements) => {
     // Expect foundElements not to be empty
     chai.expect(foundElements.length).to.equal(elemDataObjects.length);
@@ -483,16 +477,15 @@ function findElements(done) {
     const jmi2Elements = jmi.convertJMI(1, 2, foundElements);
     // Loop through each element data object
     elemDataObjects.forEach((elemObj) => {
-      const elementID = utils.createID(org.id, projID, branchID, elemObj.id);
+      const elementID = utils.createID(org._id, projID, branchID, elemObj.id);
       const foundElem = jmi2Elements[elementID];
 
       // Verify correct elements found
-      chai.expect(foundElem.id).to.equal(elementID);
       chai.expect(foundElem._id).to.equal(elementID);
       chai.expect(foundElem.name).to.equal(elemObj.name);
       chai.expect(foundElem.custom || {}).to.deep.equal(elemObj.custom);
-      chai.expect(foundElem.project).to.equal(utils.createID(org.id, projID));
-      chai.expect(foundElem.branch).to.equal(utils.createID(org.id, projID, branchID));
+      chai.expect(foundElem.project).to.equal(utils.createID(org._id, projID));
+      chai.expect(foundElem.branch).to.equal(utils.createID(org._id, projID, branchID));
 
       // If documentation was provided, verify it
       if (elemObj.hasOwnProperty('documentation')) {
@@ -500,17 +493,17 @@ function findElements(done) {
       }
       // If source was provided, verify it
       if (elemObj.hasOwnProperty('source')) {
-        const sourceID = utils.createID(org.id, projID, branchID, elemObj.source);
+        const sourceID = utils.createID(org._id, projID, branchID, elemObj.source);
         chai.expect(foundElem.source).to.equal(sourceID);
       }
       // If target was provided, verify it
       if (elemObj.hasOwnProperty('target')) {
-        const targetID = utils.createID(org.id, projID, branchID, elemObj.target);
+        const targetID = utils.createID(org._id, projID, branchID, elemObj.target);
         chai.expect(foundElem.target).to.equal(targetID);
       }
       // If parent was provided, verify it
       if (elemObj.hasOwnProperty('parent')) {
-        const parentID = utils.createID(org.id, projID, branchID, elemObj.parent);
+        const parentID = utils.createID(org._id, projID, branchID, elemObj.parent);
         chai.expect(foundElem.parent).to.equal(parentID);
       }
 
@@ -549,7 +542,7 @@ function findAllElements(done) {
   ];
 
   // Find elements via controller
-  ElementController.find(adminUser, org.id, projID, branchID)
+  ElementController.find(adminUser, org._id, projID, branchID)
   .then((foundElements) => {
     // Expect foundElements to not be empty. Cannot know exact number in db
     chai.expect(foundElements.length).to.not.equal(0);
@@ -558,15 +551,15 @@ function findAllElements(done) {
     const jmi2Elements = jmi.convertJMI(1, 2, foundElements);
     // Loop through each element data object
     elemDataObjects.forEach((elemObj) => {
-      const elementID = utils.createID(org.id, projID, branchID, elemObj.id);
+      const elementID = utils.createID(org._id, projID, branchID, elemObj.id);
       const foundElem = jmi2Elements[elementID];
 
       // Verify correct elements found
       chai.expect(foundElem._id).to.equal(elementID);
       chai.expect(foundElem.name).to.equal(elemObj.name);
       chai.expect(foundElem.custom || {}).to.deep.equal(elemObj.custom);
-      chai.expect(foundElem.project).to.equal(utils.createID(org.id, projID));
-      chai.expect(foundElem.branch).to.equal(utils.createID(org.id, projID, branchID));
+      chai.expect(foundElem.project).to.equal(utils.createID(org._id, projID));
+      chai.expect(foundElem.branch).to.equal(utils.createID(org._id, projID, branchID));
 
       // If documentation was provided, verify it
       if (elemObj.hasOwnProperty('documentation')) {
@@ -574,17 +567,17 @@ function findAllElements(done) {
       }
       // If source was provided, verify it
       if (elemObj.hasOwnProperty('source')) {
-        const sourceID = utils.createID(org.id, projID, branchID, elemObj.source);
+        const sourceID = utils.createID(org._id, projID, branchID, elemObj.source);
         chai.expect(foundElem.source).to.equal(sourceID);
       }
       // If target was provided, verify it
       if (elemObj.hasOwnProperty('target')) {
-        const targetID = utils.createID(org.id, projID, branchID, elemObj.target);
+        const targetID = utils.createID(org._id, projID, branchID, elemObj.target);
         chai.expect(foundElem.target).to.equal(targetID);
       }
       // If parent was provided, verify it
       if (elemObj.hasOwnProperty('parent')) {
-        const parentID = utils.createID(org.id, projID, branchID, elemObj.parent);
+        const parentID = utils.createID(org._id, projID, branchID, elemObj.parent);
         chai.expect(foundElem.parent).to.equal(parentID);
       }
 
@@ -615,18 +608,17 @@ function searchElement(done) {
   const elemData = testData.elements[0];
 
   // Find element via controller
-  ElementController.search(adminUser, org.id, projID, branchID, `"${elemData.name}"`)
+  ElementController.search(adminUser, org._id, projID, branchID, `"${elemData.name}"`)
   .then((foundElements) => {
     // Expect foundElements array to contains 1 element
     chai.expect(foundElements.length).to.equal(1);
     const foundElement = foundElements[0];
 
     // Verify correct element found
-    chai.expect(foundElement.id).to.equal(utils.createID(org.id, projID, branchID, elemData.id));
-    chai.expect(foundElement._id).to.equal(utils.createID(org.id, projID, branchID, elemData.id));
+    chai.expect(foundElement._id).to.equal(utils.createID(org._id, projID, branchID, elemData.id));
     chai.expect(foundElement.name).to.equal(elemData.name);
     chai.expect(foundElement.custom || {}).to.deep.equal(elemData.custom);
-    chai.expect(foundElement.project).to.equal(utils.createID(org.id, projID));
+    chai.expect(foundElement.project).to.equal(utils.createID(org._id, projID));
 
     // If documentation was provided, verify it
     if (elemData.hasOwnProperty('documentation')) {
@@ -634,17 +626,17 @@ function searchElement(done) {
     }
     // If source was provided, verify it
     if (elemData.hasOwnProperty('source')) {
-      const sourceID = utils.createID(org.id, projID, branchID, elemData.source);
+      const sourceID = utils.createID(org._id, projID, branchID, elemData.source);
       chai.expect(foundElement.source).to.equal(sourceID);
     }
     // If target was provided, verify it
     if (elemData.hasOwnProperty('target')) {
-      const targetID = utils.createID(org.id, projID, branchID, elemData.target);
+      const targetID = utils.createID(org._id, projID, branchID, elemData.target);
       chai.expect(foundElement.target).to.equal(targetID);
     }
     // If parent was provided, verify it
     if (elemData.hasOwnProperty('parent')) {
-      const parentID = utils.createID(org.id, projID, branchID, elemData.parent);
+      const parentID = utils.createID(org._id, projID, branchID, elemData.parent);
       chai.expect(foundElement.parent).to.equal(parentID);
     }
 
@@ -680,19 +672,18 @@ function updateElement(done) {
   };
 
   // Update element via controller
-  ElementController.update(adminUser, org.id, projID, branchID, updateObj)
+  ElementController.update(adminUser, org._id, projID, branchID, updateObj)
   .then((updatedElements) => {
     // Expect updatedElements array to contain 1 element
     chai.expect(updatedElements.length).to.equal(1);
     const updatedElem = updatedElements[0];
 
     // Verify element updated properly
-    chai.expect(updatedElem.id).to.equal(utils.createID(org.id, projID, branchID, elemData.id));
-    chai.expect(updatedElem._id).to.equal(utils.createID(org.id, projID, branchID, elemData.id));
+    chai.expect(updatedElem._id).to.equal(utils.createID(org._id, projID, branchID, elemData.id));
     chai.expect(updatedElem.name).to.equal(updateObj.name);
     chai.expect(updatedElem.custom || {}).to.deep.equal(elemData.custom);
-    chai.expect(updatedElem.project).to.equal(utils.createID(org.id, projID));
-    chai.expect(updatedElem.branch).to.equal(utils.createID(org.id, projID, branchID));
+    chai.expect(updatedElem.project).to.equal(utils.createID(org._id, projID));
+    chai.expect(updatedElem.branch).to.equal(utils.createID(org._id, projID, branchID));
 
     // If documentation was provided, verify it
     if (elemData.hasOwnProperty('documentation')) {
@@ -700,17 +691,17 @@ function updateElement(done) {
     }
     // If source was provided, verify it
     if (elemData.hasOwnProperty('source')) {
-      const sourceID = utils.createID(org.id, projID, branchID, elemData.source);
+      const sourceID = utils.createID(org._id, projID, branchID, elemData.source);
       chai.expect(updatedElem.source).to.equal(sourceID);
     }
     // If target was provided, verify it
     if (elemData.hasOwnProperty('target')) {
-      const targetID = utils.createID(org.id, projID, branchID, elemData.target);
+      const targetID = utils.createID(org._id, projID, branchID, elemData.target);
       chai.expect(updatedElem.target).to.equal(targetID);
     }
     // If parent was provided, verify it
     if (elemData.hasOwnProperty('parent')) {
-      const parentID = utils.createID(org.id, projID, branchID, elemData.parent);
+      const parentID = utils.createID(org._id, projID, branchID, elemData.parent);
       chai.expect(updatedElem.parent).to.equal(parentID);
     }
 
@@ -753,7 +744,7 @@ function updateElements(done) {
   }));
 
   // Update elements via controller
-  ElementController.update(adminUser, org.id, projID, branchID, updateObjects)
+  ElementController.update(adminUser, org._id, projID, branchID, updateObjects)
   .then((updatedElements) => {
     // Expect updatedElements not to be empty
     chai.expect(updatedElements.length).to.equal(elemDataObjects.length);
@@ -762,16 +753,15 @@ function updateElements(done) {
     const jmi2Elements = jmi.convertJMI(1, 2, updatedElements);
     // Loop through each element data object
     elemDataObjects.forEach((elemObj) => {
-      const elementID = utils.createID(org.id, projID, branchID, elemObj.id);
+      const elementID = utils.createID(org._id, projID, branchID, elemObj.id);
       const updatedElement = jmi2Elements[elementID];
 
       // Verify element updated properly
-      chai.expect(updatedElement.id).to.equal(elementID);
       chai.expect(updatedElement._id).to.equal(elementID);
       chai.expect(updatedElement.name).to.equal(`${elemObj.name}_edit`);
       chai.expect(updatedElement.custom || {}).to.deep.equal(elemObj.custom);
-      chai.expect(updatedElement.project).to.equal(utils.createID(org.id, projID));
-      chai.expect(updatedElement.branch).to.equal(utils.createID(org.id, projID, branchID));
+      chai.expect(updatedElement.project).to.equal(utils.createID(org._id, projID));
+      chai.expect(updatedElement.branch).to.equal(utils.createID(org._id, projID, branchID));
 
       // If documentation was provided, verify it
       if (elemObj.hasOwnProperty('documentation')) {
@@ -779,17 +769,17 @@ function updateElements(done) {
       }
       // If source was provided, verify it
       if (elemObj.hasOwnProperty('source')) {
-        const sourceID = utils.createID(org.id, projID, branchID, elemObj.source);
+        const sourceID = utils.createID(org._id, projID, branchID, elemObj.source);
         chai.expect(updatedElement.source).to.equal(sourceID);
       }
       // If target was provided, verify it
       if (elemObj.hasOwnProperty('target')) {
-        const targetID = utils.createID(org.id, projID, branchID, elemObj.target);
+        const targetID = utils.createID(org._id, projID, branchID, elemObj.target);
         chai.expect(updatedElement.target).to.equal(targetID);
       }
       // If parent was provided, verify it
       if (elemObj.hasOwnProperty('parent')) {
-        const parentID = utils.createID(org.id, projID, branchID, elemObj.parent);
+        const parentID = utils.createID(org._id, projID, branchID, elemObj.parent);
         chai.expect(updatedElement.parent).to.equal(parentID);
       }
 
@@ -820,15 +810,15 @@ function deleteElement(done) {
   const elemData = testData.elements[0];
 
   // Delete element via controller
-  ElementController.remove(adminUser, org.id, projID, branchID, elemData.id)
+  ElementController.remove(adminUser, org._id, projID, branchID, elemData.id)
   .then((deletedElements) => {
     // Expect deletedElements array to contain 1 element
     chai.expect(deletedElements.length).to.equal(1);
     // Verify correct element deleted
-    chai.expect(deletedElements).to.include(utils.createID(org.id, projID, branchID, elemData.id));
+    chai.expect(deletedElements).to.include(utils.createID(org._id, projID, branchID, elemData.id));
 
     // Attempt to find the deleted element
-    return ElementController.find(adminUser, org.id, projID, branchID,
+    return ElementController.find(adminUser, org._id, projID, branchID,
       elemData.id, { archived: true });
   })
   .then((foundElements) => {
@@ -863,20 +853,21 @@ function deleteElements(done) {
   const elemIDs = elemDataObjects.map(e => e.id);
 
   // Delete elements via controller
-  ElementController.remove(adminUser, org.id, projID, branchID, elemIDs)
+  ElementController.remove(adminUser, org._id, projID, branchID, elemIDs)
   .then((deletedElements) => {
     // Expect deletedElements not to be empty
     chai.expect(deletedElements.length).to.equal(elemDataObjects.length);
 
     // Loop through each element data object
     elemDataObjects.forEach((elemDataObject) => {
-      const elementID = utils.createID(org.id, projID, branchID, elemDataObject.id);
+      const elementID = utils.createID(org._id, projID, branchID, elemDataObject.id);
       // Verify correct element deleted
       chai.expect(deletedElements).to.include(elementID);
     });
 
     // Attempt to find the deleted elements
-    return ElementController.find(adminUser, org.id, projID, branchID, elemIDs, { archived: true });
+    return ElementController.find(adminUser, org._id, projID, branchID,
+      elemIDs, { archived: true });
   })
   .then((foundElements) => {
     // Expect foundElements array to be empty

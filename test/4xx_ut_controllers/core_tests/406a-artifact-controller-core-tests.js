@@ -20,6 +20,8 @@ const chai = require('chai'); // Test framework
 // Node modules
 const fs = require('fs');     // Access the filesystem
 const path = require('path'); // Find directory paths
+const jmi = M.require('lib.jmi-conversions');
+
 
 // MBEE modules
 const ArtifactController = M.require('controllers.artifact-controller');
@@ -56,11 +58,11 @@ describe(M.getModuleName(module.filename), () => {
       adminUser = await testUtils.createTestAdmin();
       // Create the organization model object
       org = await testUtils.createTestOrg(adminUser);
-      orgID = org.id;
+      orgID = org._id;
 
       // Create the project model object
       project = await testUtils.createTestProject(adminUser, orgID);
-      projectID = utils.parseID(project.id).pop();
+      projectID = utils.parseID(project._id).pop();
       branchID = testData.branches[0].id;
 
       // Get png test file
@@ -96,12 +98,16 @@ describe(M.getModuleName(module.filename), () => {
 
   /* Execute the tests */
   it('should create an artifact', createArtifact);
-  it('should get an artifact', getArtifact);
+  it('should create multiple artifacts', createArtifacts);
+  it('should get an artifact document', getArtifact);
+  it('should get multiple artifact documents', getArtifacts);
   it('should post an artifact blob', postBlob);
-  it('should update an artifact file', updateArtifact);
+  it('should update an artifact document', updateArtifact);
+  it('should update multiple artifact documents', updateArtifacts);
   it('should get an artifact blob', getBlob);
   it('should delete an artifact blob', deleteBlob);
-  it('should delete an artifact', deleteArtifact);
+  it('should delete an artifact document', deleteArtifact);
+  it('should delete multiple artifact documents', deleteArtifacts);
 });
 
 /* --------------------( Tests )-------------------- */
@@ -150,6 +156,56 @@ async function createArtifact() {
 }
 
 /**
+ * @description Validates that the ArtifactController can create multiple artifact documents.
+ */
+async function createArtifacts() {
+  // Define test data
+  const artData = [
+    testData.artifacts[1],
+    testData.artifacts[2]
+  ];
+
+  try {
+    const createdArtifacts = await ArtifactController.create(adminUser, orgID,
+      projectID, branchID, artData);
+
+    // Convert createdArtifacts to JMI type 2 for easier lookup
+    const jmi2Artifacts = jmi.convertJMI(1, 2, createdArtifacts);
+
+    // Loop through each artifact data object
+    artData.forEach((artObj) => {
+      const artifactID = utils.createID(orgID, projectID, branchID, artObj.id);
+      const createdArt = jmi2Artifacts[artifactID];
+
+      // Verify artifacts created properly
+      chai.expect(createdArt._id).to.equal(artifactID);
+      chai.expect(createdArt.name).to.equal(artObj.name);
+      chai.expect(createdArt.custom || {}).to.deep.equal(artObj.custom);
+      chai.expect(createdArt.project).to.equal(utils.createID(orgID, projectID));
+      chai.expect(createdArt.branch).to.equal(utils.createID(orgID, projectID, branchID));
+
+      chai.expect(createdArt.filename).to.equal(artObj.filename);
+      chai.expect(createdArt.location).to.equal(artObj.location);
+      chai.expect(createdArt.strategy).to.equal(M.config.artifact.strategy);
+      chai.expect(createdArt.custom || {}).to.deep.equal(artObj.custom);
+
+      // Verify additional properties
+      chai.expect(createdArt.createdBy).to.equal(adminUser._id);
+      chai.expect(createdArt.lastModifiedBy).to.equal(adminUser._id);
+      chai.expect(createdArt.archivedBy).to.equal(null);
+      chai.expect(createdArt.createdOn).to.not.equal(null);
+      chai.expect(createdArt.updatedOn).to.not.equal(null);
+      chai.expect(createdArt.archivedOn).to.equal(null);
+    });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
+}
+
+/**
  * @description Validates that the ArtifactController can find an artifact document.
  */
 async function getArtifact() {
@@ -182,6 +238,57 @@ async function getArtifact() {
     chai.expect(foundArtifact[0].createdOn).to.not.equal(null);
     chai.expect(foundArtifact[0].updatedOn).to.not.equal(null);
     chai.expect(foundArtifact[0].archivedOn).to.equal(null);
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
+}
+
+/**
+ * @description Validates that the ArtifactController can find multiple artifact documents.
+ */
+async function getArtifacts() {
+  try {
+    // Define test data
+    const artData = [
+      testData.artifacts[1],
+      testData.artifacts[2]
+    ];
+
+    // Find the artifact previously uploaded.
+    const foundArtifacts = await ArtifactController.find(adminUser, orgID,
+      projectID, branchID);
+
+    // Convert foundArtifact to JMI type 2 for easier lookup
+    const jmi2Artifacts = jmi.convertJMI(1, 2, foundArtifacts);
+
+    // Loop through each artifact data object
+    artData.forEach((artObj) => {
+      const artifactID = utils.createID(orgID, projectID, branchID, artObj.id);
+      const foundArt = jmi2Artifacts[artifactID];
+
+      // Verify artifacts created properly
+      chai.expect(foundArt._id).to.equal(artifactID);
+      chai.expect(foundArt.name).to.equal(artObj.name);
+      chai.expect(foundArt.custom || {}).to.deep.equal(artObj.custom);
+      chai.expect(foundArt.project).to.equal(utils.createID(orgID, projectID));
+      chai.expect(foundArt.branch).to.equal(utils.createID(orgID, projectID, branchID));
+
+      chai.expect(foundArt.filename).to.equal(artObj.filename);
+      chai.expect(foundArt.location).to.equal(artObj.location);
+      chai.expect(foundArt.strategy).to.equal(M.config.artifact.strategy);
+      chai.expect(foundArt.custom || {}).to.deep.equal(artObj.custom);
+
+      // Verify additional properties
+      chai.expect(foundArt.createdBy).to.equal(adminUser._id);
+      chai.expect(foundArt.lastModifiedBy).to.equal(adminUser._id);
+      chai.expect(foundArt.archivedBy).to.equal(null);
+      chai.expect(foundArt.createdOn).to.not.equal(null);
+      chai.expect(foundArt.updatedOn).to.not.equal(null);
+      chai.expect(foundArt.archivedOn).to.equal(null);
+    });
   }
   catch (error) {
     M.log.error(error);
@@ -239,6 +346,62 @@ async function updateArtifact() {
 }
 
 /**
+ * @description Validates that the ArtifactController can update multiple
+ * artifact documents.
+ */
+async function updateArtifacts() {
+  // Define test data
+  const artUpdateData = [
+    testData.artifacts[1],
+    testData.artifacts[2]
+  ];
+
+  // Create objects to update artifacts
+  const updateObjects = artUpdateData.map(a => ({
+    name: `${a.name}_edit`,
+    id: a.id
+  }));
+
+  try {
+    const updatedArtifacts = await ArtifactController.update(adminUser, orgID,
+      projectID, branchID, updateObjects);
+
+
+    // Convert updateArtifacts to JMI type 2 for easier lookup
+    const jmi2Artifacts = jmi.convertJMI(1, 2, updatedArtifacts);
+
+    // Loop through each artifact data object
+    artUpdateData.forEach((artObj) => {
+      const artifactID = utils.createID(orgID, projectID, branchID, artObj.id);
+      const updatedArt = jmi2Artifacts[artifactID];
+
+      // Verify artifacts updated properly
+      chai.expect(updatedArt._id).to.equal(artifactID);
+      chai.expect(updatedArt.name).to.equal(`${artObj.name}_edit`);
+      chai.expect(updatedArt.filename).to.equal(artObj.filename);
+      chai.expect(updatedArt.project).to.equal(project._id);
+      chai.expect(updatedArt.branch).to.equal(utils.createID(orgID, projectID, branchID));
+      chai.expect(updatedArt.location).to.equal(artObj.location);
+      chai.expect(updatedArt.strategy).to.equal(M.config.artifact.strategy);
+      chai.expect(updatedArt.custom || {}).to.deep.equal(artObj.custom);
+
+      // Verify additional properties
+      chai.expect(updatedArt.createdBy).to.equal(adminUser._id);
+      chai.expect(updatedArt.lastModifiedBy).to.equal(adminUser._id);
+      chai.expect(updatedArt.archivedBy).to.equal(null);
+      chai.expect(updatedArt.createdOn).to.not.equal(null);
+      chai.expect(updatedArt.updatedOn).to.not.equal(null);
+      chai.expect(updatedArt.archivedOn).to.equal(null);
+    });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
+}
+
+/**
  * @description Validates that the ArtifactController can delete an artifact document.
  */
 async function deleteArtifact() {
@@ -261,6 +424,48 @@ async function deleteArtifact() {
     // Attempt to find the deleted artifact
     const foundArtifact = await ArtifactController.find(adminUser, orgID,
       projectID, branchID, [artData.id]);
+
+    // Verify response
+    chai.expect(foundArtifact.length).to.equal(0);
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
+}
+
+/**
+ * @description Validates that the ArtifactController can delete multiple artifact documents.
+ */
+async function deleteArtifacts() {
+  // Define test data
+  const artData = [
+    testData.artifacts[1],
+    testData.artifacts[2]
+  ];
+
+  // Create list of artifact ids to delete
+  const artIDs = artData.map(a => a.id);
+
+  try {
+    // Delete the artifact
+    const deletedArtifacts = await ArtifactController.remove(adminUser,
+      orgID, projectID, branchID, artIDs);
+
+    // Expect the correct number of artifacts to be deleted
+    chai.expect(deletedArtifacts.length).to.equal(artData.length);
+
+    // Loop through each artifact data object
+    artData.forEach((artDataObject) => {
+      const artifactID = utils.createID(orgID, projectID, branchID, artDataObject.id);
+      // Verify correct artifact deleted
+      chai.expect(deletedArtifacts).to.include(artifactID);
+    });
+
+    // Attempt to find the deleted artifacts
+    const foundArtifact = await ArtifactController.find(adminUser, orgID,
+      projectID, branchID, artIDs);
 
     // Verify response
     chai.expect(foundArtifact.length).to.equal(0);

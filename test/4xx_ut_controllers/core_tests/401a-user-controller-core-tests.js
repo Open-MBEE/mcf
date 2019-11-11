@@ -21,6 +21,7 @@
 const chai = require('chai');
 
 // MBEE modules
+const User = M.require('models.user');
 const UserController = M.require('controllers.user-controller');
 const Organization = M.require('models.organization');
 const db = M.require('lib.db');
@@ -43,22 +44,18 @@ describe(M.getModuleName(module.filename), () => {
   /**
    * Before: Create admin user.
    */
-  before((done) => {
-    // Connect to the database
-    db.connect()
-    // Create test admin
-    .then(() => testUtils.createTestAdmin())
-    .then((user) => {
-      // Set global admin user
-      adminUser = user;
-      done();
-    })
-    .catch((error) => {
+  before(async () => {
+    try {
+      // Connect to the database
+      await db.connect();
+      // Create test admin
+      adminUser = await testUtils.createTestAdmin();
+    }
+    catch (error) {
       M.log.error(error);
       // Expect no error
       chai.expect(error).to.equal(null);
-      done();
-    });
+    }
   });
 
   /**
@@ -456,6 +453,7 @@ function findAllUsers(done) {
 
     // Convert foundUsers to JMI type 2 for easier lookup
     const jmi2Users = jmi.convertJMI(1, 2, foundUsers);
+
     // Loop through each user data object
     userDataObjects.forEach((userDataObject) => {
       const foundUser = jmi2Users[userDataObject.username];
@@ -702,7 +700,7 @@ function updateUserPassword(done) {
     chai.expect(updatedUser.archivedOn).to.equal(null);
 
     // Verify the new password is correct
-    return updatedUser.verifyPassword(newPassword);
+    return User.verifyPassword(updatedUser, newPassword);
   })
   .then((success) => {
     // Expect success to be true, meaning password is correct

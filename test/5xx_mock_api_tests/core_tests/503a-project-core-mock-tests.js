@@ -109,7 +109,7 @@ function postProject(done) {
   // Create request object
   const projData = testData.projects[0];
   const params = {
-    orgid: org.id,
+    orgid: org._id,
     projectid: testData.projects[0].id
   };
   const method = 'POST';
@@ -131,7 +131,7 @@ function postProject(done) {
     chai.expect(createdProj.name).to.equal(projData.name);
     chai.expect(createdProj.custom).to.deep.equal(projData.custom || {});
     chai.expect(createdProj.permissions[adminUser._id]).to.equal('admin');
-    chai.expect(createdProj.org).to.equal(org.id);
+    chai.expect(createdProj.org).to.equal(org._id);
     chai.expect(createdProj.visibility).to.equal(projData.visibility || 'private');
 
     // Verify additional properties
@@ -169,7 +169,7 @@ function postProjects(done) {
     testData.projects[3]
   ];
   const params = {
-    orgid: org.id
+    orgid: org._id
   };
   const method = 'POST';
   const req = testUtils.createRequest(adminUser, params, projData, method);
@@ -197,7 +197,7 @@ function postProjects(done) {
       chai.expect(createdProj.name).to.equal(projDataObject.name);
       chai.expect(createdProj.custom).to.deep.equal(projDataObject.custom || {});
       chai.expect(createdProj.permissions[adminUser._id]).to.equal('admin');
-      chai.expect(createdProj.org).to.equal(org.id);
+      chai.expect(createdProj.org).to.equal(org._id);
       chai.expect(createdProj.visibility).to.equal(projDataObject.visibility || 'private');
 
       // Verify additional properties
@@ -232,7 +232,7 @@ function putProject(done) {
   // Create request object
   const projData = testData.projects[0];
   const params = {
-    orgid: org.id,
+    orgid: org._id,
     projectid: testData.projects[0].id
   };
   const method = 'PUT';
@@ -254,7 +254,7 @@ function putProject(done) {
     chai.expect(replacedProj.name).to.equal(projData.name);
     chai.expect(replacedProj.custom).to.deep.equal(projData.custom || {});
     chai.expect(replacedProj.permissions[adminUser._id]).to.equal('admin');
-    chai.expect(replacedProj.org).to.equal(org.id);
+    chai.expect(replacedProj.org).to.equal(org._id);
     chai.expect(replacedProj.visibility).to.equal(projData.visibility || 'private');
 
     // Verify additional properties
@@ -293,7 +293,7 @@ function putProjects(done) {
     testData.projects[4]
   ];
   const params = {
-    orgid: org.id
+    orgid: org._id
   };
   const method = 'PUT';
   const req = testUtils.createRequest(adminUser, params, projData, method);
@@ -321,7 +321,7 @@ function putProjects(done) {
       chai.expect(replacedProj.name).to.equal(projDataObject.name);
       chai.expect(replacedProj.custom).to.deep.equal(projDataObject.custom || {});
       chai.expect(replacedProj.permissions[adminUser._id]).to.equal('admin');
-      chai.expect(replacedProj.org).to.equal(org.id);
+      chai.expect(replacedProj.org).to.equal(org._id);
       chai.expect(replacedProj.visibility).to.equal(projDataObject.visibility || 'private');
 
       // Verify additional properties
@@ -356,7 +356,7 @@ function getProject(done) {
   // Create request object
   const projData = testData.projects[0];
   const params = {
-    orgid: org.id,
+    orgid: org._id,
     projectid: testData.projects[0].id
   };
   const method = 'GET';
@@ -378,7 +378,7 @@ function getProject(done) {
     chai.expect(foundProj.name).to.equal(projData.name);
     chai.expect(foundProj.custom).to.deep.equal(projData.custom || {});
     chai.expect(foundProj.permissions[adminUser._id]).to.equal('admin');
-    chai.expect(foundProj.org).to.equal(org.id);
+    chai.expect(foundProj.org).to.equal(org._id);
     chai.expect(foundProj.visibility).to.equal(projData.visibility || 'private');
 
     // Verify additional properties
@@ -417,7 +417,7 @@ function getProjects(done) {
     testData.projects[4]
   ];
   const params = {
-    orgid: org.id
+    orgid: org._id
   };
   const method = 'GET';
   const req = testUtils.createRequest(adminUser, params, projData.map(p => p.id), method);
@@ -446,7 +446,7 @@ function getProjects(done) {
       chai.expect(foundProj.name).to.equal(projDataObject.name);
       chai.expect(foundProj.custom).to.deep.equal(projDataObject.custom || {});
       chai.expect(foundProj.permissions[adminUser._id]).to.equal('admin');
-      chai.expect(foundProj.org).to.equal(org.id);
+      chai.expect(foundProj.org).to.equal(org._id);
       chai.expect(foundProj.visibility).to.equal(projDataObject.visibility || 'private');
 
       // Verify additional properties
@@ -487,7 +487,7 @@ function getAllProjectsOnOrg(done) {
     testData.projects[4]
   ];
   const params = {
-    orgid: org.id
+    orgid: org._id
   };
   const method = 'GET';
   const req = testUtils.createRequest(adminUser, params, {}, method);
@@ -516,7 +516,7 @@ function getAllProjectsOnOrg(done) {
       chai.expect(foundProj.name).to.equal(projDataObject.name);
       chai.expect(foundProj.custom).to.deep.equal(projDataObject.custom || {});
       chai.expect(foundProj.permissions[adminUser._id]).to.equal('admin');
-      chai.expect(foundProj.org).to.equal(org.id);
+      chai.expect(foundProj.org).to.equal(org._id);
       chai.expect(foundProj.visibility).to.equal(projDataObject.visibility || 'private');
 
       // Verify additional properties
@@ -569,6 +569,7 @@ function getAllProjects(done) {
   // Verifies the response data
   res.send = function send(_data) {
     // Parse the JSON response
+
     const foundProjects = JSON.parse(_data);
     chai.expect(Array.isArray(foundProjects)).to.equal(true);
     chai.expect(foundProjects.length).to.be.at.least(projData.length);
@@ -576,7 +577,7 @@ function getAllProjects(done) {
     // Account for other projects on different orgs that may exist in the database.
     // This mitigates collisions in the jmi converter between projects of the same name.
     foundProjects.forEach((p) => {
-      if (p.org !== testData.orgs[0].id) {
+      if (p.org !== org._id) {
         p.id = utils.createID(p.org, p.id);
       }
     });
@@ -594,7 +595,7 @@ function getAllProjects(done) {
         chai.expect(foundProj.name).to.equal(projDataObject.name);
         chai.expect(foundProj.custom).to.deep.equal(projDataObject.custom || {});
         chai.expect(foundProj.permissions[adminUser._id]).to.equal('admin');
-        chai.expect(foundProj.org).to.equal(org.id);
+        chai.expect(foundProj.org).to.equal(org._id);
         chai.expect(foundProj.visibility).to.equal(projDataObject.visibility || 'private');
 
         // Verify additional properties
@@ -630,7 +631,7 @@ function patchProject(done) {
   // Create request object
   const projData = testData.projects[0];
   const params = {
-    orgid: org.id,
+    orgid: org._id,
     projectid: testData.projects[0].id
   };
   const method = 'PATCH';
@@ -656,7 +657,7 @@ function patchProject(done) {
     chai.expect(updatedProj.name).to.equal(updateObj.name);
     chai.expect(updatedProj.custom).to.deep.equal(projData.custom || {});
     chai.expect(updatedProj.permissions[adminUser._id]).to.equal('admin');
-    chai.expect(updatedProj.org).to.equal(org.id);
+    chai.expect(updatedProj.org).to.equal(org._id);
     chai.expect(updatedProj.visibility).to.equal(projData.visibility || 'private');
 
     // Verify additional properties
@@ -695,7 +696,7 @@ function patchProjects(done) {
     testData.projects[4]
   ];
   const params = {
-    orgid: org.id
+    orgid: org._id
   };
   const method = 'PATCH';
   const updateObj = projData.map((p) => ({
@@ -728,7 +729,7 @@ function patchProjects(done) {
       chai.expect(updatedProj.name).to.equal('Updated Name');
       chai.expect(updatedProj.custom).to.deep.equal(projDataObject.custom || {});
       chai.expect(updatedProj.permissions[adminUser._id]).to.equal('admin');
-      chai.expect(updatedProj.org).to.equal(org.id);
+      chai.expect(updatedProj.org).to.equal(org._id);
       chai.expect(updatedProj.visibility).to.equal(projDataObject.visibility || 'private');
 
       // Verify additional properties
@@ -763,7 +764,7 @@ function deleteProject(done) {
   // Create request object
   const projData = testData.projects[0];
   const params = {
-    orgid: org.id,
+    orgid: org._id,
     projectid: testData.projects[0].id
   };
   const method = 'PATCH';
@@ -808,7 +809,7 @@ function deleteProjects(done) {
     testData.projects[4]
   ];
   const params = {
-    orgid: org.id
+    orgid: org._id
   };
   const method = 'PATCH';
   const req = testUtils.createRequest(adminUser, params, projData.map(p => p.id), method);

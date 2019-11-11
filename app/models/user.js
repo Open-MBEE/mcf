@@ -101,8 +101,13 @@ const UserSchema = new db.Schema({
         + ' less than 3 characters.'
     }, {
       validator: function(v) {
-        // If the username is invalid, reject
-        return RegExp(validators.user.username).test(v);
+        if (typeof validators.user.username === 'string') {
+          // If the username is invalid, reject
+          return RegExp(validators.user.username).test(v);
+        }
+        else {
+          return validators.user.username(v);
+        }
       },
       message: props => `Invalid username [${props.value}].`
     }]
@@ -116,8 +121,13 @@ const UserSchema = new db.Schema({
     default: '',
     validate: [{
       validator: function(v) {
-        // If the email is invalid and provided, reject
-        return !(!RegExp(validators.user.email).test(v) && v);
+        if (typeof validators.user.email === 'string') {
+          // If the email is invalid and provided, reject
+          return !(!RegExp(validators.user.email).test(v) && v);
+        }
+        else {
+          return !(!validators.user.email(v) && v);
+        }
       },
       message: props => `Invalid email [${props.value}].`
     }]
@@ -127,8 +137,13 @@ const UserSchema = new db.Schema({
     default: '',
     validate: [{
       validator: function(v) {
-        // If the fname is invalid and provided, reject
-        return !(!RegExp(validators.user.fname).test(v) && v);
+        if (typeof validators.user.fname === 'string') {
+          // If the fname is invalid and provided, reject
+          return !(!RegExp(validators.user.fname).test(v) && v);
+        }
+        else {
+          return !(!validators.user.fname(v) && v);
+        }
       },
       message: props => `Invalid first name [${props.value}].`
     }]
@@ -138,8 +153,13 @@ const UserSchema = new db.Schema({
     default: '',
     validate: [{
       validator: function(v) {
-        // If the preferredName is invalid and provided, reject
-        return !(!RegExp(validators.user.fname).test(v) && v);
+        if (typeof validators.user.fname === 'string') {
+          // If the preferredName is invalid and provided, reject
+          return !(!RegExp(validators.user.fname).test(v) && v);
+        }
+        else {
+          return !(!validators.user.fname(v) && v);
+        }
       },
       message: props => `Invalid preferred name [${props.value}].`
     }]
@@ -149,8 +169,13 @@ const UserSchema = new db.Schema({
     default: '',
     validate: [{
       validator: function(v) {
-        // If the lname is invalid and provided, reject
-        return !(!RegExp(validators.user.lname).test(v) && v);
+        if (typeof validators.user.lname === 'string') {
+          // If the lname is invalid and provided, reject
+          return !(!RegExp(validators.user.lname).test(v) && v);
+        }
+        else {
+          return !(!validators.user.lname(v) && v);
+        }
       },
       message: props => `Invalid last name [${props.value}].`
     }]
@@ -179,40 +204,24 @@ const UserSchema = new db.Schema({
 // Use extensions model plugin;
 UserSchema.plugin(extensions);
 
-/* ---------------------------( User Middleware )---------------------------- */
-/**
- * @description Run our pre-defined setters on save.
- * @memberOf UserSchema
- */
-UserSchema.pre('save', async function() {
-  // Validate the _id field to make sure it exists, since used in hashPassword()
-  const errors = this.validateSync('_id');
-  if (errors) {
-    // Throw the error if one was found
-    throw errors.ValidationError;
-  }
-
-  // Hash the user password
-  this.hashPassword();
-});
-
 /* -----------------------------( User Methods )----------------------------- */
 /**
  * @description Verifies a password matches the stored hashed password.
  *
+ * @param {object} user - The user object being validated.
  * @param {string} pass - The password to be compared with the stored password.
  * @memberOf UserSchema
  */
-UserSchema.method('verifyPassword', function(pass) {
+UserSchema.static('verifyPassword', function(user, pass) {
   return new Promise((resolve, reject) => {
     // Hash the input plaintext password
-    crypto.pbkdf2(pass, this._id.toString(), 1000, 32, 'sha256', (err, derivedKey) => {
+    crypto.pbkdf2(pass, user._id.toString(), 1000, 32, 'sha256', (err, derivedKey) => {
       // If err, reject it
       if (err) reject(err);
 
       // Compare the hashed input password with the stored hashed password
       // and return it.
-      return resolve(derivedKey.toString('hex') === this.password);
+      return resolve(derivedKey.toString('hex') === user.password);
     });
   });
 });
@@ -221,10 +230,6 @@ UserSchema.method('verifyPassword', function(pass) {
  * @description Returns user fields that can be changed
  * @memberOf UserSchema
  */
-UserSchema.method('getValidUpdateFields', function() {
-  return ['fname', 'preferredName', 'lname', 'email', 'custom', 'archived', 'admin'];
-});
-
 UserSchema.static('getValidUpdateFields', function() {
   return ['fname', 'preferredName', 'lname', 'email', 'custom', 'archived', 'admin'];
 });
@@ -233,39 +238,22 @@ UserSchema.static('getValidUpdateFields', function() {
  * @description Returns a list of fields a requesting user can populate
  * @memberOf UserSchema
  */
-UserSchema.method('getValidPopulateFields', function() {
-  return ['archivedBy', 'lastModifiedBy', 'createdBy'];
-});
-
 UserSchema.static('getValidPopulateFields', function() {
   return ['archivedBy', 'lastModifiedBy', 'createdBy'];
 });
 
 /**
  * @description Validates and hashes a password
- */
-UserSchema.method('hashPassword', function() {
-  // Require auth module
-  const AuthController = M.require('lib.auth');
-
-  // Check validation status NOT successful
-  if (!AuthController.validatePassword(this.password, this.provider)) {
-    // Failed validation, throw error
-    throw new M.DataFormatError('Password validation failed.', 'warn');
-  }
-  // Hash plaintext password
-  if (this.password) {
-    const derivedKey = crypto.pbkdf2Sync(this.password, this._id.toString(), 1000, 32, 'sha256');
-    this.password = derivedKey.toString('hex');
-  }
-});
-
-/**
- * @description Validates and hashes a password
+ * @memberOf UserSchema
  */
 UserSchema.static('hashPassword', function(obj) {
   // Require auth module
   const AuthController = M.require('lib.auth');
+
+  // If the provider is not defined, set it the the default, its needed for this fxn
+  if (!obj.hasOwnProperty('provider')) {
+    obj.provider = 'local';
+  }
 
   // Check validation status NOT successful
   if (!AuthController.validatePassword(obj.password, obj.provider)) {

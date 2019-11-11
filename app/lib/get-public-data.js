@@ -603,7 +603,15 @@ function getProjectPublicData(project, options) {
   // Loop through each permission key/value pair
   Object.keys(project.permissions || {}).forEach((u) => {
     // Return highest permission
-    permissions[u] = project.permissions[u].pop();
+    if (project.permissions[u].includes('admin')) {
+      permissions[u] = 'admin';
+    }
+    else if (project.permissions[u].includes('write')) {
+      permissions[u] = 'write';
+    }
+    else {
+      permissions[u] = 'read';
+    }
   });
 
   // If project.createdBy is defined
@@ -707,7 +715,15 @@ function getOrgPublicData(org, options) {
   // Loop through each permission key/value pair
   Object.keys(org.permissions || {}).forEach((u) => {
     // Return highest permission
-    permissions[u] = org.permissions[u].pop();
+    if (org.permissions[u].includes('admin')) {
+      permissions[u] = 'admin';
+    }
+    else if (org.permissions[u].includes('write')) {
+      permissions[u] = 'write';
+    }
+    else {
+      permissions[u] = 'read';
+    }
   });
 
   // If org.createdBy is defined

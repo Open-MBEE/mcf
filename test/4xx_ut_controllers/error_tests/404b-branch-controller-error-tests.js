@@ -64,12 +64,12 @@ describe(M.getModuleName(module.filename), () => {
       org = retOrg;
 
       // Create project
-      return testUtils.createTestProject(adminUser, org.id);
+      return testUtils.createTestProject(adminUser, org._id);
     })
     .then((retProj) => {
       // Set global project
       proj = retProj;
-      projID = utils.parseID(proj.id).pop();
+      projID = utils.parseID(proj._id).pop();
 
       done();
     })
@@ -118,6 +118,6 @@ async function deleteMasterBranch() {
   const branchID = testData.branches[0].id;
 
   // Attempt to remove the master branch; should be rejected
-  await BranchController.remove(adminUser, org.id, projID, branchID)
+  await BranchController.remove(adminUser, org._id, projID, branchID)
   .should.eventually.be.rejectedWith(`User cannot delete branch: ${branchID}.`);
 }

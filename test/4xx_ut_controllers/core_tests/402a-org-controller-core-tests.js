@@ -112,7 +112,6 @@ function createOrg(done) {
     const createdOrg = createdOrgs[0];
 
     // Verify org created properly
-    chai.expect(createdOrg.id).to.equal(orgData.id);
     chai.expect(createdOrg._id).to.equal(orgData.id);
     chai.expect(createdOrg.name).to.equal(orgData.name);
     chai.expect(createdOrg.custom).to.deep.equal(orgData.custom);
@@ -162,7 +161,6 @@ function createOrgs(done) {
       const createdOrg = jmi2Orgs[orgDataObject.id];
 
       // Verify org created properly
-      chai.expect(createdOrg.id).to.equal(orgDataObject.id);
       chai.expect(createdOrg._id).to.equal(orgDataObject.id);
       chai.expect(createdOrg.name).to.equal(orgDataObject.name);
       chai.expect(createdOrg.custom).to.deep.equal(orgDataObject.custom);
@@ -204,7 +202,6 @@ function createOrReplaceOrg(done) {
     const replacedOrg = replacedOrgs[0];
 
     // Verify org created/replaced properly
-    chai.expect(replacedOrg.id).to.equal(orgData.id);
     chai.expect(replacedOrg._id).to.equal(orgData.id);
     chai.expect(replacedOrg.name).to.equal(orgData.name);
     chai.expect(replacedOrg.custom).to.deep.equal(orgData.custom);
@@ -254,7 +251,6 @@ function createOrReplaceOrgs(done) {
       const replacedOrg = jmi2Orgs[orgDataObject.id];
 
       // Verify org created/replaced properly
-      chai.expect(replacedOrg.id).to.equal(orgDataObject.id);
       chai.expect(replacedOrg._id).to.equal(orgDataObject.id);
       chai.expect(replacedOrg.name).to.equal(orgDataObject.name);
       chai.expect(replacedOrg.custom).to.deep.equal(orgDataObject.custom);
@@ -296,7 +292,6 @@ function findOrg(done) {
     const foundOrg = foundOrgs[0];
 
     // Verify correct org found
-    chai.expect(foundOrg.id).to.equal(orgData.id);
     chai.expect(foundOrg._id).to.equal(orgData.id);
     chai.expect(foundOrg.name).to.equal(orgData.name);
     chai.expect(foundOrg.custom).to.deep.equal(orgData.custom);
@@ -349,7 +344,6 @@ function findOrgs(done) {
       const foundOrg = jmi2Orgs[orgDataObject.id];
 
       // Verify correct org found
-      chai.expect(foundOrg.id).to.equal(orgDataObject.id);
       chai.expect(foundOrg._id).to.equal(orgDataObject.id);
       chai.expect(foundOrg.name).to.equal(orgDataObject.name);
       chai.expect(foundOrg.custom).to.deep.equal(orgDataObject.custom);
@@ -407,7 +401,6 @@ function findAllOrgs(done) {
       // If the org was created in tests
       if (foundOrg._id !== M.config.server.defaultOrganizationId) {
         // Verify correct org found
-        chai.expect(foundOrg.id).to.equal(orgDataObject.id);
         chai.expect(foundOrg._id).to.equal(orgDataObject.id);
         chai.expect(foundOrg.name).to.equal(orgDataObject.name);
         chai.expect(foundOrg.custom).to.deep.equal(orgDataObject.custom);
@@ -425,7 +418,6 @@ function findAllOrgs(done) {
       }
       // Special case for default org since it has no custom data
       else {
-        chai.expect(foundOrg.id).to.equal(orgDataObject.id);
         chai.expect(foundOrg._id).to.equal(orgDataObject.id);
         chai.expect(foundOrg.name).to.equal(orgDataObject.name);
       }
@@ -462,7 +454,6 @@ function updateOrg(done) {
     const updatedOrg = updatedOrgs[0];
 
     // Verify correct org updated
-    chai.expect(updatedOrg.id).to.equal(orgData.id);
     chai.expect(updatedOrg._id).to.equal(orgData.id);
     chai.expect(updatedOrg.name).to.equal(`${orgData.name}_edit`);
     chai.expect(updatedOrg.custom).to.deep.equal(orgData.custom);
@@ -518,7 +509,6 @@ function updateOrgs(done) {
       const updatedOrg = jmi2Orgs[orgDataObject.id];
 
       // Verify correct org updated
-      chai.expect(updatedOrg.id).to.equal(orgDataObject.id);
       chai.expect(updatedOrg._id).to.equal(orgDataObject.id);
       chai.expect(updatedOrg.name).to.equal(`${orgDataObject.name}_edit`);
       chai.expect(updatedOrg.custom).to.deep.equal(orgDataObject.custom);

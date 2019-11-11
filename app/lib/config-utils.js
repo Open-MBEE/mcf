@@ -271,18 +271,74 @@ module.exports.validate = function(config) {
   // --------------------------- Verify validators -------------------------- //
   if (config.validators) {
     test(config, 'validators', 'object');
+    const rootIDs = ['model', '__mbee__', 'undefined', 'holding_bin', 'master',
+      config.server.defaultOrganizationId, config.server.defaultAdminUsername];
+    const elemIDs = ['model', '__mbee__', 'undefined', 'holding_bin'];
     if (config.validators.id) test(config, 'validators.id', 'string');
-    if (config.validators.id_length) test(config, 'validators.id_length', 'number');
-    if (config.validators.org_id) test(config, 'validators.org_id', 'string');
-    if (config.validators.org_id_length) test(config, 'validators.org_id_length', 'number');
+    if (config.validators.id) {
+      // Check that custom id validators don't exclude root ids
+      rootIDs.forEach((id) => {
+        if (!RegExp(config.validators.id).test(id)) {
+          throw new Error(`Configuration file: custom id regex excludes root id "${id}".`);
+        }
+      });
+    }
+    if (config.validators.id_length) {
+      test(config, 'validators.id_length', 'number');
+      const minLength = rootIDs.map((id) => id.length).reduce((a, b) => Math.max(a, b));
+      if (config.validators.id_length < minLength) {
+        // Check that custom id validators don't exclude root ids
+        throw new Error(`Configuration file: custom id length "${config.validators.id_length}" is `
+        + `too short.  The minimum length must be ${minLength} to account for root element ids, `
+        + 'the default org id, and/or the default admin username.');
+      }
+    }
+    if (config.validators.element_id) {
+      test(config, 'validators.element_id', 'string');
+      // Check that custom id validators don't exclude root ids
+      elemIDs.forEach((id) => {
+        if (!RegExp(config.validators.element_id).test(id)) {
+          throw new Error(`Configuration file: custom element id regex excludes root id "${id}".`);
+        }
+      });
+    }
+    if (config.validators.element_id_length) {
+      test(config, 'validators.element_id_length', 'number');
+      // Check that custom id validators don't exclude root ids
+      if (config.validators.element_id_length < 11) {
+        throw new Error(`Configuration file: custom element id length "${config.validators.id_length}" is too short.`);
+      }
+    }
+    if (config.validators.org_id) {
+      test(config, 'validators.org_id', 'string');
+      if (!RegExp(config.validators.org_id).test(config.server.defaultOrganizationId)) {
+        throw new Error(`Configuration file: custom org id regex excludes default org id "${config.server.defaultOrganizationId}".`);
+      }
+    }
+    if (config.validators.org_id_length) {
+      test(config, 'validators.org_id_length', 'number');
+      if (config.validators.org_id_length < config.server.defaultOrganizationId.length) {
+        throw new Error('Configuration file: custom org id length '
+        + `"${config.validators.org_id_length}" is shorter than the length of the default org id.`);
+      }
+    }
     if (config.validators.project_id) test(config, 'validators.project_id', 'string');
     if (config.validators.project_id_length) test(config, 'validators.project_id_length', 'number');
     if (config.validators.branch_id) test(config, 'validators.branch_id', 'string');
     if (config.validators.branch_id_length) test(config, 'validators.branch_id_length', 'number');
-    if (config.validators.element_id) test(config, 'validators.element_id', 'string');
-    if (config.validators.element_id_length) test(config, 'validators.element_id_length', 'number');
-    if (config.validators.user_username) test(config, 'validators.user_username', 'string');
-    if (config.validators.user_username_length) test(config, 'validators.user_username_length', 'number');
+    if (config.validators.user_username) {
+      test(config, 'validators.user_username', 'string');
+      if (!RegExp(config.validators.user_username).test(config.server.defaultAdminUsername)) {
+        throw new Error(`Configuration file: custom username regex excludes default admin username "${config.server.defaultAdminUsername}".`);
+      }
+    }
+    if (config.validators.user_username_length) {
+      test(config, 'validators.user_username_length', 'number');
+      if (config.validators.user_username_length < config.server.defaultAdminUsername.length) {
+        throw new Error('Configuration file: custom username length '
+        + `"${config.validators.user_username_length}" is shorter than the length of the default admin username.`);
+      }
+    }
     if (config.validators.user_email) test(config, 'validators.user_email', 'string');
     if (config.validators.user_fname) test(config, 'validators.user_fname', 'string');
     if (config.validators.user_lname) test(config, 'validators.user_lname', 'string');

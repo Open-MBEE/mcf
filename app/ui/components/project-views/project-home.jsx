@@ -20,6 +20,7 @@
 // React modules
 import React, { Component } from 'react';
 import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
+import validators from '../../../../build/json/validators.json';
 
 // MBEE modules
 import Sidebar from '../general/sidebar/sidebar.jsx';
@@ -122,6 +123,30 @@ class ProjectHome extends Component {
   }
 
   render() {
+    // Define branch, defaults to master
+    let branch = 'master';
+
+    // Get url path
+    const currUrlPath = this.props.location.pathname;
+
+    // Match branch id
+    const branchMatched = currUrlPath.match('/branches/[w]*');
+
+    // Check for match
+    if (branchMatched) {
+      // Extract branch substring
+      const branchSubString = currUrlPath.substring(branchMatched.index);
+
+      // Extract branch id
+      const urlBranch = branchSubString.split('/')[2];
+
+      // Validate id
+      if (RegExp(validators.id).test(urlBranch)) {
+        // Validated, set id
+        branch = urlBranch;
+      }
+    }
+
     // Initialize variables
     let title;
     let displayPlugins = false;
@@ -176,7 +201,7 @@ class ProjectHome extends Component {
             <SidebarLink id='Elements'
                          title='Model'
                          icon='fas fa-sitemap'
-                         routerLink={`${this.props.match.url}/branches/master/elements`}/>
+                         routerLink={`${this.props.match.url}/branches/${branch}/elements`}/>
             <SidebarLink id='Branches'
                          title='Branches/Tags'
                          icon='fas fa-code-branch'
@@ -184,7 +209,7 @@ class ProjectHome extends Component {
             <SidebarLink id='Search'
                          title='Search'
                          icon='fas fa-search'
-                         routerLink={`${this.props.match.url}/branches/master/search`}/>
+                         routerLink={`${this.props.match.url}/branches/${branch}/search`}/>
             <SidebarLink id='Members'
                          title='Members'
                          icon='fas fa-users'

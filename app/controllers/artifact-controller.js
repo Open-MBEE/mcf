@@ -88,8 +88,6 @@ if (!ArtifactStrategy.hasOwnProperty('clear')) {
  * @param {number} [options.skip = 0] - A non-negative number that specifies the
  * number of documents to skip returning. For example, if 10 documents are found
  * and skip is 5, the first 5 documents will NOT be returned.
- * @param {boolean} [options.lean = false] - A boolean value that if true
- * returns raw JSON instead of converting the data to objects.
  * @param {string} [options.sort] - Provide a particular field to sort the results by.
  * You may also add a negative sign in front of the field to indicate sorting in
  * reverse order.
@@ -128,8 +126,11 @@ async function find(requestingUser, organizationID, projectID, branchID, artifac
   // Ensure input parameters are correct type
   helper.checkParams(requestingUser, options, organizationID, projectID, branchID);
   helper.checkParamsDataType(['undefined', 'object', 'string'], artifacts, 'Artifacts');
-  // Sanitize input parameters
-  const saniArtifacts = sani.db(JSON.parse(JSON.stringify(artifacts)));
+
+  // Sanitize input parameters and create function-wide variables
+  const saniArtifacts = (artifacts !== undefined)
+    ? sani.db(JSON.parse(JSON.stringify(artifacts)))
+    : undefined;
   const reqUser = JSON.parse(JSON.stringify(requestingUser));
   const orgID = sani.db(organizationID);
   const projID = sani.db(projectID);
@@ -140,7 +141,7 @@ async function find(requestingUser, organizationID, projectID, branchID, artifac
 
   // Initialize and ensure options are valid
   const validatedOptions = utils.validateOptions(options, ['includeArchived', 'populate',
-    'fields', 'limit', 'skip', 'lean', 'sort'], Artifact);
+    'fields', 'limit', 'skip', 'sort'], Artifact);
 
   // Ensure options are valid
   if (options) {
@@ -152,8 +153,12 @@ async function find(requestingUser, organizationID, projectID, branchID, artifac
     Object.keys(options).forEach((o) => {
       // If the provided option is a valid search option
       if (validSearchOptions.includes(o) || o.startsWith('custom.')) {
+        // Ensure the archived search option is a boolean
+        if (o === 'archived' && typeof options[o] !== 'boolean') {
+          throw new M.DataFormatError(`The option '${o}' is not a boolean.`, 'warn');
+        }
         // Ensure the search option is a string
-        if (typeof options[o] !== 'string') {
+        else if (typeof options[o] !== 'string' && o !== 'archived') {
           throw new M.DataFormatError(`The option '${o}' is not a string.`, 'warn');
         }
 
@@ -164,17 +169,16 @@ async function find(requestingUser, organizationID, projectID, branchID, artifac
   }
 
   // Find the organization
-  const organization = await helper.findAndValidate(Org, orgID, reqUser,
-    validatedOptions.includeArchived);
+  const organization = await helper.findAndValidate(Org, orgID,
+    ((options && options.archived) || validatedOptions.includeArchived));
 
   // Find the project
   const project = await helper.findAndValidate(Project, utils.createID(orgID, projID),
-    reqUser, validatedOptions.includeArchived);
+    ((options && options.archived) || validatedOptions.includeArchived));
 
   // Find the branch, validate it was found and not archived
-  const branch = await helper.findAndValidate(Branch, utils.createID(
-    orgID, projID, branID
-  ), reqUser, validatedOptions.includeArchived);
+  const branch = await helper.findAndValidate(Branch, utils.createID(orgID, projID, branID),
+    ((options && options.archived) || validatedOptions.includeArchived));
 
   // Permissions check
   permissions.readArtifact(reqUser, organization, project, branch);
@@ -187,7 +191,7 @@ async function find(requestingUser, organizationID, projectID, branchID, artifac
   // Check the type of the artifact parameter
   if (Array.isArray(saniArtifacts)) {
     // An array of artifact ids, find all
-    searchQuery._id = saniArtifacts.map(a => utils.createID(orgID, projID, branchID, a));
+    searchQuery._id = { $in: saniArtifacts.map(a => utils.createID(orgID, projID, branchID, a)) };
   }
   else if (typeof saniArtifacts === 'string') {
     // A single artifact id
@@ -205,8 +209,7 @@ async function find(requestingUser, organizationID, projectID, branchID, artifac
       { limit: validatedOptions.limit,
         skip: validatedOptions.skip,
         sort: validatedOptions.sort,
-        populate: validatedOptions.populateString,
-        lean: validatedOptions.lean
+        populate: validatedOptions.populateString
       });
   }
   catch (error) {
@@ -235,8 +238,6 @@ async function find(requestingUser, organizationID, projectID, branchID, artifac
  * of the found objects. By default, no fields are populated.
  * @param {string[]} [options.fields] - An array of fields to return. To NOT
  * include a field, provide a '-' in front.
- * @param {boolean} [options.lean = false] - A boolean value that if true
- * returns raw JSON instead of converting the data to objects.
  *
  * @returns {Promise<object[]>} Array of created artifact objects.
  *
@@ -266,8 +267,7 @@ async function create(requestingUser, organizationID, projectID, branchID,
     const branID = sani.db(branchID);
 
     // Initialize and ensure options are valid
-    const validatedOptions = utils.validateOptions(options, ['populate', 'fields',
-      'lean'], Artifact);
+    const validatedOptions = utils.validateOptions(options, ['populate', 'fields'], Artifact);
 
     // Define array to store artifact data
     let artsToCreate = [];
@@ -289,16 +289,14 @@ async function create(requestingUser, organizationID, projectID, branchID,
       throw new M.DataFormatError('Invalid input for creating artifacts.', 'warn');
     }
 
-    // Find the organization and validate that it was found and not archived
-    const organization = await helper.findAndValidate(Org, orgID, reqUser);
+    // Find the organization and validate that it was found and not archived (unless specified)
+    const organization = await helper.findAndValidate(Org, orgID);
 
-    // Find the project and validate that it was found and not archived
-    const project = await helper.findAndValidate(Project,
-      utils.createID(orgID, projID), reqUser);
+    // Find the project and validate that it was found and not archived (unless specified)
+    const project = await helper.findAndValidate(Project, utils.createID(orgID, projID));
 
-    // Find the branch and validate that it was found and not archived
-    const branch = await helper.findAndValidate(Branch,
-      utils.createID(orgID, projID, branID), reqUser);
+    // Find the branch and validate that it was found and not archived (unless specified)
+    const branch = await helper.findAndValidate(Branch, utils.createID(orgID, projID, branID));
 
     // Check that the branch is is not a tag
     if (branch.tag) {
@@ -342,7 +340,7 @@ async function create(requestingUser, organizationID, projectID, branchID,
     const searchQuery = { _id: { $in: arrIDs } };
 
     // Check if the artifacts already exists
-    const existingArtifact = await Artifact.find(searchQuery, '_id', { lean: true });
+    const existingArtifact = await Artifact.find(searchQuery, '_id');
 
     // Ensure no artifacts were found
     if (existingArtifact.length > 0) {
@@ -354,17 +352,16 @@ async function create(requestingUser, organizationID, projectID, branchID,
     }
 
     const artObjects = artsToCreate.map((a) => {
-      const artObj = Artifact.createDocument(a);
-      artObj.project = project._id;
-      artObj.branch = branch._id;
-      artObj.strategy = M.config.artifact.strategy;
-      artObj.lastModifiedBy = reqUser._id;
-      artObj.createdBy = reqUser._id;
-      artObj.updatedOn = Date.now();
-      artObj.archivedBy = (a.archived) ? reqUser._id : null;
-      artObj.archivedOn = (a.archived) ? Date.now() : null;
+      a.project = project._id;
+      a.branch = branch._id;
+      a.strategy = M.config.artifact.strategy;
+      a.lastModifiedBy = reqUser._id;
+      a.createdBy = reqUser._id;
+      a.updatedOn = Date.now();
+      a.archivedBy = (a.archived) ? reqUser._id : null;
+      a.archivedOn = (a.archived) ? Date.now() : null;
 
-      return artObj;
+      return a;
     });
 
     // Save artifact object to the database
@@ -374,9 +371,7 @@ async function create(requestingUser, organizationID, projectID, branchID,
     EventEmitter.emit('artifacts-created', createdArtifacts);
 
     return await Artifact.find(searchQuery, validatedOptions.fieldsString,
-      { populate: validatedOptions.populateString,
-        lean: validatedOptions.lean
-      });
+      { populate: validatedOptions.populateString });
   }
   catch (error) {
     throw errors.captureError(error);
@@ -405,8 +400,6 @@ async function create(requestingUser, organizationID, projectID, branchID,
  * of the found objects. By default, no fields are populated.
  * @param {string[]} [options.fields] - An array of fields to return. To NOT
  * include a field, provide a '-' in front.
- * @param {boolean} [options.lean = false] - A boolean value that if true
- * returns raw JSON instead of converting the data to objects.
  *
  * @returns {Promise<object[]>} Array of updated artifact objects.
  *
@@ -436,8 +429,7 @@ async function update(requestingUser, organizationID, projectID, branchID,
     const branID = sani.db(branchID);
 
     // Initialize and ensure options are valid
-    const validatedOptions = utils.validateOptions(options, ['populate', 'fields',
-      'lean'], Artifact);
+    const validatedOptions = utils.validateOptions(options, ['populate', 'fields'], Artifact);
 
     // Define array to store artifact data
     let artsToUpdate = [];
@@ -460,15 +452,13 @@ async function update(requestingUser, organizationID, projectID, branchID,
     }
 
     // Find organization, validate found and not archived
-    const organization = await helper.findAndValidate(Org, orgID, reqUser);
+    const organization = await helper.findAndValidate(Org, orgID);
 
     // Find project, validate found and not archived
-    const project = await helper.findAndValidate(Project,
-      utils.createID(orgID, projID), reqUser);
+    const project = await helper.findAndValidate(Project, utils.createID(orgID, projID));
 
     // Find the branch and validate that it was found and not archived
-    const branch = await helper.findAndValidate(Branch,
-      utils.createID(orgID, projID, branID), reqUser);
+    const branch = await helper.findAndValidate(Branch, utils.createID(orgID, projID, branID));
 
     // Check that the branch is is not a tag
     if (branch.tag) {
@@ -511,7 +501,7 @@ async function update(requestingUser, organizationID, projectID, branchID,
     const searchQuery = { _id: { $in: arrIDs } };
 
     // Find existing artifacts
-    const foundArtifact = await Artifact.find(searchQuery, null, { lean: true });
+    const foundArtifact = await Artifact.find(searchQuery, null);
     // Verify the same number of artifacts are found as desired
     if (foundArtifact.length !== arrIDs.length) {
       const foundIDs = foundArtifact.map(a => a._id);
@@ -552,11 +542,27 @@ async function update(requestingUser, organizationID, projectID, branchID,
 
         // Get validator for field if one exists
         if (validators.artifact.hasOwnProperty(key)) {
-          // If validation fails, throw error
-          if (!RegExp(validators.artifact[key]).test(updateArtifact[key])) {
-            throw new M.DataFormatError(
-              `Invalid ${key}: [${updateArtifact[key]}]`, 'warn'
-            );
+          // If the validator is a regex string
+          if (typeof validators.artifact[key] === 'string') {
+            // If validation fails, throw error
+            if (!RegExp(validators.artifact[key]).test(updateArtifact[key])) {
+              throw new M.DataFormatError(
+                `Invalid ${key}: [${updateArtifact[key]}]`, 'warn'
+              );
+            }
+          }
+          // If the validator is a function
+          else if (typeof validators.artifact[key] === 'function') {
+            if (!validators.artifact[key](updateArtifact[key])) {
+              throw new M.DataFormatError(
+                `Invalid ${key}: [${updateArtifact[key]}]`, 'warn'
+              );
+            }
+          }
+          // Improperly formatted validator
+          else {
+            throw new M.ServerError(`Artifact validator [${key}] is neither a `
+              + 'function nor a regex string.');
           }
         }
 
@@ -590,9 +596,7 @@ async function update(requestingUser, organizationID, projectID, branchID,
     await Artifact.bulkWrite(bulkArray);
 
     const foundArtifacts = await Artifact.find(searchQuery, validatedOptions.fieldsString,
-      { populate: validatedOptions.populateString,
-        lean: validatedOptions.lean
-      });
+      { populate: validatedOptions.populateString });
 
     // Emit the event artifacts-updated
     EventEmitter.emit('artifacts-updated', foundArtifacts);
@@ -659,15 +663,13 @@ async function remove(requestingUser, organizationID, projectID, branchID,
     }
 
     // Find the organization and validate that it was found and not archived
-    const organization = await helper.findAndValidate(Org, orgID, reqUser);
+    const organization = await helper.findAndValidate(Org, orgID);
 
     // Find the project and validate that it was found and not archived
-    const project = await helper.findAndValidate(Project,
-      utils.createID(orgID, projID), reqUser);
+    const project = await helper.findAndValidate(Project, utils.createID(orgID, projID));
 
     // Find the branch and validate that it was found and not archived
-    const branch = await helper.findAndValidate(Branch,
-      utils.createID(orgID, projID, branID), reqUser);
+    const branch = await helper.findAndValidate(Branch, utils.createID(orgID, projID, branID));
 
     // Check that the branch is is not a tag
     if (branch.tag) {
@@ -681,7 +683,7 @@ async function remove(requestingUser, organizationID, projectID, branchID,
     const searchQuery = { _id: { $in: artifactsToFind } };
 
     // Find the artifacts to delete
-    const foundArtifacts = await Artifact.find(searchQuery, null, { lean: true });
+    const foundArtifacts = await Artifact.find(searchQuery, null);
     const foundArtifactIDs = foundArtifacts.map(a => a._id);
 
     // Check if all artifacts were found
@@ -734,10 +736,10 @@ async function getBlob(requestingUser, organizationID,
     const projID = sani.db(projectID);
 
     // Find the organization
-    const organization = await helper.findAndValidate(Org, orgID, reqUser);
+    const organization = await helper.findAndValidate(Org, orgID);
 
     // Find the project
-    const project = await helper.findAndValidate(Project, utils.createID(orgID, projID), reqUser);
+    const project = await helper.findAndValidate(Project, utils.createID(orgID, projID));
 
     // Permissions check
     permissions.readBlob(reqUser, organization, project);
@@ -792,10 +794,10 @@ async function postBlob(requestingUser, organizationID,
     const projID = sani.db(projectID);
 
     // Find the organization
-    const organization = await helper.findAndValidate(Org, orgID, reqUser);
+    const organization = await helper.findAndValidate(Org, orgID);
 
     // Find the project
-    const project = await helper.findAndValidate(Project, utils.createID(orgID, projID), reqUser);
+    const project = await helper.findAndValidate(Project, utils.createID(orgID, projID));
 
     // Permissions check
     permissions.createBlob(reqUser, organization, project);
@@ -845,11 +847,10 @@ async function deleteBlob(requestingUser, organizationID, projectID,
     const projID = sani.db(projectID);
 
     // Find the organization
-    const organization = await helper.findAndValidate(Org, orgID, reqUser);
+    const organization = await helper.findAndValidate(Org, orgID);
 
     // Find the project
-    const project = await helper.findAndValidate(Project,
-      utils.createID(orgID, projID), reqUser);
+    const project = await helper.findAndValidate(Project, utils.createID(orgID, projID));
 
     // Permissions check
     permissions.deleteBlob(reqUser, organization, project);

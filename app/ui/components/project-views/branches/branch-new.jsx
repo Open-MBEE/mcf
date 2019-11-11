@@ -82,7 +82,7 @@ class CreateBranch extends Component {
     const orgId = this.props.project.org;
     const projId = this.props.project.id;
     const base = `/api/orgs/${orgId}/projects/${projId}/branches`;
-    const url = `${base}/${this.state.id}?minified=true`;
+    const url = `${base}/${this.state.id}`;
 
     // Initialize project data
     const data = {

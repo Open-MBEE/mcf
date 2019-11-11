@@ -12,7 +12,7 @@
  * @author Connor Doyle
  *
  * @description This tests mock requests of the API controller functionality:
- * GET, POST, PATCH, and DELETE elements.
+ * GET, POST, PATCH, PUT, and DELETE elements.
  */
 
 // Node modules
@@ -62,8 +62,8 @@ describe(M.getModuleName(module.filename), () => {
       // Define project data
       const projData = testData.projects[0];
       // Create project
-      proj = await ProjectController.create(adminUser, org.id, projData);
-      projID = utils.parseID(proj[0].id).pop();
+      proj = await ProjectController.create(adminUser, org._id, projData);
+      projID = utils.parseID(proj[0]._id).pop();
     }
     catch (error) {
       M.log.error(error);
@@ -115,7 +115,7 @@ function postGzip(done) {
 
   // Initialize the request attributes
   const params = {
-    orgid: org.id,
+    orgid: org._id,
     projectid: projID,
     branchid: branchID
   };
@@ -154,7 +154,7 @@ function postGzip(done) {
     setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
   };
 
-  // POSTs an element
+  // POST elements
   apiController.postElements(req, res);
 }
 
@@ -173,7 +173,7 @@ function putGzip(done) {
 
   // Initialize the request attributes
   const params = {
-    orgid: org.id,
+    orgid: org._id,
     projectid: projID,
     branchid: branchID
   };
@@ -212,7 +212,7 @@ function putGzip(done) {
     setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
   };
 
-  // PUTs an element
+  // PUT elements
   apiController.putElements(req, res);
 }
 
@@ -226,7 +226,7 @@ function patchGzip(done) {
   const elementData = testData.elements[2];
 
   // Create the element to be patched
-  ElementController.create(adminUser, org.id, projID, branchID, elementData)
+  ElementController.create(adminUser, org._id, projID, branchID, elementData)
   .then(() => {
     // Create a gzip file for testing
     const zippedData = zlib.gzipSync(JSON.stringify(elementData));
@@ -234,12 +234,12 @@ function patchGzip(done) {
 
     // Initialize the request attributes
     const params = {
-      orgid: org.id,
+      orgid: org._id,
       projectid: projID,
       branchid: branchID
     };
     const body = {};
-    const method = 'POST';
+    const method = 'PATCH';
     const query = {};
     const headers = 'application/gzip';
 
@@ -273,7 +273,7 @@ function patchGzip(done) {
       setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
     };
 
-    // PATCHes an element
+    // PATCH elements
     apiController.patchElements(req, res);
   });
 }

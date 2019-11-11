@@ -20,7 +20,6 @@ const fs = require('fs');
 const path = require('path');
 
 // MBEE modules
-const Artifact = M.require('models.artifact');
 const Branch = M.require('models.branch');
 const Element = M.require('models.element');
 const Organization = M.require('models.organization');
@@ -47,7 +46,6 @@ module.exports.migrate = function(args) {
 
     // Prompt the user for input
     prompt(args)
-    .then(() => Artifact.init()) // Ensure artifact model is created
     .then(() => Branch.init()) // Ensure branch model is created
     .then(() => Element.init()) // Ensure element model is created
     .then(() => Organization.init()) // Ensure org model is created
@@ -55,7 +53,7 @@ module.exports.migrate = function(args) {
     .then(() => ServerData.init()) // Ensure server data model is created
     .then(() => User.init()) // Ensure user model is created
     // Get the server data documents
-    .then(() => ServerData.find({}, null, { lean: true }))
+    .then(() => ServerData.find({}, null))
     .then((serverData) => {
       // Restrict collection to one document
       if (serverData.length > 1) {
@@ -375,7 +373,7 @@ module.exports.shiftVersion = async function(version) {
 module.exports.getSchemaVersion = function() {
   return new Promise((resolve, reject) => {
     // Get all documents from the server data
-    ServerData.find({}, null, { lean: true })
+    ServerData.find({}, null)
     .then((serverData) => {
       // Restrict collection to one document
       if (serverData.length > 1) {

@@ -60,12 +60,12 @@ describe(M.getModuleName(module.filename), () => {
       org = retOrg;
 
       // Create organization
-      return testUtils.createTestProject(adminUser, org.id);
+      return testUtils.createTestProject(adminUser, org._id);
     })
     .then((retProj) => {
       // Set global project
       proj = retProj;
-      projID = utils.parseID(proj.id).pop();
+      projID = utils.parseID(proj._id).pop();
       done();
     })
     .catch((error) => {
@@ -118,7 +118,7 @@ function postBranch(done) {
   // Create request object
   const body = branchData;
   const params = {
-    orgid: org.id,
+    orgid: org._id,
     projectid: projID,
     branchid: branchData.id
   };
@@ -181,7 +181,7 @@ function postBranches(done) {
   ];
 
   const params = {
-    orgid: org.id,
+    orgid: org._id,
     projectid: projID
   };
   const method = 'POST';
@@ -246,7 +246,7 @@ function getBranch(done) {
   // Create request object
   const body = {};
   const params = {
-    orgid: org.id,
+    orgid: org._id,
     projectid: projID,
     branchid: branchData.id
   };
@@ -308,7 +308,7 @@ function getBranches(done) {
   ];
 
   // Create request object
-  const params = { orgid: org.id, projectid: projID };
+  const params = { orgid: org._id, projectid: projID };
   const method = 'GET';
   const req = testUtils.createRequest(adminUser, params, branchData, method);
 
@@ -379,7 +379,7 @@ function getAllBranches(done) {
   ];
 
   // Create request object
-  const params = { orgid: org.id, projectid: projID };
+  const params = { orgid: org._id, projectid: projID };
   const method = 'GET';
   const req = testUtils.createRequest(adminUser, params, {}, method);
 
@@ -449,7 +449,7 @@ function patchBranch(done) {
   };
 
   const params = {
-    orgid: org.id,
+    orgid: org._id,
     projectid: projID,
     branchid: testData.branches[1].id
   };
@@ -517,7 +517,7 @@ function patchBranches(done) {
     id: b.id
   }));
 
-  const params = { orgid: org.id, projectid: projID };
+  const params = { orgid: org._id, projectid: projID };
   const method = 'PATCH';
   const req = testUtils.createRequest(adminUser, params, arrUpdateObjects, method);
 
@@ -580,7 +580,7 @@ function deleteBranch(done) {
   // Create request object
   const body = {};
   const params = {
-    orgid: org.id,
+    orgid: org._id,
     projectid: projID,
     branchid: testData.branches[1].id
   };
@@ -625,7 +625,7 @@ function deleteBranches(done) {
   ];
   const branchIDs = branchData.map(b => b.id);
 
-  const params = { orgid: org.id, projectid: projID };
+  const params = { orgid: org._id, projectid: projID };
   const method = 'DELETE';
   const req = testUtils.createRequest(adminUser, params, branchIDs, method);
 

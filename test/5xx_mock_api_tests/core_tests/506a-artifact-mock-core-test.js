@@ -58,7 +58,7 @@ describe(M.getModuleName(module.filename), () => {
 
       // Set global organization
       org = await testUtils.createTestOrg(adminUser);
-      orgID = org.id;
+      orgID = org._id;
 
       // Create project
       proj = await testUtils.createTestProject(adminUser, orgID);

@@ -60,8 +60,8 @@ describe(M.getModuleName(module.filename), () => {
       // Define project data
       const projData = testData.projects[0];
       // Create project
-      proj = await testUtils.createTestProject(adminUser, org.id, projData);
-      projID = utils.parseID(proj.id).pop();
+      proj = await testUtils.createTestProject(adminUser, org._id, projData);
+      projID = utils.parseID(proj._id).pop();
     }
     catch (error) {
       M.log.error(error);
@@ -112,7 +112,7 @@ function postGzip(done) {
 
   // Initialize the request attributes
   const params = {
-    orgid: org.id,
+    orgid: org._id,
     projectid: projID
   };
   const body = {};
@@ -164,7 +164,7 @@ function patchGzip(done) {
   const branchData = testData.branches[2];
 
   // Create the branch to be patched
-  BranchController.create(adminUser, org.id, projID, branchData)
+  BranchController.create(adminUser, org._id, projID, branchData)
   .then(() => {
     branchData.name = 'updated';
     branchData.tag = undefined;
@@ -176,7 +176,7 @@ function patchGzip(done) {
 
     // Initialize the request attributes
     const params = {
-      orgid: org.id,
+      orgid: org._id,
       projectid: projID
     };
     const body = {};

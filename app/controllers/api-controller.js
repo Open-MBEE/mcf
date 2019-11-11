@@ -104,6 +104,10 @@ module.exports = {
   patchBranch,
   postBranch,
   deleteBranch,
+  getArtifacts,
+  patchArtifacts,
+  postArtifacts,
+  deleteArtifacts,
   getArtifact,
   patchArtifact,
   postArtifact,
@@ -340,9 +344,6 @@ async function getOrgs(req, res) {
     delete options.minified;
   }
 
-  // Set the lean option to true for better performance
-  options.lean = true;
-
   try {
     // Get all organizations the requesting user has access to
     // NOTE: find() sanitizes arrOrgID.
@@ -414,9 +415,6 @@ async function postOrgs(req, res) {
     minified = options.minified;
     delete options.minified;
   }
-
-  // Set the lean option to true for better performance
-  options.lean = true;
 
   // Get the org data
   let orgData;
@@ -502,9 +500,6 @@ async function putOrgs(req, res) {
     delete options.minified;
   }
 
-  // Set the lean option to true for better performance
-  options.lean = true;
-
   // Get the org data
   let orgData;
   if (req.headers['content-type'] === 'application/gzip') {
@@ -587,9 +582,6 @@ async function patchOrgs(req, res) {
     minified = options.minified;
     delete options.minified;
   }
-
-  // Set the lean option to true for better performance
-  options.lean = true;
 
   // Get the org data
   let orgData;
@@ -741,9 +733,6 @@ async function getOrg(req, res) {
     delete options.minified;
   }
 
-  // Set the lean option to true for better performance
-  options.lean = true;
-
   try {
     // Find the org from it's id
     // NOTE: find() sanitizes req.params.orgid
@@ -836,9 +825,6 @@ async function postOrg(req, res) {
     delete options.minified;
   }
 
-  // Set the lean option to true for better performance
-  options.lean = true;
-
   try {
     // Create the organization with provided parameters
     // NOTE: create() sanitizes req.body
@@ -924,9 +910,6 @@ async function putOrg(req, res) {
     delete options.minified;
   }
 
-  // Set the lean option to true for better performance
-  options.lean = true;
-
   try {
     // Create or replace the organization with provided parameters
     // NOTE: createOrReplace() sanitizes req.body
@@ -1010,9 +993,6 @@ async function patchOrg(req, res) {
     minified = options.minified;
     delete options.minified;
   }
-
-  // Set the lean option to true for better performance
-  options.lean = true;
 
   try {
     // Update the specified organization
@@ -1172,9 +1152,6 @@ async function getAllProjects(req, res) {
     delete options.minified;
   }
 
-  // Set the lean option to true for better performance
-  options.lean = true;
-
   try {
     // Get all projects the requesting user has access to
     const projects = await ProjectController.find(req.user, null, undefined, options);
@@ -1283,9 +1260,6 @@ async function getProjects(req, res) {
     delete options.minified;
   }
 
-  // Set the lean option to true for better performance
-  options.lean = true;
-
   try {
     // Get all projects the requesting user has access to in a specified org
     // NOTE: find() sanitizes req.params.orgid and ids
@@ -1357,9 +1331,6 @@ async function postProjects(req, res) {
     minified = options.minified;
     delete options.minified;
   }
-
-  // Set the lean option to true for better performance
-  options.lean = true;
 
   // Get the project data
   let projectData;
@@ -1445,9 +1416,6 @@ async function putProjects(req, res) {
     delete options.minified;
   }
 
-  // Set the lean option to true for better performance
-  options.lean = true;
-
   // Get the project data
   let projectData;
   if (req.headers['content-type'] === 'application/gzip') {
@@ -1530,9 +1498,6 @@ async function patchProjects(req, res) {
     minified = options.minified;
     delete options.minified;
   }
-
-  // Set the lean option to true for better performance
-  options.lean = true;
 
   // Get the project data
   let projectData;
@@ -1687,9 +1652,6 @@ async function getProject(req, res) {
     delete options.minified;
   }
 
-  // Set the lean option to true for better performance
-  options.lean = true;
-
   try {
     // Find the project
     // NOTE: find() sanitizes req.params.projectid and req.params.orgid
@@ -1782,9 +1744,6 @@ async function postProject(req, res) {
     delete options.minified;
   }
 
-  // Set the lean option to true for better performance
-  options.lean = true;
-
   try {
     // Create project with provided parameters
     // NOTE: create() sanitizes req.params.orgid and req.body
@@ -1869,9 +1828,6 @@ async function putProject(req, res) {
     delete options.minified;
   }
 
-  // Set the lean option to true for better performance
-  options.lean = true;
-
   try {
     // Create or replace project with provided parameters
     // NOTE: createOrReplace() sanitizes req.params.orgid and req.body
@@ -1955,9 +1911,6 @@ async function patchProject(req, res) {
     minified = options.minified;
     delete options.minified;
   }
-
-  // Set the lean option to true for better performance
-  options.lean = true;
 
   try {
     // Update the specified project
@@ -2128,9 +2081,6 @@ async function getUsers(req, res) {
     delete options.minified;
   }
 
-  // Set the lean option to true for better performance
-  options.lean = true;
-
   try {
     // Get Users
     // NOTE: find() sanitizes req.usernames
@@ -2206,9 +2156,6 @@ async function postUsers(req, res) {
     minified = options.minified;
     delete options.minified;
   }
-
-  // Set the lean option to true for better performance
-  options.lean = true;
 
   // Get the user data
   let userData;
@@ -2293,9 +2240,6 @@ async function putUsers(req, res) {
     delete options.minified;
   }
 
-  // Set the lean option to true for better performance
-  options.lean = true;
-
   // Get the user data
   let userData;
   if (req.headers['content-type'] === 'application/gzip') {
@@ -2378,9 +2322,6 @@ async function patchUsers(req, res) {
     minified = options.minified;
     delete options.minified;
   }
-
-  // Set the lean option to true for better performance
-  options.lean = true;
 
   // Get the user data
   let userData;
@@ -2527,9 +2468,6 @@ async function getUser(req, res) {
     delete options.minified;
   }
 
-  // Set the lean option to true for better performance
-  options.lean = true;
-
   try {
     // Find the member from its username
     // NOTE: find() sanitizes req.params.username
@@ -2624,9 +2562,6 @@ async function postUser(req, res) {
     delete options.minified;
   }
 
-  // Set the lean option to true for better performance
-  options.lean = true;
-
   try {
     // Create user with provided parameters
     // NOTE: create() sanitizes req.body
@@ -2711,9 +2646,6 @@ async function putUser(req, res) {
     delete options.minified;
   }
 
-  // Set the lean option to true for better performance
-  options.lean = true;
-
   try {
     // Creates or replaces a user with provided parameters
     // NOTE: createOrReplace() sanitizes req.body
@@ -2797,9 +2729,6 @@ async function patchUser(req, res) {
     minified = options.minified;
     delete options.minified;
   }
-
-  // Set the lean option to true for better performance
-  options.lean = true;
 
   try {
     // Update the specified user
@@ -3003,9 +2932,6 @@ async function searchUsers(req, res) {
     delete options.minified;
   }
 
-  // Set the lean option to true for better performance
-  options.lean = true;
-
   try {
     // Find users
     // NOTE: search() sanitizes input params
@@ -3150,7 +3076,6 @@ async function getElements(req, res) {
     fields: 'array',
     limit: 'number',
     skip: 'number',
-    lean: 'boolean',
     sort: 'string',
     ids: 'array',
     format: 'string',
@@ -3224,9 +3149,6 @@ async function getElements(req, res) {
     minified = options.minified;
     delete options.minified;
   }
-
-  // Set the lean option to true for better performance
-  options.lean = true;
 
   try {
     // Find elements
@@ -3331,9 +3253,6 @@ async function postElements(req, res) {
     delete options.minified;
   }
 
-  // Set the lean option to true for better performance
-  options.lean = true;
-
   // Get the element data
   let elementData;
   if (req.headers['content-type'] === 'application/gzip') {
@@ -3418,9 +3337,6 @@ async function putElements(req, res) {
     delete options.minified;
   }
 
-  // Set the lean option to true for better performance
-  options.lean = true;
-
   // Get the element data
   let elementData;
   if (req.headers['content-type'] === 'application/gzip') {
@@ -3503,9 +3419,6 @@ async function patchElements(req, res) {
     minified = options.minified;
     delete options.minified;
   }
-
-  // Set the lean option to true for better performance
-  options.lean = true;
 
   // Get the element data
   let elementData;
@@ -3684,9 +3597,6 @@ async function searchElements(req, res) {
     delete options.minified;
   }
 
-  // Set the lean option to true for better performance
-  options.lean = true;
-
   try {
     // Find elements
     // NOTE: search() sanitizes input params
@@ -3761,9 +3671,6 @@ async function getElement(req, res) {
     minified = options.minified;
     delete options.minified;
   }
-
-  // Set the lean option to true for better performance
-  options.lean = true;
 
   try {
     // Find the element
@@ -3861,9 +3768,6 @@ async function postElement(req, res) {
     delete options.minified;
   }
 
-  // Set the lean option to true for better performance
-  options.lean = true;
-
   try {
     // Create element with provided parameters
     // NOTE: create() sanitizes input params
@@ -3949,9 +3853,6 @@ async function putElement(req, res) {
     delete options.minified;
   }
 
-  // Set the lean option to true for better performance
-  options.lean = true;
-
   try {
     // Create or replace element with provided parameters
     // NOTE: createOrReplace() sanitizes input params
@@ -4035,9 +3936,6 @@ async function patchElement(req, res) {
     minified = options.minified;
     delete options.minified;
   }
-
-  // Set the lean option to true for better performance
-  options.lean = true;
 
   try {
     // Updates the specified element
@@ -4213,9 +4111,6 @@ async function getBranches(req, res) {
     delete options.minified;
   }
 
-  // Set the lean option to true for better performance
-  options.lean = true;
-
   try {
     // Find branches
     // NOTE: find() sanitizes input params
@@ -4287,9 +4182,6 @@ async function postBranches(req, res) {
     minified = options.minified;
     delete options.minified;
   }
-
-  // Set the lean option to true for better performance
-  options.lean = true;
 
   // Get the branch data
   let branchData;
@@ -4373,9 +4265,6 @@ async function patchBranches(req, res) {
     minified = options.minified;
     delete options.minified;
   }
-
-  // Set the lean option to true for better performance
-  options.lean = true;
 
   // Get the branch data
   let branchData;
@@ -4529,9 +4418,6 @@ async function getBranch(req, res) {
     delete options.minified;
   }
 
-  // Set the lean option to true for better performance
-  options.lean = true;
-
   try {
     // Find the branch
     // NOTE: find() sanitizes req.params.branchid, req.params.projectid and req.params.orgid
@@ -4623,9 +4509,6 @@ async function postBranch(req, res) {
     delete options.minified;
   }
 
-  // Set the lean option to true for better performance
-  options.lean = true;
-
   try {
     // Create branch with provided parameters
     // NOTE: create() sanitizes input params
@@ -4709,9 +4592,6 @@ async function patchBranch(req, res) {
     minified = options.minified;
     delete options.minified;
   }
-
-  // Set the lean option to true for better performance
-  options.lean = true;
 
   try {
     // Updates the specified branch
@@ -4806,6 +4686,372 @@ async function deleteBranch(req, res) {
 
 /* -----------------------( Artifacts API Endpoints )------------------------- */
 /**
+ * GET /api/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts
+ *
+ * @description Gets all artifacts or get specified artifacts.
+ *
+ * @param {object} req - Request express object
+ * @param {object} res - Response express object
+ *
+ * @returns {object} Response object with public data of found artifacts
+ */
+async function getArtifacts(req, res) {
+  // Define options
+  // Note: Undefined if not set
+  let artIDs;
+  let options;
+  let format;
+  let minified = false;
+
+  // Define valid options and their parsed type
+  const validOptions = {
+    populate: 'array',
+    archived: 'boolean',
+    includeArchived: 'boolean',
+    fields: 'array',
+    limit: 'number',
+    skip: 'number',
+    sort: 'string',
+    ids: 'array',
+    format: 'string',
+    minified: 'boolean',
+    name: 'string',
+    createdBy: 'string',
+    lastModifiedBy: 'string',
+    archivedBy: 'string'
+  };
+
+  // Sanity Check: there should always be a user in the request
+  if (!req.user) {
+    M.log.critical('No requesting user available.');
+    const error = new M.ServerError('Request Failed');
+    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+  }
+
+  // Attempt to parse query options
+  try {
+    // Extract options from request query
+    options = utils.parseOptions(req.query, validOptions);
+  }
+  catch (error) {
+    // Error occurred with options, report it
+    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+  }
+
+  // Check query for artifact IDs
+  if (options.ids) {
+    artIDs = options.ids;
+    delete options.ids;
+  }
+  else if (Array.isArray(req.body) && req.body.every(s => typeof s === 'string')) {
+    // No IDs included in options, check body
+    artIDs = req.body;
+  }
+  // Check artifact object in body
+  else if (Array.isArray(req.body) && req.body.every(s => typeof s === 'object')) {
+    artIDs = req.body.map(a => a.id);
+  }
+
+  // Check for format conversion option
+  if (options.hasOwnProperty('format')) {
+    const validFormats = ['jmi1', 'jmi2'];
+    // If the provided format is not valid, error out
+    if (!validFormats.includes(options.format)) {
+      const error = new M.DataFormatError(`The format ${options.format} is not a `
+        + 'valid format.', 'warn');
+      return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    }
+    format = options.format;
+    delete options.format;
+  }
+
+  // Check options for minified
+  if (options.hasOwnProperty('minified')) {
+    minified = options.minified;
+    delete options.minified;
+  }
+
+  try {
+    // Find the artifacts
+    // NOTE: find() sanitizes input params
+    const artifacts = await ArtifactController.find(req.user, req.params.orgid,
+      req.params.projectid, req.params.branchid, artIDs, options);
+    const artifactsPublicData = sani.html(
+      artifacts.map(a => publicData.getPublicData(a, 'artifact', options))
+    );
+
+    // Verify artifacts public data array is not empty
+    if (artifacts.length === 0) {
+      throw new M.NotFoundError('No artifacts found.', 'warn');
+    }
+
+    const retData = artifactsPublicData;
+
+    // Check for JMI conversion
+    if (format) {
+      // Convert data to correct JMI format
+      try {
+        let jmiData = [];
+
+        // If JMI type 1, return plain artifact public data
+        if (format === 'jmi1') {
+          jmiData = artifactsPublicData;
+        }
+        else if (format === 'jmi2') {
+          jmiData = jmi.convertJMI(1, 2, artifactsPublicData, 'id');
+        }
+
+        // Format JSON
+        const json = formatJSON(jmiData, minified);
+
+        // Return a 200: OK and public JMI artifact data
+        return returnResponse(req, res, json, 200);
+      }
+      catch (err) {
+        throw err;
+      }
+    }
+
+    // Format JSON
+    const json = formatJSON(retData, minified);
+
+    // Return 200: OK and public artifact data
+    return returnResponse(req, res, json, 200);
+  }
+  catch (error) {
+    // If an error was thrown, return it and its status
+    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+  }
+}
+
+/**
+ * POST /api/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts
+ *
+ * @description Creates specified artifacts.
+ *
+ * @param {object} req - Request express object
+ * @param {object} res - Response express object
+ *
+ * @returns {object} Response object with created artifacts
+ */
+async function postArtifacts(req, res) {
+  // Define options
+  // Note: Undefined if not set
+  let options;
+  let minified = false;
+
+  // Define valid options and their parsed types
+  const validOptions = {
+    populate: 'array',
+    fields: 'array',
+    minified: 'boolean',
+    gzip: 'boolean'
+  };
+
+  // Sanity Check: there should always be a user in the request
+  if (!req.user) {
+    M.log.critical('No requesting user available.');
+    const error = new M.ServerError('Request Failed');
+    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+  }
+
+  // Attempt to parse query options
+  try {
+    // Extract options from request query
+    options = utils.parseOptions(req.query, validOptions);
+  }
+  catch (error) {
+    // Error occurred with options, report it
+    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+  }
+
+  // Check options for minified
+  if (options.hasOwnProperty('minified')) {
+    minified = options.minified;
+    delete options.minified;
+  }
+
+  // Get the artifact data
+  let artifactData;
+  if (req.headers['content-type'] === 'application/gzip') {
+    try {
+      // This function parses incoming gzipped data
+      artifactData = await utils.handleGzip(req);
+    }
+    catch (error) {
+      // Error occurred, report it
+      return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    }
+  }
+  else {
+    artifactData = req.body;
+  }
+
+  // Create artifacts with provided parameters
+  // NOTE: create() sanitizes input params
+  try {
+    const artifacts = await ArtifactController.create(req.user, req.params.orgid,
+      req.params.projectid, req.params.branchid, artifactData, options);
+
+    const artifactsPublicData = sani.html(
+      artifacts.map(a => publicData.getPublicData(a, 'artifact', options))
+    );
+
+    // Format JSON
+    const json = formatJSON(artifactsPublicData, minified);
+    return returnResponse(req, res, json, 200);
+  }
+  catch (error) {
+    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+  }
+}
+
+/**
+ * PATCH /api/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts
+ *
+ * @description Updates specified artifacts.
+ *
+ * @param {object} req - Request express object
+ * @param {object} res - Response express object
+ *
+ * @returns {object} Response object with updated artifacts
+ */
+async function patchArtifacts(req, res) {
+  // Define options
+  // Note: Undefined if not set
+  let options;
+  let minified = false;
+
+  // Define valid options and their parsed types
+  const validOptions = {
+    populate: 'array',
+    fields: 'array',
+    minified: 'boolean'
+  };
+
+  // Sanity Check: there should always be a user in the request
+  if (!req.user) {
+    M.log.critical('No requesting user available.');
+    const error = new M.ServerError('Request Failed');
+    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+  }
+
+  // Attempt to parse query options
+  try {
+    // Extract options from request query
+    options = utils.parseOptions(req.query, validOptions);
+  }
+  catch (error) {
+    // Error occurred with options, report it
+    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+  }
+
+  // Check options for minified
+  if (options.hasOwnProperty('minified')) {
+    minified = options.minified;
+    delete options.minified;
+  }
+
+  // Get the artifact data
+  let artifactData;
+  if (req.headers['content-type'] === 'application/gzip') {
+    try {
+      // This function parses incoming gzipped data
+      artifactData = await utils.handleGzip(req);
+    }
+    catch (error) {
+      // Error occurred with options, report it
+      return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    }
+  }
+  else {
+    // Sanitize body
+    artifactData = JSON.parse(JSON.stringify(req.body));
+  }
+
+  try {
+    // Update the specified artifacts
+    // NOTE: update() sanitizes input params
+    const artifacts = await ArtifactController.update(req.user, req.params.orgid,
+      req.params.projectid, req.params.branchid, artifactData, options);
+
+    const artifactsPublicData = sani.html(
+      artifacts.map(a => publicData.getPublicData(a, 'artifact', options))
+    );
+
+    // Format JSON
+    const json = formatJSON(artifactsPublicData, minified);
+    return returnResponse(req, res, json, 200);
+  }
+  catch (error) {
+    // If an error was thrown, return it and its status
+    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+  }
+}
+
+/**
+ * DELETE /api/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts
+ *
+ * @description Deletes multiple artifacts from an array of artifact IDs or array
+ * of artifact objects.
+ *
+ * @param {object} req - Request express object
+ * @param {object} res - Response express object
+ *
+ * @returns {object} Response object with artifact ids.
+ */
+async function deleteArtifacts(req, res) {
+  // Define options
+  // Note: Undefined if not set
+  let options;
+  let minified = false;
+
+  // Define valid option and its parsed type
+  const validOptions = {
+    minified: 'boolean'
+  };
+
+  // Sanity Check: there should always be a user in the request
+  if (!req.user) {
+    M.log.critical('No requesting user available.');
+    const error = new M.ServerError('Request Failed');
+    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+  }
+
+  // Attempt to parse query options
+  try {
+    // Extract options from request query
+    options = utils.parseOptions(req.query, validOptions);
+  }
+  catch (error) {
+    // Error occurred with options, report it
+    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+  }
+
+  // Check options for minified
+  if (options.hasOwnProperty('minified')) {
+    minified = options.minified;
+    delete options.minified;
+  }
+  try {
+    // Remove the specified artifacts
+    // NOTE: remove() sanitizes input params
+    const artIDs = await ArtifactController.remove(req.user, req.params.orgid,
+      req.params.projectid, req.params.branchid, req.body, options);
+    const parsedIDs = artIDs.map(a => utils.parseID(a).pop());
+
+    // Format JSON
+    const json = formatJSON(parsedIDs, minified);
+
+    return returnResponse(req, res, json, 200);
+  }
+  catch (error) {
+    // If an error was thrown, return it and its status
+    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+  }
+}
+
+/**
  * GET /api/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts/:artifactid
  *
  * @description Gets a single artifact by ID.
@@ -4851,9 +5097,6 @@ async function getArtifact(req, res) {
     minified = options.minified;
     delete options.minified;
   }
-
-  // Set the lean option to true for better performance
-  options.lean = true;
 
   try {
     // Find the artifact from its artifact.id, branch.id, project.id, and org.id
@@ -4929,9 +5172,6 @@ async function postArtifact(req, res) {
     minified = options.minified;
     delete options.minified;
   }
-
-  // Set the lean option to true for better performance
-  options.lean = true;
 
   // If artifact ID was provided in the body, ensure it matches artifact ID in params
   if (Object.prototype.hasOwnProperty.call('id')
@@ -5009,9 +5249,6 @@ async function patchArtifact(req, res) {
     delete options.minified;
   }
 
-  // Set the lean option to true for better performance
-  options.lean = true;
-
   // Singular api: should not accept arrays
   if (Array.isArray(req.body)) {
     const error = new M.DataFormatError('Input cannot be an array', 'warn');
@@ -5061,7 +5298,7 @@ async function patchArtifact(req, res) {
  * @param {object} req - Request express object
  * @param {object} res - Response express object
  *
- * @returns {object} Response object with success boolean
+ * @returns {object} Response object with artifact id.
  */
 async function deleteArtifact(req, res) {
   // Define options

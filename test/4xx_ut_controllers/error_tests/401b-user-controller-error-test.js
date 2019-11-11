@@ -32,6 +32,7 @@ const db = M.require('lib.db');
 const testUtils = M.require('lib.test-utils');
 const testData = testUtils.importTestData('test_data.json');
 let adminUser = null;
+const customValidators = M.config.validators || {};
 
 /* --------------------( Main )-------------------- */
 /**
@@ -105,6 +106,11 @@ describe(M.getModuleName(module.filename), () => {
  * @description Verifies invalid username PUT call does not delete existing users.
  */
 async function putInvalidUsername() {
+  if (customValidators.hasOwnProperty('user_username')) {
+    M.log.verbose('Skipping valid username test due to an existing custom'
+      + ' validator.');
+    this.skip();
+  }
   // Create the test user objects
   const testUserObj0 = testData.users[1];
   const testUserObj1 = testData.users[2];

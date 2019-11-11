@@ -60,7 +60,7 @@ describe(M.getModuleName(module.filename), () => {
       org = retOrg;
 
       // Create the projects
-      return ProjectController.create(adminUser, org.id,
+      return ProjectController.create(adminUser, org._id,
         [testData.projects[0], testData.projects[1]]);
     })
     .then((createdProj) => {
@@ -80,7 +80,7 @@ describe(M.getModuleName(module.filename), () => {
    * After: Delete admin user. Deletes the two test projects.
    */
   after((done) => {
-    ProjectController.remove(adminUser, org.id,
+    ProjectController.remove(adminUser, org._id,
       [testData.projects[0].id, testData.projects[1].id])
     // Removing the organization created
     .then(() => testUtils.removeTestOrg(adminUser))
@@ -114,9 +114,9 @@ async function putInvalidId() {
   // Create the test project objects
   const testProjObj0 = testData.projects[0];
   const testProjObj1 = testData.projects[1];
-  const invalidProjObj = { id: 'INVALID_ID', name: 'proj name' };
+  const invalidProjObj = { id: '!!', name: 'proj name' };
 
-  await ProjectController.createOrReplace(adminUser, org.id,
+  await ProjectController.createOrReplace(adminUser, org._id,
     [testProjObj0, testProjObj1, invalidProjObj])
   .should.eventually.be.rejectedWith(
     `Project validation failed: _id: Invalid project ID [${invalidProjObj.id}].`
@@ -126,7 +126,7 @@ async function putInvalidId() {
   try {
     // Expected error, find valid projects
     foundProjs = await ProjectController.find(adminUser,
-      org.id, [testProjObj0.id, testProjObj1.id]);
+      org._id, [testProjObj0.id, testProjObj1.id]);
   }
   catch (error) {
     M.log.error(error);
@@ -147,14 +147,14 @@ async function putWithoutId() {
   const testProjObj1 = testData.projects[1];
   const invalidProjObj = { name: 'missing id' };
 
-  await ProjectController.createOrReplace(adminUser, org.id,
+  await ProjectController.createOrReplace(adminUser, org._id,
     [testProjObj0, testProjObj1, invalidProjObj])
   .should.eventually.be.rejectedWith('Project #3 does not have an id.');
 
   let foundProjs;
   try {
     foundProjs = await ProjectController.find(adminUser,
-      org.id, [testProjObj0.id, testProjObj1.id]);
+      org._id, [testProjObj0.id, testProjObj1.id]);
   }
   catch (error) {
     M.log.error(error);

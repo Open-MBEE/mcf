@@ -29,6 +29,7 @@ const fs = require('fs');
 
 // NPM modules
 const chai = require('chai');
+const Randexp = require('randexp');
 
 // MBEE modules
 const Artifact = M.require('models.artifact');
@@ -37,61 +38,65 @@ const Branch = M.require('models.branch');
 const Organization = M.require('models.organization');
 const Project = M.require('models.project');
 const User = M.require('models.user');
+const errors = M.require('lib.errors');
 const utils = M.require('lib.utils');
 const ArtifactStrategy = M.require(`artifact.${M.config.artifact.strategy}`);
-const testData = require(path.join(M.root, 'test', 'test_data.json'));
-delete require.cache[require.resolve(path.join(M.root, 'test', 'test_data.json'))];
+const validators = M.require('lib.validators');
+let testData = JSON.parse(fs.readFileSync(path.join(M.root, 'test', 'test_data.json')).toString());
 
 /**
  * @description Helper function to create test non-admin user in MBEE tests.
  *
  * @returns {Promise<User>} Returns the newly created user upon completion.
  */
-module.exports.createNonAdminUser = function() {
-  return new Promise((resolve, reject) => {
-    // Define new user
-    let newUser = null;
+module.exports.createNonAdminUser = async function() {
+  try {
+    // Attempt to find the non-admin user
+    const foundUser = await User.findOne({ _id: testData.users[1].username });
 
-    // Check any admin exist
-    User.findOne({ _id: testData.users[1].username })
-    .then((foundUser) => {
-      // Check user found
-      if (foundUser !== null) {
-        // User found, return it
-        return resolve(foundUser);
-      }
-
+    // If the user was found, return them
+    if (foundUser !== null) {
+      return foundUser;
+    }
+    // User not found, create them
+    else {
       // Create user
-      const user = User.createDocument({
+      const user = {
         _id: testData.users[1].username,
         password: testData.users[1].password,
         fname: testData.users[1].fname,
         lname: testData.users[1].lname,
         admin: false
-      });
+      };
+
+      // Hash the user password
+      User.hashPassword(user);
 
       // Save user object to the database
-      return user.save();
-    })
-    .then((user) => {
-      // Set new user
-      newUser = user;
+      const newUser = (await User.insertMany(user))[0];
 
       // Find the default organization
-      return Organization.find({ _id: M.config.server.defaultOrganizationId });
-    })
-    .then((orgs) => {
-      // Add user to default org read/write permissions
-      orgs[0].permissions[newUser._id] = ['read', 'write'];
+      const defaultOrg = await Organization.findOne({ _id: M.config.server.defaultOrganizationId });
 
-      orgs[0].markModified('permissions');
+      // If the default org is not found, throw an error... this is a big problem if this occurs
+      if (defaultOrg === null) {
+        throw new M.ServerError('Default org not found during unit tests.', 'error');
+      }
+
+      // Add user to default org read/write permissions
+      defaultOrg.permissions[newUser._id] = ['read', 'write'];
 
       // Save the updated org
-      return orgs[0].save();
-    })
-    .then(() => resolve(newUser))
-    .catch((error) => reject(error));
-  });
+      await Organization.updateOne({ _id: defaultOrg._id },
+        { permissions: defaultOrg.permissions });
+
+      // Return the newly created user
+      return newUser;
+    }
+  }
+  catch (error) {
+    throw errors.captureError(error);
+  }
 };
 
 /**
@@ -99,50 +104,47 @@ module.exports.createNonAdminUser = function() {
  *
  * @returns {Promise<User>} Returns the newly created admin user upon completion.
  */
-module.exports.createTestAdmin = function() {
-  return new Promise((resolve, reject) => {
-    // Define new user
-    let newAdminUser = null;
+module.exports.createTestAdmin = async function() {
+  try {
+    // Attempt to find the admin user
+    const foundUser = await User.findOne({ _id: testData.adminUser.username });
 
-    // Check any admin exist
-    User.findOne({ _id: testData.adminUser.username })
-    .then((foundUser) => {
-      // Check user found
-      if (foundUser !== null) {
-        // User found, return it
-        return resolve(foundUser);
-      }
-
+    // If the admin user is found, return them
+    if (foundUser !== null) {
+      return foundUser;
+    }
+    // Admin user not found, create them
+    else {
       // Create user
-      const user = User.createDocument({
+      const user = {
         _id: testData.adminUser.username,
         password: testData.adminUser.password,
         provider: 'local',
         admin: true
-      });
+      };
+
+      User.hashPassword(user);
 
       // Save user object to the database
-      return user.save();
-    })
-    .then((user) => {
-      // Set new admin user
-      newAdminUser = user;
+      const newAdminUser = (await User.insertMany(user))[0];
 
       // Find the default organization
-      return Organization.find({ _id: M.config.server.defaultOrganizationId });
-    })
-    .then((orgs) => {
+      const defaultOrg = await Organization.findOne({ _id: M.config.server.defaultOrganizationId });
+
       // Add user to default org read/write permissions
-      orgs[0].permissions[newAdminUser._id] = ['read', 'write'];
+      defaultOrg.permissions[newAdminUser._id] = ['read', 'write'];
 
-      orgs[0].markModified('permissions');
+      // Save the updated default org
+      await Organization.updateOne({ _id: defaultOrg._id },
+        { permissions: defaultOrg.permissions });
 
-      // Save the updated org
-      return orgs[0].save();
-    })
-    .then(() => resolve(newAdminUser))
-    .catch((error) => reject(error));
-  });
+      // Return the newly created user
+      return newAdminUser;
+    }
+  }
+  catch (error) {
+    return errors.captureError(error);
+  }
 };
 
 /**
@@ -150,28 +152,26 @@ module.exports.createTestAdmin = function() {
  *
  * @returns {Promise<string>} Returns the id of the deleted user.
  */
-module.exports.removeNonAdminUser = function() {
-  return new Promise((resolve, reject) => {
-    // Define user id
-    let userToDelete = null;
+module.exports.removeNonAdminUser = async function() {
+  try {
+    // Find non-admin user
+    const foundUser = await User.findOne({ _id: testData.users[1].username });
+    // Delete the non-admin user
+    await User.deleteMany({ _id: testData.users[1].username });
 
-    // Find admin user
-    User.findOne({ _id: testData.users[1].username })
-    .then((foundUser) => {
-      // Save user and remove user
-      userToDelete = foundUser;
-      return foundUser.remove();
-    })
-    .then(() => Organization.find({ _id: M.config.server.defaultOrganizationId }))
-    .then((orgs) => {
-      // Remove user from permissions list in each project
-      delete orgs[0].permissions[userToDelete._id];
-      orgs[0].markModified('permissions');
-      return orgs[0].save();
-    })
-    .then(() => resolve(userToDelete._id))
-    .catch((error) => reject(error));
-  });
+    // Fine the default org
+    const defaultOrg = await Organization.findOne({ _id: M.config.server.defaultOrganizationId });
+    // Remove the non-admin user from the default org
+    delete defaultOrg.permissions[foundUser._id];
+    // Save the updated default org
+    await Organization.updateOne({ _id: defaultOrg._id }, { permissions: defaultOrg.permissions });
+
+    // Return the _id of the deleted non-admin user
+    return foundUser._id;
+  }
+  catch (error) {
+    throw errors.captureError(error);
+  }
 };
 
 /**
@@ -179,28 +179,26 @@ module.exports.removeNonAdminUser = function() {
  *
  * @returns {Promise<string>} Returns the id of the deleted admin user.
  */
-module.exports.removeTestAdmin = function() {
-  return new Promise((resolve, reject) => {
-    // Define user id
-    let userToDelete = null;
+module.exports.removeTestAdmin = async function() {
+  try {
+    // Find the admin user
+    const foundUser = await User.findOne({ _id: testData.adminUser.username });
+    // Delete the admin user
+    await User.deleteMany({ _id: testData.adminUser.username });
 
-    // Find admin user
-    User.findOne({ _id: testData.adminUser.username })
-    .then((foundUser) => {
-      // Save user and remove user
-      userToDelete = foundUser;
-      return foundUser.remove();
-    })
-    .then(() => Organization.find({ _id: M.config.server.defaultOrganizationId }))
-    .then((orgs) => {
-      // Remove user from permissions list in each project
-      delete orgs[0].permissions[userToDelete._id];
-      orgs[0].markModified('permissions');
-      return orgs[0].save();
-    })
-    .then(() => resolve(userToDelete._id))
-    .catch((error) => reject(error));
-  });
+    // Find the default org
+    const defaultOrg = await Organization.findOne({ _id: M.config.server.defaultOrganizationId });
+    // Remove the admin user from the default org
+    delete defaultOrg.permissions[foundUser._id];
+    // Save the updated default org
+    await Organization.updateOne({ _id: defaultOrg._id }, { permissions: defaultOrg.permissions });
+
+    // Return the _id of the deleted admin user
+    return foundUser._id;
+  }
+  catch (error) {
+    throw errors.captureError(error);
+  }
 };
 
 /**
@@ -211,20 +209,22 @@ module.exports.removeTestAdmin = function() {
  * @returns {Promise<Organization>} Returns the newly created org upon
  * completion.
  */
-module.exports.createTestOrg = function(adminUser) {
-  return new Promise((resolve, reject) => {
+module.exports.createTestOrg = async function(adminUser) {
+  try {
     // Create the new organization
-    const newOrg = Organization.createDocument({
+    const newOrg = {
       _id: testData.orgs[0].id,
       name: testData.orgs[0].name,
-      custom: null
-    });
+      custom: null,
+      permissions: {}
+    };
     newOrg.permissions[adminUser._id] = ['read', 'write', 'admin'];
 
-    newOrg.save()
-    .then((_newOrg) => resolve(_newOrg))
-    .catch((error) => reject(error));
-  });
+    return (await Organization.insertMany(newOrg))[0];
+  }
+  catch (error) {
+    throw errors.captureError(error);
+  }
 };
 
 /**
@@ -234,8 +234,7 @@ module.exports.createTestOrg = function(adminUser) {
  */
 module.exports.removeTestOrg = async function() {
   // Find all projects to delete
-  const projectsToDelete = await Project.find({ org: testData.orgs[0].id },
-    null, { lean: true });
+  const projectsToDelete = await Project.find({ org: testData.orgs[0].id }, null);
   const projectIDs = projectsToDelete.map(p => p._id);
 
   // Delete any artifacts in the org
@@ -264,57 +263,84 @@ module.exports.removeTestOrg = async function() {
  * @returns {Promise<Project>} Returns the newly created project upon
  * completion.
  */
-module.exports.createTestProject = function(adminUser, orgID) {
-  return new Promise((resolve, reject) => {
-    let createdProject = {};
-    // Create the new project
-    const newProject = Project.createDocument({
+module.exports.createTestProject = async function(adminUser, orgID) {
+  try {
+    // Create the new project object
+    const newProject = {
       _id: utils.createID(orgID, testData.projects[0].id),
       org: orgID,
       name: testData.projects[0].name,
       createdBy: adminUser._id,
-      custom: null
-    });
+      custom: null,
+      permissions: {}
+    };
     newProject.permissions[adminUser._id] = ['read', 'write', 'admin'];
+    // Save the project
+    const createdProject = (await Project.insertMany(newProject))[0];
 
-    newProject.save()
-    .then((_newProj) => {
-      createdProject = _newProj;
+    // Create the master branch for the project
+    const newBranch = {
+      _id: utils.createID(orgID, testData.projects[0].id, testData.branches[0].id),
+      project: createdProject._id,
+      createdBy: adminUser._id,
+      createdOn: Date.now(),
+      lasModifiedBy: adminUser._id,
+      updatedOn: Date.now(),
+      name: testData.branches[0].name,
+      source: null
+    };
+    // Save the branch
+    const createdBranch = (await Branch.insertMany(newBranch))[0];
 
-      const newBranch = Branch.createDocument({
-        _id: utils.createID(orgID, testData.projects[0].id, testData.branches[0].id),
-        project: _newProj._id,
-        createdBy: adminUser._id,
-        createdOn: Date.now(),
-        lasModifiedBy: adminUser._id,
-        updatedOn: Date.now(),
-        name: testData.branches[0].name,
-        source: null
-      });
+    // Create root elements
+    const elementsToCreate = [];
+    const baseElement = {
+      project: createdProject._id,
+      branch: createdBranch._id,
+      createdBy: adminUser._id,
+      createdOn: Date.now(),
+      lasModifiedBy: adminUser._id,
+      updatedOn: Date.now()
+    };
 
-      return newBranch.save();
-    })
-    .then((_newBranch) => {
-      const newElement = Element.createDocument({
-        _id: utils.createID(orgID, testData.projects[0].id, testData.branches[0].id, 'model'),
-        project: createdProject._id,
-        branch: _newBranch._id,
-        createdBy: adminUser._id,
-        createdOn: Date.now(),
-        lasModifiedBy: adminUser._id,
-        updatedOn: Date.now(),
-        name: 'Model'
-      });
+    // For each of the valid root elements
+    Element.getValidRootElements().forEach((e) => {
+      // Clone the base object to avoid modifying if
+      const obj = JSON.parse(JSON.stringify(baseElement));
+      obj._id = utils.createID(createdBranch._id, e);
 
-      return newElement.save();
-    })
-    .then(() => resolve(createdProject))
-    .catch((error) => reject(error));
-  });
+      // Handle setting each different name/parent
+      if (e === 'model') {
+        // Root model element, no parent
+        obj.parent = null;
+        obj.name = 'Model';
+      }
+      else if (e === '__mbee__') {
+        obj.parent = utils.createID(createdBranch._id, 'model');
+        obj.name = '__mbee__';
+      }
+      else {
+        obj.parent = utils.createID(createdBranch._id, '__mbee__');
+        obj.name = (e === 'undefined') ? 'undefined element' : 'holding bin';
+      }
+      // Append element object onto array of elements to create
+      elementsToCreate.push(obj);
+    });
+
+    // Create the root model elements
+    await Element.insertMany(elementsToCreate);
+
+    // Return the created project
+    return createdProject;
+  }
+  catch (error) {
+    throw errors.captureError(error);
+  }
 };
 
 /**
  * @description Helper function to create a tag in MBEE tests.
+ * @async
  *
  * @param {object} adminUser - The admin user to create the branch with.
  * @param {string} orgID - The org to create the branch on.
@@ -322,49 +348,73 @@ module.exports.createTestProject = function(adminUser, orgID) {
  *
  * @returns {Promise<Branch>} Returns a tagged branch.
  */
-module.exports.createTag = function(adminUser, orgID, projID) {
-  return new Promise((resolve, reject) => {
-    // Create a new tag
-    let createdTag;
-    const newTag = Branch.createDocument({
+module.exports.createTag = async function(adminUser, orgID, projID) {
+  try {
+    // Create a new branch object, with tag: true
+    const newTag = {
       _id: utils.createID(orgID, projID, 'tag'),
       project: utils.createID(orgID, projID),
       createdBy: adminUser._id,
       name: 'Tagged Branch',
       tag: true,
       source: utils.createID(orgID, projID, 'master')
+    };
+
+    // Save the tag
+    const createdTag = (await Branch.insertMany(newTag))[0];
+
+    // Create root elements
+    const elementsToCreate = [];
+    const baseElement = {
+      project: utils.createID(orgID, projID),
+      branch: createdTag._id,
+      createdBy: adminUser._id,
+      createdOn: Date.now(),
+      lasModifiedBy: adminUser._id,
+      updatedOn: Date.now()
+    };
+
+    // For each of the valid root elements
+    Element.getValidRootElements().forEach((e) => {
+      // Clone the base object to avoid modifying if
+      const obj = JSON.parse(JSON.stringify(baseElement));
+      obj._id = utils.createID(createdTag._id, e);
+
+      // Handle setting each different name/parent
+      if (e === 'model') {
+        // Root model element, no parent
+        obj.parent = null;
+        obj.name = 'Model';
+      }
+      else if (e === '__mbee__') {
+        obj.parent = utils.createID(createdTag._id, 'model');
+        obj.name = '__mbee__';
+      }
+      else {
+        obj.parent = utils.createID(createdTag._id, '__mbee__');
+        obj.name = (e === 'undefined') ? 'undefined element' : 'holding bin';
+      }
+      // Append element object onto array of elements to create
+      elementsToCreate.push(obj);
     });
 
-    return newTag.save()
-    .then((_newBranch) => {
-      createdTag = _newBranch;
+    // Create a non root element in the tag
+    elementsToCreate.push({
+      _id: utils.createID(createdTag._id, testData.elements[1].id),
+      project: utils.createID(orgID, projID),
+      branch: createdTag._id,
+      createdBy: adminUser._id,
+      name: testData.elements[1].name
+    });
 
-      // Create a root element for tag
-      const newElement = Element.createDocument({
-        _id: utils.createID(_newBranch._id, 'model'),
-        project: utils.createID(orgID, projID),
-        branch: _newBranch._id,
-        createdBy: adminUser._id,
-        name: 'Model'
-      });
+    // Create the root model elements and single extra element
+    await Element.insertMany(elementsToCreate);
 
-      return newElement.save();
-    })
-    .then(() => {
-      // Create a non root element in the tag
-      const newElement = Element.createDocument({
-        _id: utils.createID(createdTag._id, testData.elements[1].id),
-        project: utils.createID(orgID, projID),
-        branch: createdTag._id,
-        createdBy: adminUser._id,
-        name: 'Model'
-      });
-
-      return newElement.save();
-    })
-    .then(() => resolve(createdTag))
-    .catch((error) => reject(error));
-  });
+    return createdTag;
+  }
+  catch (error) {
+    throw errors.captureError(error);
+  }
 };
 
 /**
@@ -375,11 +425,14 @@ module.exports.createTag = function(adminUser, orgID, projID) {
  * @returns {object} Returns the imported test data.
  */
 module.exports.importTestData = function(filename) {
-  // Clear require cache so a new copy is imported
-  delete require.cache[require.resolve(path.join(M.root, 'test', filename))];
-  // Import a copy of the data.json
-  // eslint-disable-next-line global-require
-  const testDataFresh = require(path.join(M.root, 'test', filename));
+  let testDataFresh;
+  if (M.config.validators) {
+    testDataFresh = generateCustomTestData();
+  }
+  else {
+    // Import a copy of the data.json
+    testDataFresh = JSON.parse(fs.readFileSync(path.join(M.root, 'test', filename)).toString());
+  }
   // Return a newly assigned copy of the fresh data
   if (Array.isArray(testDataFresh)) {
     return Object.assign([], testDataFresh);
@@ -555,3 +608,108 @@ module.exports.parseMethod = function(endpoint) {
     return 'GET';
   }
 };
+
+/**
+ * @description A function that generates a new custom_test_data.json file based on custom
+ * id validators if they exist in the config.
+ *
+ * @returns {object} A new set of data customized towards the custom validators.
+ */
+function generateCustomTestData() {
+  const testDataRaw = fs.readFileSync(path.join(M.root, 'test', 'test_data.json'));
+  const customTestData = JSON.parse(testDataRaw.toString());
+  const v = M.config.validators;
+
+  if (v.hasOwnProperty('element_id') || v.hasOwnProperty('element_id_length')
+    || v.hasOwnProperty('id') || v.hasOwnProperty('id_length')) {
+    // Set new custom element ids
+    customTestData.elements.forEach((elem) => {
+      // Generate new custom id
+      const customID = generateID(v.element_id || validators.id,
+        v.element_id_length || validators.idLength);
+      // Get all the elements that reference it
+      customTestData.elements.forEach((e) => {
+        if (e.parent && e.parent === elem.id) e.parent = customID;
+        if (e.source && e.source === elem.id) e.source = customID;
+        if (e.target && e.target === elem.id) e.target = customID;
+      });
+      elem.id = customID;
+    });
+  }
+  if (v.hasOwnProperty('branch_id') || v.hasOwnProperty('branch_id_length')
+    || v.hasOwnProperty('id') || v.hasOwnProperty('id_length')) {
+    // Set new custom branch ids
+    customTestData.branches.forEach((branch) => {
+      // Don't modify the master id
+      if (branch.id === 'master') return;
+      // Generate new custom id
+      const customID = generateID(v.branch_id || validators.id,
+        v.branch_id_length || validators.idLength);
+      // Get all the branches that reference it
+      customTestData.branches.forEach((b) => {
+        if (b.source === branch.id) b.source = customID;
+      });
+      branch.id = customID;
+    });
+    customTestData.invalidBranchID = generateID(`${v.branch_id}`, v.branch_id_length || validators.idLength, 2);
+  }
+  if (v.hasOwnProperty('project_id') || v.hasOwnProperty('project_id_length')
+    || v.hasOwnProperty('id') || v.hasOwnProperty('id_length')) {
+    // Set new custom project ids
+    customTestData.projects.forEach((project) => {
+      // Generate new custom id
+      project.id = generateID(v.project_id || validators.id,
+        v.project_id_length || validators.idLength);
+    });
+  }
+  if (v.hasOwnProperty('org_id') || v.hasOwnProperty('org_id_length')
+    || v.hasOwnProperty('id') || v.hasOwnProperty('id_length')) {
+    // Set new custom org ids
+    customTestData.orgs.forEach((org) => {
+      // Generate new custom id
+      org.id = generateID(v.org_id || validators.id,
+        v.org_id_length || validators.org.idLength);
+    });
+  }
+  if (v.hasOwnProperty('user_username') || v.hasOwnProperty('user_username_length')
+    || v.hasOwnProperty('id') || v.hasOwnProperty('id_length')) {
+    // Set new custom usernames
+    customTestData.users.forEach((user) => {
+      // Generate new custom id
+      // Only validators is necessary here since usernames are not concatenated ids
+      user.username = generateID(validators.user.username, validators.user.usernameLength, 3);
+    });
+  }
+
+  /**
+   * @description A helper function for generating a custom id that accounts for minimum id length
+   * and custom id length validators.
+   *
+   * @param {string} pattern - The regex patter to match for the custom id.
+   * @param {number} length - The custom validator for specific id length.
+   * @param {number} min - The minimum length for an id. The default is 2, but usernames must be
+   * at least 3 characters long.
+   *
+   * @returns {string} A custom id.
+   */
+  function generateID(pattern, length, min = 2) {
+    // Initialize the generator with the regex pattern
+    const generator = new Randexp(pattern);
+    generator.max = length - 1; // The generator can create strings of length max + 1
+
+    // Generate a new random id
+    let id = generator.gen();
+
+    // Ensure that the id is always at least the minimum length
+    while (id.length < min) {
+      id = generator.gen();
+    }
+
+    return id;
+  }
+
+  // Reset the global testData variable
+  testData = customTestData;
+
+  return customTestData;
+}

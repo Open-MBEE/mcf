@@ -118,8 +118,7 @@ class Schema extends DBModule.Schema {
     super(definition, options);
 
     // Check that expected functions are defined
-    const expectedFunctions = ['add', 'plugin', 'index', 'pre', 'virtual',
-      'static', 'method'];
+    const expectedFunctions = ['add', 'plugin', 'index', 'virtual', 'static'];
     expectedFunctions.forEach((f) => {
       // Ensure the parameter is defined
       if (!(f in this)) {
@@ -172,20 +171,6 @@ class Schema extends DBModule.Schema {
   }
 
   /**
-   * @description Defines a function to be run prior to a certain event
-   * occurring.
-   *
-   * @param {(string|RegExp)} methodName - The event to run the callback
-   * function before.
-   * @param {object} [options] - An object containing options.
-   * @param {Function} cb - The callback function to run prior to the event
-   * occurring.
-   */
-  pre(methodName, options, cb) {
-    super.pre(methodName, options, cb);
-  }
-
-  /**
    * @description Defines a virtual field for the schema. Virtuals are not
    * stored in the database and rather are calculated post-find. Virtuals
    * generally will require a second request to retrieve referenced documents.
@@ -225,17 +210,6 @@ class Schema extends DBModule.Schema {
     super.static(name, fn);
   }
 
-  /**
-   * @description Adds a non-static method to the schema, which later will be an
-   * instance method on the model.
-   *
-   * @param {string} name - The name of the non-static function.
-   * @param {Function} fn - The function to be added to the model.
-   */
-  method(name, fn) {
-    super.method(name, fn);
-  }
-
 }
 
 /**
@@ -243,10 +217,8 @@ class Schema extends DBModule.Schema {
  * to directly manipulate the database. Operations should be defined to perform
  * all basic CRUD operations on the database. The Model class requirements are
  * closely based on the Mongoose.js Model class
- * {@link https://mongoosejs.com/docs/api/model.html} with a few important
- * exceptions. (1) The constructor creates an instance of the model, not a
- * document. (2) The createDocument method is used to create an actual
- * document. (3) The insertMany option "rawResult" is replaced with "lean".
+ * {@link https://mongoosejs.com/docs/api/model.html} with an important
+ * exception, the constructor creates an instance of the model, not a document.
  */
 class Model extends DBModule.Model {
 
@@ -266,9 +238,9 @@ class Model extends DBModule.Model {
     super(name, schema, collection);
 
     // Check that expected functions are defined
-    const expectedFunctions = ['bulkWrite', 'createDocument', 'countDocuments',
-      'deleteIndex', 'deleteMany', 'find', 'findOne', 'getIndexes',
-      'insertMany', 'updateMany', 'updateOne', 'init'];
+    const expectedFunctions = ['bulkWrite', 'countDocuments', 'deleteIndex',
+      'deleteMany', 'find', 'findOne', 'getIndexes', 'insertMany', 'updateMany',
+      'updateOne', 'init'];
     expectedFunctions.forEach((f) => {
       // Ensure the parameter is defined
       if (!(f in this)) {
@@ -351,20 +323,6 @@ class Model extends DBModule.Model {
   }
 
   /**
-   * @description Creates a document based on the model's schema.
-   *
-   * @param {object} doc - The JSON to be converted into a document. Should
-   * roughly align with the model's schema. Each document created should at
-   * least contain an _id, as well as the methods defined in the schema.
-   *
-   * @returns {object} The created document, should contain fields defined in
-   * the model's schema.
-   */
-  createDocument(doc) {
-    return super.createDocument(doc);
-  }
-
-  /**
    * @description Counts the number of documents that matches a filter.
    * @async
    *
@@ -436,9 +394,6 @@ class Model extends DBModule.Model {
    * documents can be populated. Populating a field returns the entire
    * referenced document instead of that document's ID. If no document exists,
    * null is returned.
-   * @param {boolean} [options.lean] - If false (by default), every document
-   * returned will contain methods that were declared in the Schema. If true,
-   * just the raw JSON will be returned from the database.
    * @param {Function} [cb] - A callback function to run.
    *
    * @returns {Promise<object[]>} An array containing the found documents, if
@@ -463,9 +418,6 @@ class Model extends DBModule.Model {
    * documents can be populated. Populating a field returns the entire
    * referenced document instead of that document's ID. If no document exists,
    * null is returned.
-   * @param {boolean} [options.lean] - If false (by default), every document
-   * returned will contain methods that were declared in the Schema. If true,
-   * just the raw JSON will be returned from the database.
    * @param {Function} [cb] - A callback function to run.
    *
    * @returns {Promise<(object|null)>} The found document, if any otherwise
@@ -491,9 +443,6 @@ class Model extends DBModule.Model {
    *
    * @param {object[]} docs - An array of documents to insert.
    * @param {object} [options] - An object containing options.
-   * @param {boolean} [options.lean] - If false (by default), every document
-   * returned will contain methods that were declared in the Schema. If true,
-   * just the raw JSON will be returned from the database.
    * @param {boolean} [options.skipValidation] - If true, will not validate
    * the documents which are being created.
    * @param {Function} [cb] - A callback function to run.

@@ -78,18 +78,19 @@ describe(M.getModuleName(module.filename), () => {
   /**
    * After: Delete admin user. Deletes the two test orgs.
    */
-  after((done) => {
-    // Removing admin user
-    testUtils.removeTestAdmin()
-    .then(() => OrgController.remove(adminUser, [testOrg0.id, testOrg1.id]))
-    .then(() => db.disconnect())
-    .then(() => done())
-    .catch((error) => {
+  after(async () => {
+    try {
+      // Removing admin user
+      await testUtils.removeTestAdmin();
+      // Remove the test orgs
+      await OrgController.remove(adminUser, [testOrg0._id, testOrg1._id]);
+      await db.disconnect();
+    }
+    catch (error) {
       M.log.error(error);
       // Expect no error
       chai.expect(error).to.equal(null);
-      done();
-    });
+    }
   });
 
   /* Execute the tests */
@@ -110,7 +111,7 @@ async function putInvalidId() {
   // Create the test org objects
   const testOrgObj0 = testData.orgs[0];
   const testOrgObj1 = testData.orgs[1];
-  const invalidOrgObj = { id: 'INVALID_ID', name: 'org name' };
+  const invalidOrgObj = { id: '!!', name: 'org name' };
 
   await OrgController.createOrReplace(adminUser, [testOrgObj0, testOrgObj1, invalidOrgObj])
   .should.eventually.be.rejectedWith(
@@ -146,15 +147,14 @@ async function putWithoutId() {
     [testOrgObj0, testOrgObj1, invalidOrgObj])
   .should.eventually.be.rejectedWith('Org #3 does not have an id.');
 
-  let foundOrgs;
   try {
     // Expected error, find valid orgs
-    foundOrgs = await OrgController.find(adminUser, [testOrgObj0.id, testOrgObj1.id]);
+    const foundOrgs = await OrgController.find(adminUser, [testOrgObj0.id, testOrgObj1.id]);
+    foundOrgs.length.should.equal(2);
   }
   catch (error) {
     M.log.error(error);
     // There should be no error
     should.not.exist(error);
   }
-  foundOrgs.length.should.equal(2);
 }

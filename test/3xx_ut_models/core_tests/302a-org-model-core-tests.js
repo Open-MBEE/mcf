@@ -48,15 +48,15 @@ describe(M.getModuleName(module.filename), () => {
   /**
    * Before: runs before all tests. Opens database connection.
    */
-  before((done) => {
-    db.connect()
-    .then(() => done())
-    .catch((error) => {
+  before(async () => {
+    try {
+      await db.connect();
+    }
+    catch (error) {
       M.log.error(error);
       // Expect no error
       chai.expect(error).to.equal(null);
-      done();
-    });
+    }
   });
 
   /**
@@ -86,18 +86,18 @@ describe(M.getModuleName(module.filename), () => {
  */
 async function createOrg() {
   // Create an organization from the Organization model object
-  const org = Org.createDocument({
+  const org = {
     _id: testData.orgs[0].id,
     name: testData.orgs[0].name,
     permissions: {}
-  });
+  };
 
   // Add the admin user to the permissions
   org.permissions[adminUser.username] = ['read', 'write', 'admin'];
 
   try {
     // Save the Organization model object to the database
-    await org.save();
+    await Org.insertMany(org);
   }
   catch (error) {
     M.log.error(error);

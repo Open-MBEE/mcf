@@ -88,20 +88,20 @@ describe(M.getModuleName(module.filename), () => {
  */
 async function createProject() {
   // Create a project model object
-  const newProject = Project.createDocument({
+  const newProject = {
     _id: utils.createID(org.id, testData.projects[0].id),
     name: testData.projects[0].name,
     org: org.id,
     permissions: {},
     visibility: 'private'
-  });
+  };
 
   // Add the admin user to the permissions
   newProject.permissions[adminUser.username] = ['read', 'write', 'admin'];
 
   try {
     // Save project model object to database
-    await newProject.save();
+    await Project.insertMany(newProject);
   }
   catch (error) {
     M.log.error(error);

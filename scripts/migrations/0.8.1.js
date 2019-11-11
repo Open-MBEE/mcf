@@ -68,7 +68,7 @@ function elementHelper() {
     }
 
     // Find all elements, returning only the _id
-    Element.find({}, '_id', { lean: true })
+    Element.find({}, '_id')
     .then((elements) => {
       // Remove any elements which may have already been migrated
       elementIDs = elements.map(e => e._id).filter(e => utils.parseID(e).length === 3);
@@ -103,7 +103,7 @@ function elementHelperRecursive(ids) {
     let elems = [];
     let deleted = false;
     let error = '';
-    Element.find({ _id: { $in: ids } }, null, { lean: true })
+    Element.find({ _id: { $in: ids } }, null)
     .then((foundElements) => {
       elems = foundElements;
       // Write contents to temporary file
@@ -236,12 +236,12 @@ function branchHelper() {
     }
 
     // Find all projects
-    Project.find({}, null, { lean: true })
+    Project.find({}, null)
     .then((foundProjects) => {
       projects = foundProjects;
 
       // Find all branches, in case one already exists
-      return Branch.find({}, null, { lean: true });
+      return Branch.find({}, null);
     })
     .then((foundBranches) => {
       const projectIDs = [];

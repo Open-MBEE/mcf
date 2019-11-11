@@ -63,7 +63,8 @@ describe(M.getModuleName(module.filename), () => {
    */
   after(async function() {
     try {
-      await User.deleteMany({ _id: adminUser.username });
+      // Delete adminUser and test user (if they exist)
+      await User.deleteMany({ _id: { $in: [adminUser.username, testData.users[0].id] } });
       await db.disconnect();
     }
     catch (error) {
@@ -212,15 +213,11 @@ async function lockoutUser() {
   // Create mock response object
   const res = {};
 
-  const promises = [];
   for (let i = 0; i < 4; i++) {
     // Attempt to authenticate user with wrong password
-    promises.push(localAuth.handleBasicAuth(req, res, user._id, 'wrongPassword')
-    .should.eventually.be.rejectedWith('Invalid password.'));
+    await localAuth.handleBasicAuth(req, res, user._id, 'wrongPassword') // eslint-disable-line
+    .should.eventually.be.rejectedWith('Invalid password.');
   }
-
-  // Wait for login failures to complete
-  await Promise.all(promises);
 
   // Fail for the 5th time
   await localAuth.handleBasicAuth(req, res, user._id, 'wrongPassword')
@@ -258,15 +255,11 @@ async function noAdminLockout() {
   // Create mock response object
   const res = {};
 
-  const promises = [];
   for (let i = 0; i < 4; i++) {
     // Attempt to authenticate admin user with wrong password
-    promises.push(localAuth.handleBasicAuth(req, res, adminUser._id, 'wrongPassword')
-    .should.eventually.be.rejectedWith('Invalid password.'));
+    await localAuth.handleBasicAuth(req, res, adminUser._id, 'wrongPassword') // eslint-disable-line
+    .should.eventually.be.rejectedWith('Invalid password.');
   }
-
-  // Wait for promises to complete
-  await Promise.all(promises);
 
   // Expect specific error message for the only active admin user exceeding the login attempts
   await localAuth.handleBasicAuth(req, res, adminUser._id, 'wrongPassword')

@@ -1,6 +1,18 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [0.10.1] - 2019-11-08
+### Major Features and Improvements
+* Added batch CRUD operations for artifact documents
+* Refactored the Database Abstraction layer by removing the required methods
+  `Schema.pre()`, `Schema.method()` and` Model.createDocument()`
+* Updated tests to use random test data generated from custom validators if 
+  custom validators are defined in the running config
+
+### Bug Fixes and Other Changes
+* Fixed bug in UI where the selected branch did not persist between pages
+* Removed the `lean` option from controllers
+
 ## [0.10.0] - 2019-10-28
 ### Major Features and Improvements
 * Added basic CRUD operations for artifact documents in the API

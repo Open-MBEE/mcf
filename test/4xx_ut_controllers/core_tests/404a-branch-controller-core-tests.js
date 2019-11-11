@@ -61,12 +61,12 @@ describe(M.getModuleName(module.filename), () => {
       org = retOrg;
 
       // Create project
-      return testUtils.createTestProject(adminUser, org.id);
+      return testUtils.createTestProject(adminUser, org._id);
     })
     .then((retProj) => {
       // Set global project and master branch
       proj = retProj;
-      projID = utils.parseID(proj.id).pop();
+      projID = utils.parseID(proj._id).pop();
       done();
     })
     .catch((error) => {
@@ -123,18 +123,17 @@ function createBranch(done) {
   const branchData = testData.branches[1];
 
   // Create branch via controller
-  BranchController.create(adminUser, org.id, projID, branchData)
+  BranchController.create(adminUser, org._id, projID, branchData)
   .then((_createdBranch) => {
     // Expect createdBranch array to contain 1 branch
     chai.expect(_createdBranch.length).to.equal(1);
     const createdBranch = _createdBranch[0];
 
     // Verify branch created properly
-    chai.expect(createdBranch.id).to.equal(utils.createID(org.id, projID, branchData.id));
-    chai.expect(createdBranch._id).to.equal(utils.createID(org.id, projID, branchData.id));
+    chai.expect(createdBranch._id).to.equal(utils.createID(org._id, projID, branchData.id));
     chai.expect(createdBranch.name).to.equal(branchData.name);
     chai.expect(createdBranch.custom || {}).to.deep.equal(branchData.custom);
-    chai.expect(createdBranch.project).to.equal(utils.createID(org.id, projID));
+    chai.expect(createdBranch.project).to.equal(utils.createID(org._id, projID));
     chai.expect(createdBranch.tag).to.equal(branchData.tag);
 
     // Verify additional properties
@@ -169,7 +168,7 @@ function createBranches(done) {
   ];
 
   // Create branches via controller
-  BranchController.create(adminUser, org.id, projID, branchDataObjects)
+  BranchController.create(adminUser, org._id, projID, branchDataObjects)
   .then((createdBranches) => {
     // Expect createdBranches not to be empty
     chai.expect(createdBranches.length).to.equal(branchDataObjects.length);
@@ -178,15 +177,14 @@ function createBranches(done) {
     const jmi2Branches = jmi.convertJMI(1, 2, createdBranches);
     // Loop through each branch data object
     branchDataObjects.forEach((branchObj) => {
-      const branchID = utils.createID(org.id, projID, branchObj.id);
+      const branchID = utils.createID(org._id, projID, branchObj.id);
       const createdBranch = jmi2Branches[branchID];
 
       // Verify branches created properly
-      chai.expect(createdBranch.id).to.equal(branchID);
       chai.expect(createdBranch._id).to.equal(branchID);
       chai.expect(createdBranch.name).to.equal(branchObj.name);
       chai.expect(createdBranch.custom || {}).to.deep.equal(branchObj.custom);
-      chai.expect(createdBranch.project).to.equal(utils.createID(org.id, projID));
+      chai.expect(createdBranch.project).to.equal(utils.createID(org._id, projID));
 
       // Verify additional properties
       chai.expect(createdBranch.createdBy).to.equal(adminUser._id);
@@ -215,18 +213,17 @@ function createTag(done) {
   const branchData = testData.branches[7];
 
   // Create branch via controller
-  BranchController.create(adminUser, org.id, projID, branchData)
+  BranchController.create(adminUser, org._id, projID, branchData)
   .then((_createdBranch) => {
     // Expect createdBranch array to contain 1 branch
     chai.expect(_createdBranch.length).to.equal(1);
     const createdBranch = _createdBranch[0];
 
     // Verify branch created properly
-    chai.expect(createdBranch.id).to.equal(utils.createID(org.id, projID, branchData.id));
-    chai.expect(createdBranch._id).to.equal(utils.createID(org.id, projID, branchData.id));
+    chai.expect(createdBranch._id).to.equal(utils.createID(org._id, projID, branchData.id));
     chai.expect(createdBranch.name).to.equal(branchData.name);
     chai.expect(createdBranch.custom || {}).to.deep.equal(branchData.custom);
-    chai.expect(createdBranch.project).to.equal(utils.createID(org.id, projID));
+    chai.expect(createdBranch.project).to.equal(utils.createID(org._id, projID));
     chai.expect(createdBranch.tag).to.equal(branchData.tag);
 
     // Verify additional properties
@@ -255,18 +252,17 @@ function findBranch(done) {
   const branchData = testData.branches[1];
 
   // Find branch via controller
-  BranchController.find(adminUser, org.id, projID, branchData.id)
+  BranchController.find(adminUser, org._id, projID, branchData.id)
   .then((_foundBranch) => {
     // Expect foundBranch array to contains 1 branch
     chai.expect(_foundBranch.length).to.equal(1);
     const foundBranch = _foundBranch[0];
 
     // Verify correct branch found
-    chai.expect(foundBranch.id).to.equal(utils.createID(org.id, projID, branchData.id));
-    chai.expect(foundBranch._id).to.equal(utils.createID(org.id, projID, branchData.id));
+    chai.expect(foundBranch._id).to.equal(utils.createID(org._id, projID, branchData.id));
     chai.expect(foundBranch.name).to.equal(branchData.name);
     chai.expect(foundBranch.custom || {}).to.deep.equal(branchData.custom);
-    chai.expect(foundBranch.project).to.equal(utils.createID(org.id, projID));
+    chai.expect(foundBranch.project).to.equal(utils.createID(org._id, projID));
 
     // Verify additional properties
     chai.expect(foundBranch.lastModifiedBy).to.equal(adminUser._id);
@@ -302,7 +298,7 @@ function findBranches(done) {
   const branchIDs = branchDataObjects.map(b => b.id);
 
   // Find branches via controller
-  BranchController.find(adminUser, org.id, projID, branchIDs)
+  BranchController.find(adminUser, org._id, projID, branchIDs)
   .then((foundBranches) => {
     // Expect foundBranches not to be empty
     chai.expect(foundBranches.length).to.equal(branchDataObjects.length);
@@ -311,15 +307,14 @@ function findBranches(done) {
     const jmi2Branches = jmi.convertJMI(1, 2, foundBranches);
     // Loop through each branch data object
     branchDataObjects.forEach((branchObj) => {
-      const branchID = utils.createID(org.id, projID, branchObj.id);
+      const branchID = utils.createID(org._id, projID, branchObj.id);
       const foundBranch = jmi2Branches[branchID];
 
       // Verify correct branches found
-      chai.expect(foundBranch.id).to.equal(branchID);
       chai.expect(foundBranch._id).to.equal(branchID);
       chai.expect(foundBranch.name).to.equal(branchObj.name);
       chai.expect(foundBranch.custom || {}).to.deep.equal(branchObj.custom);
-      chai.expect(foundBranch.project).to.equal(utils.createID(org.id, projID));
+      chai.expect(foundBranch.project).to.equal(utils.createID(org._id, projID));
 
       // Verify additional properties
       chai.expect(foundBranch.createdBy).to.equal(adminUser._id);
@@ -356,7 +351,7 @@ function findAllBranches(done) {
   ];
 
   // Find branches via controller
-  BranchController.find(adminUser, org.id, projID)
+  BranchController.find(adminUser, org._id, projID)
   .then((foundBranches) => {
     // Expect foundBranches not to be empty. Cannot know exact number in db
     chai.expect(foundBranches.length).to.not.equal(0);
@@ -365,18 +360,17 @@ function findAllBranches(done) {
     const jmi2Branches = jmi.convertJMI(1, 2, foundBranches);
     // Loop through each branch data object
     branchDataObjects.forEach((branchDataObject) => {
-      const branchID = utils.createID(org.id, projID, branchDataObject.id);
+      const branchID = utils.createID(org._id, projID, branchDataObject.id);
       const foundBranch = jmi2Branches[branchID];
 
       // Verify correct branch found
-      chai.expect(foundBranch.id).to.equal(branchID);
       chai.expect(foundBranch._id).to.equal(branchID);
       chai.expect(foundBranch.name).to.equal(branchDataObject.name);
       chai.expect(foundBranch.custom).to.deep.equal(branchDataObject.custom);
-      chai.expect(foundBranch.project).to.equal(utils.createID(org.id, projID));
+      chai.expect(foundBranch.project).to.equal(utils.createID(org._id, projID));
 
       // Verify additional properties
-      if (branchID !== utils.createID(org.id, projID, 'master')) {
+      if (branchID !== utils.createID(org._id, projID, 'master')) {
         chai.expect(foundBranch.createdBy).to.equal(adminUser._id);
         chai.expect(foundBranch.lastModifiedBy).to.equal(adminUser._id);
       }
@@ -410,18 +404,17 @@ function updateBranch(done) {
   };
 
   // Update branch via controller
-  BranchController.update(adminUser, org.id, projID, updateObj)
+  BranchController.update(adminUser, org._id, projID, updateObj)
   .then((updatedBranches) => {
     // Expect updatedBranches array to contain 1 branch
     chai.expect(updatedBranches.length).to.equal(1);
     const updatedBranch = updatedBranches[0];
 
     // Verify branch updated properly
-    chai.expect(updatedBranch.id).to.equal(utils.createID(org.id, projID, branchData.id));
-    chai.expect(updatedBranch._id).to.equal(utils.createID(org.id, projID, branchData.id));
+    chai.expect(updatedBranch._id).to.equal(utils.createID(org._id, projID, branchData.id));
     chai.expect(updatedBranch.name).to.equal(updateObj.name);
     chai.expect(updatedBranch.custom || {}).to.deep.equal(branchData.custom);
-    chai.expect(updatedBranch.project).to.equal(utils.createID(org.id, projID));
+    chai.expect(updatedBranch.project).to.equal(utils.createID(org._id, projID));
 
     // Verify additional properties
     chai.expect(updatedBranch.createdBy).to.equal(adminUser._id);
@@ -461,7 +454,7 @@ function updateBranches(done) {
   }));
 
   // Update branches via controller
-  BranchController.update(adminUser, org.id, projID, updateObjects)
+  BranchController.update(adminUser, org._id, projID, updateObjects)
   .then((updatedBranches) => {
     // Expect updatedBranches not to be empty
     chai.expect(updatedBranches.length).to.equal(branchDataObjects.length);
@@ -470,15 +463,14 @@ function updateBranches(done) {
     const jmi2Elements = jmi.convertJMI(1, 2, updatedBranches);
     // Loop through each branch data object
     branchDataObjects.forEach((branchObj) => {
-      const branchID = utils.createID(org.id, projID, branchObj.id);
+      const branchID = utils.createID(org._id, projID, branchObj.id);
       const updatedBranch = jmi2Elements[branchID];
 
       // Verify branch updated properly
-      chai.expect(updatedBranch.id).to.equal(branchID);
       chai.expect(updatedBranch._id).to.equal(branchID);
       chai.expect(updatedBranch.name).to.equal(`${branchObj.name}_edit`);
       chai.expect(updatedBranch.custom || {}).to.deep.equal(branchObj.custom);
-      chai.expect(updatedBranch.project).to.equal(utils.createID(org.id, projID));
+      chai.expect(updatedBranch.project).to.equal(utils.createID(org._id, projID));
 
       // Verify additional properties
       chai.expect(updatedBranch.createdBy).to.equal(adminUser._id);
@@ -507,15 +499,15 @@ function deleteBranch(done) {
   const branchData = testData.branches[1];
 
   // Deletes branch via controller
-  BranchController.remove(adminUser, org.id, projID, branchData.id)
+  BranchController.remove(adminUser, org._id, projID, branchData.id)
   .then((deletedBranch) => {
     // Expect deletedBranch array to contain 1 branch
     chai.expect(deletedBranch.length).to.equal(1);
     // Verify correct branch deleted
-    chai.expect(deletedBranch).to.include(utils.createID(org.id, projID, branchData.id));
+    chai.expect(deletedBranch).to.include(utils.createID(org._id, projID, branchData.id));
 
     // Attempt to find the deleted branch
-    return BranchController.find(adminUser, org.id, projID, branchData.id, { archived: true });
+    return BranchController.find(adminUser, org._id, projID, branchData.id, { archived: true });
   })
   .then((foundBranch) => {
     // Expect foundBranch array to be empty
@@ -549,20 +541,20 @@ function deleteBranches(done) {
   const branchIDs = branchDataObjects.map(b => b.id);
 
   // Delete branches via controller
-  BranchController.remove(adminUser, org.id, projID, branchIDs)
+  BranchController.remove(adminUser, org._id, projID, branchIDs)
   .then((deletedBranches) => {
     // Expect deletedBranches not to be empty
     chai.expect(deletedBranches.length).to.equal(branchDataObjects.length);
 
     // Loop through each branch data object
     branchDataObjects.forEach((branchDataObject) => {
-      const branchID = utils.createID(org.id, projID, branchDataObject.id);
+      const branchID = utils.createID(org._id, projID, branchDataObject.id);
       // Verify correct branch deleted
       chai.expect(deletedBranches).to.include(branchID);
     });
 
     // Attempt to find the deleted branches
-    return BranchController.find(adminUser, org.id, projID, branchIDs, { archived: true });
+    return BranchController.find(adminUser, org._id, projID, branchIDs, { archived: true });
   })
   .then((foundBranches) => {
     // Expect foundBranches array to be empty

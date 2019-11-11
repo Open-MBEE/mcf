@@ -20,7 +20,7 @@ const validator = {
   location: '^[^.]+$',
   filename: '^[^!\\<>:"\'|?*]+$',
   // Matches filename + extensions
-  extension: '^[\\w]+[.][\\w]+$'
+  extension: '^[^!\\<>:"\'|?*]+[.][\\w]+$'
 };
 
 // Define the root storage path for blobs
@@ -170,7 +170,7 @@ function deleteBlob(artMetadata) {
   }
   catch (error) {
     if (error.code === 'ENOENT') {
-      throw new M.NotFoundError('Artifact Blob not found.', 'warn');
+      throw new M.NotFoundError('Artifact blob not found.', 'warn');
     }
     throw new M.OperationError('Could not delete Blob.', 'warn');
   }

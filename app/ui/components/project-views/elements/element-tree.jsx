@@ -83,6 +83,14 @@ class ElementTree extends Component {
     });
   }
 
+  unsetCheckbox() {
+    this.props.unsetCheckbox();
+  }
+
+  handleCheck() {
+    this.props.handleCheck();
+  }
+
   componentDidMount() {
     // Get element information
     this.getElement();
