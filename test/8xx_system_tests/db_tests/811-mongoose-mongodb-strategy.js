@@ -20,7 +20,7 @@
 const chai = require('chai');
 
 // MBEE modules
-const mongoStrategy = M.require('db.mongoose-mongodb-strategy');
+const mongoStrategy = M.require('db.mongoose-mongodb-strategy.mongoose-mongodb-strategy');
 
 /* --------------------( Main )-------------------- */
 /**

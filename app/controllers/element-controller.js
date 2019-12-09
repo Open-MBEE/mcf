@@ -38,6 +38,7 @@ const fs = require('fs');
 const path = require('path');
 
 // MBEE modules
+const Artifact = M.require('models.artifact');
 const Element = M.require('models.element');
 const Branch = M.require('models.branch');
 const Project = M.require('models.project');
@@ -146,7 +147,7 @@ async function find(requestingUser, organizationID, projectID, branchID, element
     if (options) {
       // Create array of valid search options
       const validSearchOptions = ['parent', 'source', 'target', 'type', 'name',
-        'createdBy', 'lastModifiedBy', 'archived', 'archivedBy'];
+        'createdBy', 'lastModifiedBy', 'archived', 'archivedBy', 'artifact'];
 
       // Loop through provided options, look for validSearchOptions
       Object.keys(options).forEach((o) => {
@@ -160,8 +161,8 @@ async function find(requestingUser, organizationID, projectID, branchID, element
           else if (typeof options[o] !== 'string' && o !== 'archived') {
             throw new M.DataFormatError(`The option '${o}' is not a string.`, 'warn');
           }
-          // If the search option is an element reference
-          if (['parent', 'source', 'target'].includes(o)) {
+          // If the search option is an element/artifact reference
+          if (['parent', 'source', 'target', 'artifact'].includes(o)) {
             // Make value the concatenated ID
             options[o] = utils.createID(orgID, projID, branID, options[o]);
           }
@@ -411,12 +412,16 @@ async function create(requestingUser, organizationID, projectID, branchID, eleme
     const arrIDs = [];
     const validElemKeys = ['id', 'name', 'parent', 'source', 'target',
       'documentation', 'type', 'custom', 'sourceNamespace', 'targetNamespace',
-      'archived'];
+      'archived', 'artifact'];
 
     M.log.debug('create(): Before element validation');
 
     // Validate the element id, parent, source, target, and namespace fields
     let index = 1;
+
+    // Initialize set for artifact references
+    const artIDSet = new Set();
+
     elementsToCreate.forEach((elem) => {
       // Ensure keys are valid
       Object.keys(elem).forEach((k) => {
@@ -431,7 +436,8 @@ async function create(requestingUser, organizationID, projectID, branchID, eleme
       sourceAndTargetValidator(elem, index, orgID, projID, branID);
       // If the element a source- or target- Namespace, ensure it contains the proper fields
       sourceTargetNamespaceValidator(elem, index, orgID, projID, projectRefs);
-
+      // Check Artifact reference
+      artifactIDCheck(elem, index, orgID, projID, branID, artIDSet);
       index++;
     });
 
@@ -452,6 +458,21 @@ async function create(requestingUser, organizationID, projectID, branchID, eleme
     if (foundBranch.tag) {
       throw new M.OperationError(`[${branID}] is a tag and `
         + 'does not allow elements to be created, updated, or deleted.', 'warn');
+    }
+
+    // Find any referenced artifacts
+    const artifacts = await Artifact.find(
+      { _id: { $in: Array.from(artIDSet) } }, null
+    );
+
+    // Verify artifacts found
+    if (artifacts.length !== artIDSet.size) {
+      const artNotFound = Array.from(artIDSet).filter(a => !artifacts.includes(a));
+
+      throw new M.DataFormatError(
+        'The following artifact references were not found: '
+        + `[${artNotFound.map((a) => utils.parseID(a).pop())}]`, 'warn'
+      );
     }
 
     // Permissions check
@@ -488,6 +509,7 @@ async function create(requestingUser, organizationID, projectID, branchID, eleme
         }
       }));
     }
+
     await Promise.all(promises);
 
     // For each object of element data, create the element object
@@ -505,7 +527,7 @@ async function create(requestingUser, organizationID, projectID, branchID, eleme
       elemObj.$parent = elemObj.parent;
       elemObj.$source = (elemObj.source) ? elemObj.source : null;
       elemObj.$target = (elemObj.target) ? elemObj.target : null;
-
+      elemObj.artifact = (elemObj.artifact) ? elemObj.artifact : null;
       return elemObj;
     });
 
@@ -515,7 +537,7 @@ async function create(requestingUser, organizationID, projectID, branchID, eleme
     // Define array of elements that need to be searched for in DB
     const elementsToFind = [];
 
-    // Loop through each element and set its parent (and source and target)
+    // Loop through each element, set its parent, source, target
     elementObjects.forEach((element) => {
       // If the element has a parent
       if (element.$parent) {
@@ -795,6 +817,10 @@ async function update(requestingUser, organizationID, projectID, branchID, eleme
 
     // Create list of ids
     let index = 1;
+
+    // Initialize set for artifact references
+    const artIDSet = new Set();
+
     elementsToUpdate.forEach((elem) => {
       // Ensure each element has an id and that it's a string
       elementIDCheck(elem, index, orgID, projID, branID, arrIDs);
@@ -821,9 +847,25 @@ async function update(requestingUser, organizationID, projectID, branchID, eleme
 
       // If the element has a source- or target- Namespace, ensure it contains the proper fields
       sourceTargetNamespaceValidator(elem, index, orgID, projID, projectRefs, sourceTargetIDs);
-
+      // Check Artifact reference
+      artifactIDCheck(elem, index, orgID, projID, branID, artIDSet);
       index++;
     });
+
+    // Find any referenced artifacts
+    const artifacts = await Artifact.find(
+      { _id: { $in: Array.from(artIDSet) } }, null
+    );
+
+    // Verify artifacts found
+    if (artifacts.length !== artIDSet.size) {
+      const artNotFound = Array.from(artIDSet).filter(a => !artifacts.includes(a));
+
+      throw new M.DataFormatError(
+        'The following artifact references were not found: '
+        + `[${artNotFound.map((a) => utils.parseID(a).pop())}]`, 'warn'
+      );
+    }
 
     const referencedProjects2 = await Project.find({ _id: { $in: projectRefs } }, null);
 
@@ -1129,6 +1171,7 @@ async function createOrReplace(requestingUser, organizationID, projectID,
     // Create list of ids
     const arrIDs = [];
     let index = 1;
+
     elementsToLookup.forEach((elem) => {
       try {
         // Ensure each element has an id and that its a string
@@ -1723,7 +1766,7 @@ async function search(requestingUser, organizationID, projectID, branchID, query
     if (options) {
       // Create array of valid search options
       const validSearchOptions = ['parent', 'source', 'target', 'type', 'name',
-        'createdBy', 'lastModifiedBy', 'archived', 'archivedBy'];
+        'createdBy', 'lastModifiedBy', 'archived', 'archivedBy', 'artifact'];
 
       // Loop through provided options
       Object.keys(options).forEach((o) => {
@@ -1738,8 +1781,8 @@ async function search(requestingUser, organizationID, projectID, branchID, query
             throw new M.DataFormatError(`The option '${o}' is not a string.`, 'warn');
           }
 
-          // If the search option is an element reference
-          if (['parent', 'source', 'target'].includes(o)) {
+          // If the search option is an element/artifact reference
+          if (['parent', 'source', 'target', 'artifact'].includes(o)) {
             // Make value the concatenated ID
             options[o] = utils.createID(orgID, projID, branID, options[o]);
           }
@@ -1765,7 +1808,7 @@ async function search(requestingUser, organizationID, projectID, branchID, query
     // Permissions check
     permissions.readElement(reqUser, organization, project, branch);
 
-    searchQuery.$text = { $search: query };
+    searchQuery.$text = query;
     // If the includeArchived field is true, remove archived from the query; return everything
     if (validatedOptions.includeArchived) {
       delete searchQuery.archived;
@@ -1775,28 +1818,8 @@ async function search(requestingUser, organizationID, projectID, branchID, query
       searchQuery.archived = true;
     }
 
-    // Add sorting by metadata
-    // If no sorting option was specified ($natural is the default) then remove
-    // $natural. $natural does not work with metadata sorting
-    if (validatedOptions.sort.$natural) {
-      validatedOptions.sort = { score: { $meta: 'textScore' } };
-    }
-    else {
-      validatedOptions.sort.score = { $meta: 'textScore' };
-    }
-
-    let projections = {};
-
-    // Check if filters are selected
-    if (validatedOptions.fieldsString) {
-      projections = helper.parseFieldsString(validatedOptions.fieldsString);
-    }
-
-    projections.score = {};
-    projections.score.$meta = 'textScore';
-
     // Search for the elements
-    return await Element.find(searchQuery, projections,
+    return await Element.find(searchQuery, validatedOptions.fieldsString,
       { skip: validatedOptions.skip,
         limit: validatedOptions.limit,
         sort: validatedOptions.sort,
@@ -2061,6 +2084,32 @@ function elementIDCheck(elem, index, orgID, projID, branchID, arrIDs) {
     elem.id = utils.createID(orgID, projID, branchID, elem.id);
     arrIDs.push(elem.id);
     elem._id = elem.id;
+  }
+  catch (error) {
+    throw new M.DataFormatError(error.message, 'warn');
+  }
+}
+
+/**
+ * @description A helper function that validates the id of an
+ * referenced artifact and updates to the internal artifact id.
+ *
+ * @param {object} elem - The element object to validate.
+ * @param {number} index - The index of the iteration.
+ * @param {string} orgID - The id of the organization containing the project.
+ * @param {string} projID - The id of the project containing the branch.
+ * @param {string} branchID - The id of the branch containing the element.
+ * @param {object} artIDs - An array of artifact ids being referenced.
+ */
+function artifactIDCheck(elem, index, orgID, projID, branchID, artIDs) {
+  try {
+    if (elem.hasOwnProperty('artifact')) {
+      // Ensure element has an artifact id and that it's a string
+      assert.ok(typeof elem.artifact === 'string', 'Element #'
+      + `${index}'s artifact reference id is not a string.`);
+      elem.artifact = utils.createID(orgID, projID, branchID, elem.artifact);
+      artIDs.add(elem.artifact);
+    }
   }
   catch (error) {
     throw new M.DataFormatError(error.message, 'warn');

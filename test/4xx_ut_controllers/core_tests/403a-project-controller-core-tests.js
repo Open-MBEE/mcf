@@ -24,7 +24,7 @@ const chai = require('chai');
 
 // MBEE modules
 const ProjController = M.require('controllers.project-controller');
-const db = M.require('lib.db');
+const db = M.require('db');
 const utils = M.require('lib.utils');
 const jmi = M.require('lib.jmi-conversions');
 
@@ -34,7 +34,6 @@ const testUtils = M.require('lib.test-utils');
 const testData = testUtils.importTestData('test_data.json');
 let adminUser = null;
 let org = null;
-
 
 /* --------------------( Main )-------------------- */
 /**
@@ -76,7 +75,7 @@ describe(M.getModuleName(module.filename), () => {
    */
   after((done) => {
     // Removing the organization created
-    testUtils.removeTestOrg(adminUser)
+    testUtils.removeTestOrg()
     // Remove the admin user
     .then(() => testUtils.removeTestAdmin())
     .then(() => db.disconnect())

@@ -127,25 +127,3 @@ module.exports.findAndValidate = async function(model, id, archived = false) {
   // Return the found organization/project/branch
   return result;
 };
-
-/**
- * @description Converts a string of field names into an object.
- *
- * @param {string} fields - Field names separated by a ' '.
- *
- * @returns {object} - An object containing field names as keys with value of 1.
- */
-module.exports.parseFieldsString = function(fields) {
-  if (!fields) {
-    return {};
-  }
-
-  const fieldsArr = fields.split(' ');
-  const fieldsObj = {};
-
-  fieldsArr.forEach((field) => {
-    fieldsObj[field] = 1;
-  });
-
-  return fieldsObj;
-};

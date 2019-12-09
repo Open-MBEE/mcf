@@ -22,7 +22,7 @@ const chai = require('chai');
 // MBEE modules
 const ArtifactController = M.require('controllers.artifact-controller');
 const Artifact = M.require('models.artifact');
-const db = M.require('lib.db');
+const db = M.require('db');
 const utils = M.require('lib.utils');
 
 /* --------------------( Test Data )-------------------- */
@@ -82,7 +82,7 @@ describe(M.getModuleName(module.filename), () => {
     try {
       // Remove organization
       // Note: Projects and artifacts under organization will also be removed
-      await testUtils.removeTestOrg(adminUser);
+      await testUtils.removeTestOrg();
       await testUtils.removeTestAdmin();
       await db.disconnect();
     }
@@ -125,7 +125,7 @@ async function createArchivedArtifact() {
     // Create the artifact object
     const artObj = {
       id: 'archived-artifact',
-      name: 'Archived Artifact',
+      description: 'Archived Artifact',
       archived: true,
       location: 'archived',
       filename: 'archived.txt'
@@ -278,7 +278,7 @@ async function optionFieldsFind() {
     // Get the ID of the artifact to find
     const artID = utils.parseID(artifacts[0]._id);
     // Create the options object with the list of fields specifically find
-    const findOptions = { fields: ['name', 'createdBy'] };
+    const findOptions = { fields: ['description', 'createdBy'] };
     // Create the options object with the list of fields to specifically NOT find
     const notFindOptions = { fields: ['-createdOn', '-updatedOn'] };
     // Create the list of fields which are always provided no matter what
@@ -440,19 +440,19 @@ async function optionFieldsCreate() {
     // Create the artifact objects
     const artObjFind = {
       id: 'fields-artifact',
-      name: 'Fields Artifact',
+      description: 'Fields Artifact',
       location: 'location/field',
       filename: 'file.dat'
 
     };
     const artObjNotFind = {
       id: 'not-fields-artifact',
-      name: 'Not Fields Artifact',
+      description: 'Not Fields Artifact',
       location: 'not/location/field',
       filename: 'notfile.dat'
     };
     // Create the options object with the list of fields specifically find
-    const findOptions = { fields: ['name', 'createdBy'] };
+    const findOptions = { fields: ['description', 'createdBy'] };
     // Create the options object with the list of fields to specifically NOT find
     const notFindOptions = { fields: ['-createdOn', '-updatedOn'] };
     // Create the list of fields which are always provided no matter what
@@ -508,7 +508,7 @@ async function optionPopulateUpdate() {
     // Create the update object
     const updateObj = {
       id: 'populate-artifact',
-      name: 'Update Artifact'
+      description: 'Update Artifact'
     };
 
     // Update the artifact
@@ -553,14 +553,14 @@ async function optionFieldsUpdate() {
     // Create the update objects
     const updateObjFind = {
       id: 'fields-artifact',
-      name: 'Fields Artifact Updated'
+      description: 'Fields Artifact Updated'
     };
     const updateObjNotFind = {
       id: 'not-fields-artifact',
-      name: 'Not Fields Artifact Updated'
+      description: 'Not Fields Artifact Updated'
     };
     // Create the options object with the list of fields specifically find
-    const findOptions = { fields: ['name', 'createdBy'] };
+    const findOptions = { fields: ['description', 'createdBy'] };
     // Create the options object with the list of fields to specifically NOT find
     const notFindOptions = { fields: ['-createdOn', '-updatedOn'] };
     // Create the list of fields which are always provided no matter what
@@ -610,25 +610,25 @@ async function optionSortFind() {
     // Create artifact objects
     const testArts = [{
       id: 'testart00',
-      name: 'b',
+      description: 'b',
       location: 'b',
       filename: 'b.txt'
     },
     {
       id: 'testart01',
-      name: 'c',
+      description: 'c',
       location: 'c',
       filename: 'c.txt'
     },
     {
       id: 'testart02',
-      name: 'a',
+      description: 'a',
       location: 'a',
       filename: 'a.txt'
     }];
     // Create sort options
-    const sortOption = { sort: 'name' };
-    const sortOptionReverse = { sort: '-name' };
+    const sortOption = { sort: 'description' };
+    const sortOptionReverse = { sort: '-description' };
 
     // Create the test artifacts
     const createdElems = await ArtifactController.create(adminUser, org._id, projID,
@@ -645,11 +645,11 @@ async function optionSortFind() {
     chai.expect(foundElems.length).to.equal(3);
 
     // Validate that the sort option is working
-    chai.expect(foundElems[0].name).to.equal('a');
+    chai.expect(foundElems[0].description).to.equal('a');
     chai.expect(foundElems[0]._id).to.equal(utils.createID(org._id, projID, branchID, 'testart02'));
-    chai.expect(foundElems[1].name).to.equal('b');
+    chai.expect(foundElems[1].description).to.equal('b');
     chai.expect(foundElems[1]._id).to.equal(utils.createID(org._id, projID, branchID, 'testart00'));
-    chai.expect(foundElems[2].name).to.equal('c');
+    chai.expect(foundElems[2].description).to.equal('c');
     chai.expect(foundElems[2]._id).to.equal(utils.createID(org._id, projID, branchID, 'testart01'));
 
     // Find the artifacts and return them sorted in reverse
@@ -660,11 +660,11 @@ async function optionSortFind() {
     chai.expect(foundElems.length).to.equal(3);
 
     // Validate that the sort option is working
-    chai.expect(reverseElems[0].name).to.equal('c');
+    chai.expect(reverseElems[0].description).to.equal('c');
     chai.expect(reverseElems[0]._id).to.equal(utils.createID(org._id, projID, branchID, 'testart01'));
-    chai.expect(reverseElems[1].name).to.equal('b');
+    chai.expect(reverseElems[1].description).to.equal('b');
     chai.expect(reverseElems[1]._id).to.equal(utils.createID(org._id, projID, branchID, 'testart00'));
-    chai.expect(reverseElems[2].name).to.equal('a');
+    chai.expect(reverseElems[2].description).to.equal('a');
     chai.expect(reverseElems[2]._id).to.equal(utils.createID(org._id, projID, branchID, 'testart02'));
 
     await ArtifactController.remove(adminUser, org._id, projID, branchID,

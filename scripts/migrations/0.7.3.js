@@ -17,16 +17,6 @@
 
 // MBEE modules
 const User = M.require('models.user');
-const migrate = M.require('lib.migrate');
-
-/**
- * @description Handles the database migration from 0.7.3 to 0.7.2.
- *
- * @returns {Promise} Returns an empty promise upon completion.
- */
-module.exports.down = async function() {
-  return migrate.shiftVersion('0.7.2');
-};
 
 /**
  * @description Handles the database migration from 0.7.2 to 0.7.3.
@@ -37,7 +27,6 @@ module.exports.down = async function() {
  */
 module.exports.up = async function() {
   await twoToThreeUserHelper();
-  return migrate.shiftVersion('0.7.3');
 };
 
 /**

@@ -29,7 +29,7 @@ const should = chai.should(); // eslint-disable-line no-unused-vars
 
 // MBEE modules
 const Artifact = M.require('models.artifact');
-const db = M.require('lib.db');
+const db = M.require('db');
 const utils = M.require('lib.utils');
 
 /* --------------------( Test Data )-------------------- */
@@ -38,7 +38,6 @@ const testData = testUtils.importTestData('test_data.json');
 const org = testData.orgs[0];
 const project = testData.projects[0];
 const branch = testData.branches[0];
-
 
 /* --------------------( Main )-------------------- */
 /**
@@ -99,7 +98,8 @@ async function createArtifact() {
     branch: utils.createID(org.id, project.id, branch.id),
     location: artData.location,
     custom: artData.custom,
-    strategy: M.config.artifact.strategy
+    strategy: M.config.artifact.strategy,
+    size: artData.size
   };
 
   try {
@@ -115,6 +115,7 @@ async function createArtifact() {
     chai.expect(createdArtifact.location).to.equal(artData.location);
     chai.expect(createdArtifact.strategy).to.equal(M.config.artifact.strategy);
     chai.expect(createdArtifact.custom || {}).to.deep.equal(artData.custom);
+    chai.expect(createdArtifact.size).to.equal(artData.size);
   }
   catch (error) {
     M.log.error(error);
@@ -129,13 +130,20 @@ async function createArtifact() {
 async function findArtifact() {
   try {
     // Find the artifact previously uploaded.
-    const artifactToUpdate = await Artifact.find(
+    const foundArtifact = await Artifact.findOne(
       { _id: utils.createID(org.id, project.id, branch.id, testData.artifacts[0].id) }
     );
 
     // Verify output
-    // Check if artifact found
-    chai.expect(artifactToUpdate.length).to.equal(1);
+    chai.expect(foundArtifact._id).to.equal(
+      utils.createID(org.id, project.id, branch.id, testData.artifacts[0].id)
+    );
+    chai.expect(foundArtifact.filename).to.equal(
+      testData.artifacts[0].filename
+    );
+    chai.expect(foundArtifact.project).to.equal(utils.createID(org.id, project.id));
+    chai.expect(foundArtifact.branch).to.equal(utils.createID(org.id, project.id, branch.id));
+    chai.expect(foundArtifact.location).to.equal(testData.artifacts[0].location);
   }
   catch (error) {
     M.log.error(error);
@@ -150,7 +158,6 @@ async function findArtifact() {
 async function updateArtifact() {
   try {
     const artData = testData.artifacts[0];
-
     const artID = utils.createID(org.id, project.id, branch.id, artData.id);
     // Update the name of the artifact created in the createArtifact() test
     await Artifact.updateOne({ _id: artID }, { filename: 'Updated Name' });
@@ -174,6 +181,7 @@ async function updateArtifact() {
     chai.expect(foundArtifact.custom || {}).to.deep.equal(
       artData.custom
     );
+    chai.expect(foundArtifact.size).to.equal(artData.size);
   }
   catch (error) {
     M.log.error(error);

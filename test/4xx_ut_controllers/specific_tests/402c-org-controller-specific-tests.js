@@ -22,7 +22,7 @@ const chai = require('chai');
 // MBEE modules
 const OrgController = M.require('controllers.organization-controller');
 const Organization = M.require('models.organization');
-const db = M.require('lib.db');
+const db = M.require('db');
 const utils = M.require('lib.utils');
 
 /* --------------------( Test Data )-------------------- */

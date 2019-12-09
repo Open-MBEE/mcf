@@ -23,7 +23,7 @@ const chai = require('chai');
 const OrgController = M.require('controllers.organization-controller');
 const ProjectController = M.require('controllers.project-controller');
 const Project = M.require('models.project');
-const db = M.require('lib.db');
+const db = M.require('db');
 const utils = M.require('lib.utils');
 
 /* --------------------( Test Data )-------------------- */
@@ -33,7 +33,6 @@ const testData = testUtils.importTestData('test_data.json');
 let adminUser = null;
 let org = null;
 let projects = null;
-
 
 /* --------------------( Main )-------------------- */
 /**
@@ -76,7 +75,7 @@ describe(M.getModuleName(module.filename), () => {
   after(async () => {
     try {
       // Removing the organization created
-      await testUtils.removeTestOrg(adminUser);
+      await testUtils.removeTestOrg();
       // Remove the admin user
       await testUtils.removeTestAdmin();
       await db.disconnect();

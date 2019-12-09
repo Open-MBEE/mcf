@@ -18,7 +18,7 @@
 
 // MBEE modules
 const libMigrate = M.require('lib.migrate');
-const db = M.require('lib.db');
+const db = M.require('db');
 
 /**
  * @description Runs the migrate function from lib.migrate and finished the

@@ -27,13 +27,14 @@ const { execSync } = require('child_process');
 const path = require('path');
 
 // MBEE modules
+const Artifact = M.require('models.artifact');
 const Branch = M.require('models.branch');
 const Element = M.require('models.element');
 const Organization = M.require('models.organization');
 const Project = M.require('models.project');
 const ServerData = M.require('models.server-data');
 const User = M.require('models.user');
-const db = M.require('lib.db');
+const db = M.require('db');
 
 /* --------------------( Main )-------------------- */
 /**
@@ -106,6 +107,7 @@ async function cleanDB() {
 async function initModels() {
   try {
     // Initialize all models
+    await Artifact.init();
     await Branch.init();
     await Element.init();
     await Organization.init();
@@ -114,7 +116,7 @@ async function initModels() {
     await User.init();
 
     // Insert server data
-    await ServerData.insertMany([{ _id: 'server_data', version: M.schemaVersion }]);
+    await ServerData.insertMany([{ _id: 'server_data', version: M.version }]);
   }
   catch (error) {
     M.log.critical('Failed to initialize models.');

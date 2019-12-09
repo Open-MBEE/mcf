@@ -25,7 +25,7 @@ const chai = require('chai');
 const request = require('request');
 
 // MBEE modules
-const db = M.require('lib.db');
+const db = M.require('db');
 const utils = M.require('lib.utils');
 
 /* --------------------( Test Data )-------------------- */
@@ -74,7 +74,7 @@ describe(M.getModuleName(module.filename), () => {
   after(async () => {
     try {
       // Delete organization
-      await testUtils.removeTestOrg(adminUser);
+      await testUtils.removeTestOrg();
       // Delete admin user
       await testUtils.removeTestAdmin();
       await fs.unlinkSync(zipfilepath);

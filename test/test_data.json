@@ -224,49 +224,58 @@
     {
       "id": "batchelem12",
       "name": "Batch Element 12"
+    },
+    {
+      "id": "batchelem13",
+      "name": "Batch Element 13"
     }
   ],
   "artifacts": [
     {
       "id": "artifact00",
-      "name": "artifact 00",
+      "description": "artifact 00",
       "filename": "logo.png",
       "location": "/test/test_files/",
+      "size": 26930,
       "custom": {
         "custom_key": "custom_value"
       }
     },
     {
       "id": "artifact01",
-      "name": "artifact 01",
+      "description": "artifact 01",
       "filename": "mbee-concept.png",
       "location": "/test/test_files/",
+      "size" : 199283,
       "custom": {
         "custom_key": "custom_value"
       }
     },
     {
       "id": "artifact02",
-      "name": "artifact 02",
+      "description": "artifact 02",
       "filename": "text.txt",
       "location": "/test/test_files/",
+      "size" : 13,
       "custom": {
         "custom_key": "custom_value"
       }
     },
     {
       "id": "artifact03",
-      "name": "artifact 03",
+      "description": "artifact 03",
       "filename": "text.txt",
       "location": "/test/test_files/",
+      "size" : 13,
       "custom": {
         "custom_key": "custom_value"
       }
     },{
       "id": "artifact04",
-      "name": "artifact 04",
+      "description": "artifact 04",
       "filename": "text.txt",
       "location": "/test/test_files/",
+      "size" : 13,
       "custom": {
         "custom_key": "custom_value"
       }

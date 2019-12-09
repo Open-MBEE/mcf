@@ -23,7 +23,7 @@ const chai = require('chai');
 
 // MBEE modules
 const ServerData = M.require('models.server-data');
-const db = M.require('lib.db');
+const db = M.require('db');
 
 /* --------------------( Main )-------------------- */
 /**
@@ -84,7 +84,7 @@ async function cleanDB() {
 async function initServerDataModel() {
   try {
     await ServerData.init();
-    await ServerData.insertMany({ _id: 'server_data', version: M.schemaVersion });
+    await ServerData.insertMany({ _id: 'server_data', version: M.version });
   }
   catch (error) {
     M.log.critical('Failed to insert server data document.');

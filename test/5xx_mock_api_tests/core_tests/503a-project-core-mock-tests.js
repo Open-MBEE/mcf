@@ -21,7 +21,7 @@ const chai = require('chai');
 
 // MBEE modules
 const APIController = M.require('controllers.api-controller');
-const db = M.require('lib.db');
+const db = M.require('db');
 const jmi = M.require('lib.jmi-conversions');
 const utils = M.require('lib.utils');
 
@@ -72,7 +72,7 @@ describe(M.getModuleName(module.filename), () => {
    */
   after((done) => {
     // Removing the test organization
-    testUtils.removeTestOrg(adminUser)
+    testUtils.removeTestOrg()
     .then(() => testUtils.removeTestAdmin())
     .then(() => db.disconnect())
     .then(() => done())

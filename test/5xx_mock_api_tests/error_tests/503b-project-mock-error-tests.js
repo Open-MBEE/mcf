@@ -1,0 +1,324 @@
+/**
+ * @classification UNCLASSIFIED
+ *
+ * @module test.503b-project-mock-error-tests
+ *
+ * @copyright Copyright (C) 2018, Lockheed Martin Corporation
+ *
+ * @license MIT
+ *
+ * @owner Connor Doyle
+ *
+ * @author Connor Doyle
+ *
+ * @description This tests for expected errors in mock requests of project endpoints in the API
+ * controller.
+ */
+
+// NPM modules
+const chai = require('chai');
+const chaiAsPromised = require('chai-as-promised');
+
+// Use async chai
+chai.use(chaiAsPromised);
+// Initialize chai should function, used for expecting promise rejections
+const should = chai.should(); // eslint-disable-line no-unused-vars
+
+// MBEE modules
+const APIController = M.require('controllers.api-controller');
+const db = M.require('db');
+
+/* --------------------( Test Data )-------------------- */
+// Variables used across test functions
+const testUtils = M.require('lib.test-utils');
+const testData = testUtils.importTestData('test_data.json');
+let adminUser = null;
+let org;
+
+/* --------------------( Main )-------------------- */
+/**
+ * The "describe" function is provided by Mocha and provides a way of wrapping
+ * or grouping several "it" tests into a single group. In this case, the name of
+ * that group (the first parameter passed into describe) is derived from the
+ * name of the current file.
+ */
+describe(M.getModuleName(module.filename), () => {
+  /**
+   * Before: Runs before all tests. Connects to the database, creates a test admin user,
+   * a test non admin user, and a test org.
+   */
+  before(async () => {
+    try {
+      await db.connect();
+      adminUser = await testUtils.createTestAdmin();
+      await testUtils.createNonAdminUser();
+      org = await testUtils.createTestOrg(adminUser);
+    }
+    catch (error) {
+      M.log.error(error);
+      // Expect no error
+      chai.expect(error).to.equal(null);
+    }
+  });
+
+  /**
+   * After: Runs after all tests. Removes the test users and org and disconnects from the
+   * database.
+   */
+  after(async () => {
+    try {
+      await testUtils.removeTestAdmin();
+      await testUtils.removeNonAdminUser();
+      await testUtils.removeTestOrg();
+      await db.disconnect();
+    }
+    catch (error) {
+      M.log.error(error);
+      // Expect no error
+      chai.expect(error).to.equal(null);
+    }
+  });
+
+  /* Execute tests */
+  // ------------- No Requesting User -------------
+  it('should reject a GET projects request with no requesting user', noReqUser('getProjects'));
+  it('should reject a GET project request with no requesting user', noReqUser('getProject'));
+  it('should reject a GET all projects request with no requesting user', noReqUser('getAllProjects'));
+  it('should reject a POST projects request with no requesting user', noReqUser('postProjects'));
+  it('should reject a POST project request with no requesting user', noReqUser('postProject'));
+  it('should reject a PATCH projects request with no requesting user', noReqUser('patchProjects'));
+  it('should reject a PATCH project request with no requesting user', noReqUser('patchProject'));
+  it('should reject a PUT projects request with no requesting user', noReqUser('putProjects'));
+  it('should reject a PUT project request with no requesting user', noReqUser('putProject'));
+  it('should reject a DELETE projects request with no requesting user', noReqUser('deleteProject'));
+  it('should reject a DELETE project request with no requesting user', noReqUser('deleteProject'));
+  // ------------- Invalid options -------------
+  it('should reject a GET projects request with invalid options', invalidOptions('getProjects'));
+  it('should reject a GET project request with invalid options', invalidOptions('getProject'));
+  it('should reject a GET all projects request with invalid options', invalidOptions('getAllProjects'));
+  it('should reject a POST projects request with invalid options', invalidOptions('postProjects'));
+  it('should reject a POST project request with invalid options', invalidOptions('postProject'));
+  it('should reject a PATCH projects request with invalid options', invalidOptions('patchProjects'));
+  it('should reject a PATCH project request with invalid options', invalidOptions('patchProject'));
+  it('should reject a PUT projects request with invalid options', invalidOptions('putProjects'));
+  it('should reject a PUT project request with invalid options', invalidOptions('putProject'));
+  it('should reject a DELETE projects request with invalid options', invalidOptions('deleteProjects'));
+  it('should reject a DELETE project request with invalid options', invalidOptions('deleteProject'));
+  // ------- Non matching ids in body vs url -------
+  it('should reject a POST project request with conflicting ids in the body and url', conflictingIDs('postProject'));
+  it('should reject a PATCH project request with conflicting ids in the body and url', conflictingIDs('patchProject'));
+  it('should reject a PUT project request with conflicting ids in the body and url', conflictingIDs('putProject'));
+  // ------------- 404 Not Found -------------
+  it('should return 404 for a GET projects request that returned no results', notFound('getProjects'));
+  it('should return 404 for a GET project request that returned no results', notFound('getProject'));
+  it('should return 404 for a GET all projects request that returned no results', notFound('getAllProjects'));
+  it('should return 404 for a PATCH projects request for nonexistent projects', notFound('patchProjects'));
+  it('should return 404 for a PATCH project request for a nonexistent project', notFound('patchProject'));
+  it('should return 404 for a DELETE projects request for nonexistent projects', notFound('deleteProjects'));
+  it('should return 404 for a DELETE project request for a nonexistent project', notFound('deleteProject'));
+  // ------------- No arrays in singular endpoints -------------
+  it('should reject a POST singular project request containing an array in the body', noArrays('postProject'));
+  it('should reject a PATCH singular project request containing an array in the body', noArrays('patchProject'));
+  it('should reject a PUT singular project request containing an array in the body', noArrays('putProject'));
+});
+
+/* --------------------( Tests )-------------------- */
+/**
+ * @description A test factory function that generates a mocha-compatible test function that can
+ * test the response of any api endpoint to a request missing a requestingUser.
+ *
+ * @param {string} endpoint - The particular api endpoint to test.
+ * @returns {Function} A function for mocha to use to test a specific api endpoint.
+ */
+function noReqUser(endpoint) {
+  // Parse the method
+  const method = testUtils.parseMethod(endpoint);
+  const params = {};
+  const body = {};
+
+  // Create the customized mocha function
+  return function(done) {
+    // Create request object
+    const req = testUtils.createRequest(null, params, body, method);
+
+    // Create response object
+    const res = {};
+    testUtils.createResponse(res);
+
+    // Verifies the response data
+    res.send = function send(_data) {
+      // Expect an error message
+      _data.should.equal('Request Failed');
+
+      // Expect the statusCode to be 500
+      res.statusCode.should.equal(500);
+
+      // Ensure the response was logged correctly
+      setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    };
+
+    // Sends the mock request
+    APIController[endpoint](req, res);
+  };
+}
+
+/**
+ * @description A test factory function that generates a mocha-compatible test function that can
+ * test the response of any api endpoint to a request that has invalid options.
+ *
+ * @param {string} endpoint - The particular api endpoint to test.
+ * @returns {Function} A function for mocha to use to test a specific api endpoint.
+ */
+function invalidOptions(endpoint) {
+  // Parse the method
+  const method = testUtils.parseMethod(endpoint);
+  const params = {};
+  const body = {};
+
+  // Create the customized mocha function
+  return function(done) {
+    // Create request object
+    const req = testUtils.createRequest(adminUser, params, body, method);
+    req.query = { invalid: 'invalid option' };
+
+    // Create response object
+    const res = {};
+    testUtils.createResponse(res);
+
+    // Verifies the response data
+    res.send = function send(_data) {
+      // Expect an error message
+      _data.should.equal('Invalid parameter: invalid');
+
+      // Expect the statusCode to be 400
+      res.statusCode.should.equal(400);
+
+      // Ensure the response was logged correctly
+      setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    };
+
+    // Sends the mock request
+    APIController[endpoint](req, res);
+  };
+}
+
+/**
+ * @description A test factory function that generates a mocha-compatible test function that can
+ * test the response of singular api endpoints to a request that has conflicting ids in the body and
+ * params.
+ *
+ * @param {string} endpoint - The particular api endpoint to test.
+ * @returns {Function} A function for mocha to use to test a specific api endpoint.
+ */
+function conflictingIDs(endpoint) {
+  // Parse the method
+  const method = testUtils.parseMethod(endpoint);
+  const body = { id: 'testproject001' };
+  const params = { projectid: 'testproject01' };
+
+  // Create the customized mocha function
+  return function(done) {
+    // Create request object
+    const req = testUtils.createRequest(adminUser, params, body, method);
+
+    // Create response object
+    const res = {};
+    testUtils.createResponse(res);
+
+    // Verifies the response data
+    res.send = function send(_data) {
+      // Expect an error message
+      _data.should.equal('Project ID in the body does not match ID in the params.');
+
+      // Expect the statusCode to be 400
+      res.statusCode.should.equal(400);
+
+      // Ensure the response was logged correctly
+      setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    };
+
+    // Sends the mock request
+    APIController[endpoint](req, res);
+  };
+}
+
+/**
+ * @description A test factory function that generates a mocha-compatible test function that can
+ * test the response of any api endpoint to a request for an item that doesn't exist.
+ *
+ * @param {string} endpoint - The particular api endpoint to test.
+ * @returns {Function} A function for mocha to use to test a specific api endpoint.
+ */
+function notFound(endpoint) {
+  return function(done) {
+    // Get an unused project id
+    const id = testData.projects[3].id;
+    // Parse the method
+    const method = testUtils.parseMethod(endpoint);
+    // Body must be an array of ids for get and delete; key-value pair for anything else
+    const body = (endpoint === 'deleteProjects' || endpoint === 'getProjects')
+      ? [id] : { id: id };
+    const params = { orgid: org._id };
+    // Add in a params field for singular project endpoints
+    if (!endpoint.includes('Projects') && endpoint.includes('Project')) {
+      params.projectid = id;
+    }
+
+    // Create request object
+    const req = testUtils.createRequest(adminUser, params, body, method);
+
+    // Create response object
+    const res = {};
+    testUtils.createResponse(res);
+
+    // Verifies the response data
+    res.send = function send(_data) {
+      // Expect the statusCode to be 404
+      res.statusCode.should.equal(404);
+
+      // Ensure the response was logged correctly
+      setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    };
+
+    // Sends the mock request
+    APIController[endpoint](req, res);
+  };
+}
+
+/**
+ * @description A test factory function that generates a mocha-compatible test function that can
+ * test the response of singular api endpoints given an array in the body.
+ *
+ * @param {string} endpoint - The particular api endpoint to test.
+ * @returns {Function} A function for mocha to use to test a specific api endpoint.
+ */
+function noArrays(endpoint) {
+  // Parse the method
+  const method = testUtils.parseMethod(endpoint);
+  const body = [];
+  const params = {};
+
+  return function(done) {
+    // Create request object
+    const req = testUtils.createRequest(adminUser, params, body, method);
+
+    // Create response object
+    const res = {};
+    testUtils.createResponse(res);
+
+    // Verifies the response data
+    res.send = function send(_data) {
+      // Expect an error message
+      _data.should.equal('Input cannot be an array');
+
+      // Expect the statusCode to be 400
+      res.statusCode.should.equal(400);
+
+      // Ensure the response was logged correctly
+      setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    };
+
+    // Sends the mock request
+    APIController[endpoint](req, res);
+  };
+}

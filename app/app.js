@@ -28,10 +28,11 @@ const flash = require('express-flash');
 const compression = require('compression');
 
 // MBEE modules
-const db = M.require('lib.db');
+const db = M.require('db');
 const utils = M.require('lib.utils');
 const middleware = M.require('lib.middleware');
 const migrate = M.require('lib.migrate');
+const Artifact = M.require('models.artifact');
 const Branch = M.require('models.branch');
 const Element = M.require('models.element');
 const Organization = M.require('models.organization');
@@ -49,7 +50,7 @@ module.exports = app;
  */
 db.connect()
 .then(() => initModels())
-.then(() => migrate.getSchemaVersion())
+.then(() => migrate.getVersion())
 .then(() => createDefaultOrganization())
 .then(() => createDefaultAdmin())
 .then(() => initApp())
@@ -167,7 +168,8 @@ async function createDefaultOrganization() {
       // to permissions list
       const defaultOrg = {
         _id: M.config.server.defaultOrganizationId,
-        name: M.config.server.defaultOrganizationName
+        name: M.config.server.defaultOrganizationName,
+        permissions: {}
       };
 
       // Add each existing user to default org
@@ -190,7 +192,7 @@ async function createDefaultOrganization() {
  * @description Creates a default admin if a global admin does not already exist.
  * @async
  *
- * @returns {Promise} Resolves an empty promise upon completion.
+ * @returns {Promise} Returns an empty promise upon completion.
  */
 async function createDefaultAdmin() {
   try {
@@ -238,6 +240,7 @@ async function createDefaultAdmin() {
  * @returns {Promise} Returns an empty promise upon completion.
  */
 async function initModels() {
+  await Artifact.init();
   await Branch.init();
   await Element.init();
   await Organization.init();

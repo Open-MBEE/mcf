@@ -206,7 +206,7 @@ async function find(requestingUser, organizationID, projects, options) {
     else {
       // Find all orgs the user has read access on
       const orgQuery = {};
-      orgQuery[`permissions.${reqUser._id}`] = 'read';
+      orgQuery[`permissions.${reqUser._id}`] = { $all: ['read'] };
       const readOrgs = await Organization.find(orgQuery);
       const orgIDs = readOrgs.map(o => o._id);
 
@@ -224,7 +224,7 @@ async function find(requestingUser, organizationID, projects, options) {
       // Find all projects the user has read access to
       // Use JSON parse/stringify to remove undefined values
       const permissionsQuery = JSON.parse(JSON.stringify({ archived: searchQuery.archived }));
-      permissionsQuery[`permissions.${reqUser._id}`] = 'read';
+      permissionsQuery[`permissions.${reqUser._id}`] = { $all: ['read'] };
       const permissionProjects = await Project.find(permissionsQuery,
         validatedOptions.fieldsString, opts);
 

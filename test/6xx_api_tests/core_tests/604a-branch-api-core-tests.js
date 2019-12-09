@@ -20,7 +20,7 @@ const chai = require('chai');
 const request = require('request');
 
 // MBEE modules
-const db = M.require('lib.db');
+const db = M.require('db');
 const utils = M.require('lib.utils');
 const jmi = M.require('lib.jmi-conversions');
 
@@ -79,7 +79,7 @@ describe(M.getModuleName(module.filename), () => {
    */
   after((done) => {
     // Delete organization
-    testUtils.removeTestOrg(adminUser)
+    testUtils.removeTestOrg()
     // Delete admin user
     .then(() => testUtils.removeTestAdmin())
     .then(() => db.disconnect())

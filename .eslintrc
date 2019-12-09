@@ -892,6 +892,7 @@
         "BrewingError",
         "ServerError",
         "DatabaseError",
+        "NotImplementedError",
         "User",
         "Organization",
         "Project",

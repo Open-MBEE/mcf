@@ -63,7 +63,7 @@
  */
 
 // MBEE modules
-const db = M.require('lib.db');
+const db = M.require('db');
 const validators = M.require('lib.validators');
 const extensions = M.require('models.plugin.extensions');
 const utils = M.require('lib.utils');
@@ -210,6 +210,10 @@ const ElementSchema = new db.Schema({
           // Reject if target is null
           return this.target;
         }
+        // Source null, return true
+        else {
+          return true;
+        }
       },
       message: props => 'Target is required if source is provided.'
     }]
@@ -237,6 +241,10 @@ const ElementSchema = new db.Schema({
           // Reject if source is null
           return this.source;
         }
+        // Target null, return true
+        else {
+          return true;
+        }
       },
       message: props => 'Source is required if target is provided.'
     }]
@@ -249,6 +257,28 @@ const ElementSchema = new db.Schema({
     type: 'String',
     index: true,
     default: ''
+  },
+  artifact: {
+    type: 'String',
+    ref: 'Artifact',
+    index: true,
+    default: null,
+    validate: [{
+      validator: function(v) {
+        // If v not defined, validation not required
+        if (v === null) {
+          return true;
+        }
+        else if (typeof validators.artifact.id === 'string') {
+          // If the ID is invalid, reject
+          return RegExp(validators.artifact.id).test(v);
+        }
+        else {
+          return validators.artifact.id(v);
+        }
+      },
+      message: props => `${props.value} is not a valid artifact ID.`
+    }]
   }
 }); // end of ElementSchema
 
@@ -256,18 +286,15 @@ ElementSchema.virtual('contains', {
   ref: 'Element',
   localField: '_id',
   foreignField: 'parent',
-  justOne: false,
-  default: []
+  justOne: false
 });
-
 
 // Virtual which stores elements that the retrieved element is a source of
 ElementSchema.virtual('sourceOf', {
   ref: 'Element',
   localField: '_id',
   foreignField: 'source',
-  justOne: false,
-  default: []
+  justOne: false
 });
 
 // Virtual which stores elements that the retrieved element is a target of
@@ -275,8 +302,7 @@ ElementSchema.virtual('targetOf', {
   ref: 'Element',
   localField: '_id',
   foreignField: 'target',
-  justOne: false,
-  default: []
+  justOne: false
 });
 
 /* ---------------------------( Model Plugin )---------------------------- */
@@ -292,7 +318,7 @@ ElementSchema.plugin(extensions);
  */
 ElementSchema.static('getValidUpdateFields', function() {
   return ['name', 'documentation', 'custom', 'archived', 'parent', 'type',
-    'source', 'target'];
+    'source', 'target', 'artifact'];
 });
 
 /**
@@ -301,7 +327,7 @@ ElementSchema.static('getValidUpdateFields', function() {
  */
 ElementSchema.static('getValidBulkUpdateFields', function() {
   return ['name', 'documentation', 'custom', 'archived', 'type', 'source',
-    'target'];
+    'target', 'artifact'];
 });
 
 /**
@@ -310,7 +336,8 @@ ElementSchema.static('getValidBulkUpdateFields', function() {
  */
 ElementSchema.static('getValidPopulateFields', function() {
   return ['archivedBy', 'lastModifiedBy', 'createdBy', 'parent', 'source',
-    'target', 'project', 'branch', 'sourceOf', 'targetOf', 'contains'];
+    'target', 'project', 'branch', 'sourceOf', 'targetOf', 'contains',
+    'artifact'];
 });
 
 /**

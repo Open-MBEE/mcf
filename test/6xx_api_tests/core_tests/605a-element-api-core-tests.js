@@ -20,7 +20,7 @@ const chai = require('chai');
 const request = require('request');
 
 // MBEE modules
-const db = M.require('lib.db');
+const db = M.require('db');
 const utils = M.require('lib.utils');
 const jmi = M.require('lib.jmi-conversions');
 
@@ -69,7 +69,7 @@ describe(M.getModuleName(module.filename), () => {
   after(async () => {
     try {
       // Delete organization
-      await testUtils.removeTestOrg(adminUser);
+      await testUtils.removeTestOrg();
       // Delete admin user
       await testUtils.removeTestAdmin();
       await db.disconnect();
@@ -772,6 +772,7 @@ function deleteElements(done) {
     chai.expect(err).to.equal(null);
     // Expect response status: 200 OK
     chai.expect(response.statusCode).to.equal(200);
+
     // Verify response body
     const deletedElementIDs = JSON.parse(body);
     chai.expect(deletedElementIDs).to.have.members(elemData.map(p => p.id));

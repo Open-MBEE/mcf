@@ -20,12 +20,14 @@ const fs = require('fs');
 const path = require('path');
 
 // MBEE modules
+const Artifact = M.require('models.artifact');
 const Branch = M.require('models.branch');
 const Element = M.require('models.element');
 const Organization = M.require('models.organization');
 const Project = M.require('models.project');
 const ServerData = M.require('models.server-data');
 const User = M.require('models.user');
+const db = M.require('db');
 
 /**
  * @description Handles database migrations from a specific version, to a
@@ -35,121 +37,50 @@ const User = M.require('models.user');
  *
  * @returns {Promise} Resolves an empty promise upon completion.
  */
-module.exports.migrate = function(args) {
-  return new Promise((resolve, reject) => {
-    let toVersion = null;
+module.exports.migrate = async function(args) {
+  try {
     // Set fromVersion to earliest version
     let fromVersion = '0.6.0';
-    let sortedMigrations = null;
-    let versionComp = null;
-
 
     // Prompt the user for input
-    prompt(args)
-    .then(() => Branch.init()) // Ensure branch model is created
-    .then(() => Element.init()) // Ensure element model is created
-    .then(() => Organization.init()) // Ensure org model is created
-    .then(() => Project.init()) // Ensure project model is created
-    .then(() => ServerData.init()) // Ensure server data model is created
-    .then(() => User.init()) // Ensure user model is created
+    await prompt(args);
+
+    // Initialize models
+    const promises = [Artifact.init(), Branch.init(), Element.init(),
+      Organization.init(), Project.init(), ServerData.init(), User.init()];
+    await Promise.all(promises);
+
     // Get the server data documents
-    .then(() => ServerData.find({}, null))
-    .then((serverData) => {
-      // Restrict collection to one document
-      if (serverData.length > 1) {
-        throw new Error('Cannot have more than one server data document.');
-      }
+    const serverData = await ServerData.find({}, null);
 
-      // If --to was provided
-      if (args.includes('--to')) {
-        // Get argument after --to, which should be a version
-        toVersion = args[args.indexOf('--to') + 1];
-        // Check if toVersion is a valid version
-        if (!validateVersion(toVersion)) {
-          M.log.warn(`${toVersion} is not a valid version number.`);
-          return;
-        }
-      }
-      else {
-        // Set the toVersion to the most recent schema version
-        toVersion = M.schemaVersion;
-      }
+    // Restrict collection to one document
+    if (serverData.length > 1) {
+      throw new Error('Cannot have more than one server data document.');
+    }
 
-      // One document exists, read and compare versions
-      if (serverData.length !== 0 && serverData[0].version === toVersion) {
-        return 'Database already up to date.';
-      }
-      // Set fromVersion to the current schema version
-      if (serverData.length !== 0 && serverData[0].version) {
-        fromVersion = serverData[0].version;
-      }
+    // One document exists, read and compare versions
+    if (serverData.length !== 0 && serverData[0].version === M.version) {
+      return 'Database already up to date.';
+    }
+    // Set fromVersion to the current schema version
+    if (serverData.length !== 0 && serverData[0].version) {
+      fromVersion = serverData[0].version;
+    }
 
-      // Get version comparison value
-      versionComp = compareVersions(fromVersion, toVersion);
+    // A list of MCF versions
+    const knownVersions = ['0.6.0', '0.6.0.1', '0.7.0', '0.7.1', '0.7.2', '0.7.3',
+      '0.7.3.1', '0.8.0', '0.8.1', '0.8.2', '0.8.3', '0.9.0', '0.9.1', '0.9.2',
+      '0.9.3', '0.9.4', '0.9.5', '0.10.0', '0.10.1', '0.10.2'];
 
-      // If versions are the same, return
-      if (versionComp === 0) {
-        return 'Database migration complete.';
-      }
-
-      // Get a list of migrations
-      let migrations = fs.readdirSync(path.join(M.root, 'scripts', 'migrations'));
-      // Remove .js from each file
-      migrations = migrations.map(f => {
-        const parts = f.split('.js');
-        return parts[0];
-      });
-
-      // Sort migrations from oldest to newest
-      sortedMigrations = sortVersions(migrations, versionComp);
-
-      // If no migration exists for the toVersion
-      if (toVersion !== null && !sortedMigrations.includes(toVersion)) {
-        M.log.warn(`No migration script exists for version ${toVersion}`);
-        return;
-      }
-
-      // If no migration exists for the fromVersion
-      if (fromVersion !== null && !sortedMigrations.includes(fromVersion)) {
-        M.log.warn(`No migration script exists for version ${fromVersion}`);
-        return;
-      }
-
-      // Remove migrations below fromVersion
-      while (sortedMigrations[0] !== fromVersion) {
-        sortedMigrations.shift();
-      }
-      // If upgrading, remove the first migration one more time
-      if (versionComp === 1) {
-        sortedMigrations.shift();
-      }
-
-      // Remove migrations after toVersion
-      while (sortedMigrations[sortedMigrations.length - 1] !== toVersion) {
-        sortedMigrations.pop();
-      }
-      // If downgrading, remove the last migration one more time
-      if (versionComp === -1) {
-        sortedMigrations.pop();
-      }
-      // Run the migrations
-      return runMigrations(fromVersion, sortedMigrations, versionComp);
-    })
-    .then((statusCode) => {
-      if (statusCode) {
-        M.log.info(statusCode);
-      }
-      else {
-        M.log.info('Database migration complete.');
-      }
-      return resolve();
-    })
-    .catch((error) => {
-      M.log.debug(error);
-      M.log.warn('Database migration failed. See debug log for more details.');
-      return reject(error);
-    });
-  });
+    // Run the migrations
+    await runMigrations(knownVersions.slice(knownVersions.indexOf(fromVersion) + 1));
+    M.log.info('DATABASE MIGRATION COMPLETE.');
+  }
+  catch (error) {
+    M.log.debug(error);
+    M.log.warn('Database migration failed. See debug log for more details.');
+    throw error;
+  }
 };
 
 
@@ -181,188 +112,53 @@ function prompt(args) {
 }
 
 /**
- * @description A non-exposed helper function that checks if a provided version
- * number is valid.
+ * @description A non-exposed helper function which migrates through a list of
+ * versions.
  *
- * @param {string} version - The version number to check.
- *
- * @returns {boolean} Valid version or not.
- */
-function validateVersion(version) {
-  // Ensure version is a string
-  if (typeof version !== 'string') {
-    return false;
-  }
-
-  // Split version by '.'
-  const numbers = version.split('.');
-
-  // Check if every value is a number and return that boolean
-  return numbers.every(n => !isNaN(Number(n))); // eslint-disable-line no-restricted-globals
-}
-
-/**
- * @description A non-exposed helper function that check two versions and
- * returns an integer dictating whether they are greater than, less than, or
- * equal to each other.
- *
- * @param {string} from - The version the user is migrating from.
- * @param {string} to - The version the user is migrating to.
- *
- * @returns {number} An integer which represent comparison of versions. The
- * values are as follows: -1 (from > to), 0 (from = to), 1 (from < to).
- */
-function compareVersions(from, to) {
-  // If to is null, upgrading to highest version, return 1
-  if (to === null) {
-    return 1;
-  }
-
-  // Split versions by '.'
-  const fromNumbers = from.split('.').map(n => Number(n));
-  const toNumbers = to.split('.').map(n => Number(n));
-
-  // Loop through each array and remove trailing 0's
-  for (let i = fromNumbers.length - 1; i > -1; i--) {
-    if (fromNumbers[i] === 0) {
-      fromNumbers.pop();
-    }
-    // No more trailing 0s, break from loop
-    else {
-      break;
-    }
-  }
-  for (let i = toNumbers.length - 1; i > -1; i--) {
-    if (toNumbers[i] === 0) {
-      toNumbers.pop();
-    }
-    // No more trailing 0s, break from loop
-    else {
-      break;
-    }
-  }
-
-  // Get the length for the for loop, whichever array is larger
-  const loopLength = (fromNumbers.length > toNumbers.length)
-    ? fromNumbers.length
-    : toNumbers.length;
-
-  // Loop through each number
-  for (let i = 0; i < loopLength; i++) {
-    // From version is grater, return -1
-    if (toNumbers[i] === undefined || fromNumbers[i] > toNumbers[i]) {
-      return -1;
-    }
-    // From version is less, return 1
-    if (fromNumbers[i] === undefined || fromNumbers[i] < toNumbers[i]) {
-      return 1;
-    }
-  }
-
-  // Versions are the same, return 0
-  return 0;
-}
-
-/**
- * @description A non-exposed helper function that sorts a list of versions from
- * oldest to newest.
- *
- * @param {string[]} versions - A list of versions.
- * @param {number} order - The order of the list.
- *
- * @returns {string[]} A list of sorted versions.
- */
-function sortVersions(versions, order) {
-  const sorted = versions.sort((a, b) => compareVersions(b, a));
-
-  return (order === -1) ? sorted.reverse() : sorted;
-}
-
-/**
- * @description A non-exposed helper function which recursively runs a list of
- * migrations in order.
- *
- * @param {string} from - The current version migrating from.
- * @param {string[]} migrations - The list of migrations to run.
- * @param {number} move - Either 1 (migrate up) or -1 (migrate down).
+ * @param {string[]} versions - An array of versions to migrate through.
  *
  * @returns {Promise} Resolved promise.
  */
-function runMigrations(from, migrations, move) {
-  return new Promise((resolve, reject) => {
-    // Remove first migration from array
-    const file = `${migrations.shift()}.js`;
-    // eslint-disable-next-line global-require
-    const migrationScript = require(path.join(M.root, 'scripts', 'migrations', file));
-
-    // If migrating up
-    if (move === 1) {
-      // Check if migration script has an 'up' function
-      if (!Object.keys(migrationScript).includes('up')
-        || typeof migrationScript.up !== 'function') {
-        throw new `Migration script ${file} does not have an 'up' function.`();
-      }
-
-      // Run up migration
-      M.log.info(`Upgrading from version ${from} to ${file.split('.js')[0]}.`);
-      migrationScript.up()
-      .then(() => {
-        M.log.info(`Successfully migrated to version ${file.split('.js')[0]}.`);
-        // If no more migrations left, resolve
-        if (migrations.length === 0) {
-          return resolve();
-        }
-
-        // Migrations are left, run function again
-        return runMigrations(file.split('.js')[0], migrations, move);
-      })
-      .then(() => resolve())
-      .catch((error) => reject(error));
-    }
-    else {
-      // Check if migration script has an 'down' function
-      if (!Object.keys(migrationScript).includes('down')
-        || typeof migrationScript.down !== 'function') {
-        throw new `Migration script ${file} does not have a 'down' function.`();
-      }
-
-      // Run down migration
-      migrationScript.down()
-      .then(() => {
-        // If no more migrations left, resolve
-        if (migrations.length === 0) {
-          return resolve();
-        }
-
-        // Migrations are left, run function again
-        return runMigrations(file.split('.js')[0], migrations, move);
-      })
-      .then(() => resolve())
-      .catch((error) => reject(error));
-    }
-  });
-}
-
-/**
- * @description A helper function to shift the version in the server data document either up or
- * down to the next or previous version.
- *
- * @param {string} version - The version number to shift to.
- *
- * @returns {Promise} - Returns the result of the database operation to update or insert a server
- * data document.
- */
-module.exports.shiftVersion = async function(version) {
+async function runMigrations(versions) {
   try {
-    // Delete the current server data document(s)
-    await ServerData.deleteMany({});
-    // Insert a new server data document
-    return await ServerData.insertMany([{ _id: 'server_data', version: version }]);
+    // For each version to migrate
+    for (let i = 0; i < versions.length; i++) {
+      const migrationPath = path.join(M.root, 'scripts', 'migrations', `${versions[i]}.js`);
+      const strategyMigrationPath = path.join(M.root, 'app', 'db',
+        M.config.db.strategy, 'migrations', `${versions[i]}.js`);
+
+      // If a base migration exists
+      if (fs.existsSync(migrationPath)) {
+        const migrationScript = require(migrationPath); // eslint-disable-line global-require
+
+        M.log.info(`Running migration ${versions[i]}`);
+        if (migrationScript.hasOwnProperty('up') && typeof migrationScript.up === 'function') {
+          await migrationScript.up(); // eslint-disable-line no-await-in-loop
+        }
+        M.log.info(`Migration ${versions[i]} complete`);
+      }
+
+      // If there is a database specific migration to run
+      if (fs.existsSync(strategyMigrationPath)) {
+        const migrationScript = require(strategyMigrationPath); // eslint-disable-line
+
+        M.log.info(`Running database specific migration ${versions[i]}`);
+        if (migrationScript.hasOwnProperty('up') && typeof migrationScript.up === 'function') {
+          await migrationScript.up(); // eslint-disable-line no-await-in-loop
+        }
+        M.log.info(`Database specific migration ${versions[i]} complete`);
+      }
+
+      // Upgrade schema version number
+      await ServerData.deleteMany({}); // eslint-disable-line no-await-in-loop
+      await ServerData.insertMany([{ _id: 'server_data', version: versions[i] }]); // eslint-disable-line
+      M.log.info(`Upgraded to version ${versions[i]}.`);
+    }
   }
   catch (error) {
-    throw new M.DatabaseError(error.message, 'warn');
+    throw error;
   }
-};
+}
 
 /**
  * @description Gets the schema version from the database. Runs the migrate
@@ -370,27 +166,54 @@ module.exports.shiftVersion = async function(version) {
  *
  * @returns {Promise} Resolves an empty promise upon completion.
  */
-module.exports.getSchemaVersion = function() {
-  return new Promise((resolve, reject) => {
+module.exports.getVersion = async function() {
+  try {
     // Get all documents from the server data
-    ServerData.find({}, null)
-    .then((serverData) => {
-      // Restrict collection to one document
-      if (serverData.length > 1) {
-        throw new Error('Cannot have more than one server data document.');
-      }
-      // No server data found, automatically upgrade versions
-      if (serverData.length === 0) {
+    const serverData = await ServerData.find({}, null);
+
+    // Restrict collection to one document
+    if (serverData.length > 1) {
+      throw new Error('Cannot have more than one server data document.');
+    }
+    // No server data found
+    if (serverData.length === 0) {
+      // Get a count of all documents in the database
+      let count = 0;
+
+      // Count ALL documents in the database
+      count += await Artifact.countDocuments({});
+      count += await Branch.countDocuments({});
+      count += await Element.countDocuments({});
+      count += await Organization.countDocuments({});
+      count += await Project.countDocuments({});
+      count += await User.countDocuments({});
+
+      // If there are documents in the database, migrate from version 0.6.0
+      if (count !== 0) {
         M.log.info('No server data found, automatically migrating.');
         return this.migrate([]);
       }
-      // One document exists, read and compare versions
-      if (serverData.length === 0 || serverData[0].version !== M.schemaVersion) {
-        throw new Error('Please run \'node mbee migrate\' to migrate the '
-          + 'database.');
+      // No documents in the database... Assume first time running.
+      else {
+        // Clear the database to ensure any old indexes are removed
+        await db.clear();
+
+        // Re-initialize models
+        const promises = [Artifact.init(), Branch.init(), Element.init(),
+          Organization.init(), Project.init(), ServerData.init(), User.init()];
+        await Promise.all(promises);
+
+        // Insert server data document, with current schema version
+        await ServerData.insertMany({ _id: 'server_data', version: M.version });
       }
-    })
-    .then(() => resolve())
-    .catch((error) => reject(error));
-  });
+    }
+    // One document exists, read and compare versions
+    if (serverData[0].version !== M.version) {
+      throw new Error('Please run \'node mbee migrate\' to migrate the '
+        + 'database.');
+    }
+  }
+  catch (error) {
+    throw error;
+  }
 };

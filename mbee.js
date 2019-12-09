@@ -78,16 +78,6 @@ Object.defineProperty(M, 'commit', {
 });
 
 /**
- * Defines the schema version by pulling the schemaVersion field from
- * the package.json.
- */
-Object.defineProperty(M, 'schemaVersion', {
-  value: pkg.schemaVersion,
-  writable: false,
-  enumerable: true
-});
-
-/**
  * This function provides a utility function for requiring other MBEE modules in
  * the app directory. The global-require is explicitly disabled here due to the
  * nature of this function.

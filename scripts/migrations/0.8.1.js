@@ -27,16 +27,6 @@ const Branch = M.require('models.branch');
 const Element = M.require('models.element');
 const Project = M.require('models.project');
 const utils = M.require('lib.utils');
-const migrate = M.require('lib.migrate');
-
-/**
- * @description Handles the database migration from 0.8.1 to 0.8.0.
- *
- * @returns {Promise} Returns an empty promise upon completion.
- */
-module.exports.down = async function() {
-  return migrate.shiftVersion('0.8.0');
-};
 
 /**
  * @description Handles the database migration from 0.8.0 to 0.8.1.
@@ -49,7 +39,6 @@ module.exports.down = async function() {
 module.exports.up = async function() {
   await elementHelper();
   await branchHelper();
-  return migrate.shiftVersion('0.8.1');
 };
 
 /**
