@@ -22,7 +22,7 @@
  */
 
 // MBEE modules
-const db = M.require('lib.db');
+const db = M.require('db');
 
 /* -------------------------( Server Data Schema )--------------------------- */
 

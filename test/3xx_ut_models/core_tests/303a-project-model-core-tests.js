@@ -28,7 +28,7 @@ const should = chai.should(); // eslint-disable-line no-unused-vars
 
 // MBEE modules
 const Project = M.require('models.project');
-const db = M.require('lib.db');
+const db = M.require('db');
 const utils = M.require('lib.utils');
 
 /* --------------------( Test Data )-------------------- */

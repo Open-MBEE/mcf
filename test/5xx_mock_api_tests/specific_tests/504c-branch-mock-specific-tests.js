@@ -26,7 +26,7 @@ const chai = require('chai');
 // MBEE modules
 const BranchController = M.require('controllers.branch-controller');
 const apiController = M.require('controllers.api-controller');
-const db = M.require('lib.db');
+const db = M.require('db');
 const utils = M.require('lib.utils');
 
 /* --------------------( Test Data )-------------------- */
@@ -78,7 +78,7 @@ describe(M.getModuleName(module.filename), () => {
     try {
       // Remove organization
       // Note: Projects under organization will also be removed
-      await testUtils.removeTestOrg(adminUser);
+      await testUtils.removeTestOrg();
       await testUtils.removeTestAdmin();
       await fs.unlinkSync(filepath);
       await db.disconnect();
@@ -96,7 +96,6 @@ describe(M.getModuleName(module.filename), () => {
 });
 
 /* --------------------( Tests )-------------------- */
-
 /**
  * @description Verifies that a gzip file can be uploaded, unzipped, and
  * the contents can be used to create branches.

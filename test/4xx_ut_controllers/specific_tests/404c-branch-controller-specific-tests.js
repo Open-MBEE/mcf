@@ -22,7 +22,7 @@ const chai = require('chai');
 // MBEE modules
 const BranchController = M.require('controllers.branch-controller');
 const Branch = M.require('models.branch');
-const db = M.require('lib.db');
+const db = M.require('db');
 const utils = M.require('lib.utils');
 
 /* --------------------( Test Data )-------------------- */
@@ -82,7 +82,7 @@ describe(M.getModuleName(module.filename), () => {
     try {
       // Remove organization
       // Note: Projects under organization will also be removed
-      await testUtils.removeTestOrg(adminUser);
+      await testUtils.removeTestOrg();
       await testUtils.removeTestAdmin();
       await db.disconnect();
     }

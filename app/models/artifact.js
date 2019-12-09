@@ -22,7 +22,7 @@
  */
 
 // MBEE modules
-const db = M.require('lib.db');
+const db = M.require('db');
 const validators = M.require('lib.validators');
 const extensions = M.require('models.plugin.extensions');
 const utils = M.require('lib.utils');
@@ -35,7 +35,8 @@ const utils = M.require('lib.utils');
  * @description Defines the Artifact Schema
  *
  * @property {string} _id - The artifact's unique ID.
- * @property {string} name - The artifact's name.
+ * @property {string} description - The artifact's description.
+ * @property {string} size - The artifact's size in bytes.
  * @property {string} project - A reference to an artifact's project.
  * @property {string} branch - A reference to an artifact's branch.
  * @property {string} filename - The filename of the artifact.
@@ -80,9 +81,13 @@ const ArtifactSchema = new db.Schema({
       message: props => `Invalid artifact ID [${utils.parseID(props.value).pop()}].`
     }]
   },
-  name: {
+  description: {
     type: 'String',
     default: ''
+  },
+  size: {
+    type: 'Number',
+    default: 0
   },
   project: {
     type: 'String',
@@ -146,7 +151,7 @@ ArtifactSchema.plugin(extensions);
  * @memberOf ArtifactSchema
  */
 ArtifactSchema.static('getValidUpdateFields', function() {
-  return ['filename', 'name', 'custom', 'archived', 'location'];
+  return ['filename', 'description', 'custom', 'archived', 'location', 'size'];
 });
 
 /**

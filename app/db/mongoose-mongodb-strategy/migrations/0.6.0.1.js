@@ -1,7 +1,7 @@
 /**
  * @classification UNCLASSIFIED
  *
- * @module script.migrations.0.6.0.1
+ * @module db.mongoose-mongodb-strategy.migrations.0.6.0.1
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
@@ -11,7 +11,7 @@
  *
  * @author Austin Bieber
  *
- * @description Migration script for version 0.6.0.1.
+ * @description Migration script for version 0.6.0.1. Specific to Mongoose/MongoDB.
  */
 
 // Node modules
@@ -22,31 +22,11 @@ const path = require('path');
 const mongoose = require('mongoose');
 
 // MBEE modules
-const migrate = M.require('lib.migrate');
 const Element = M.require('models.element');
 const Organization = M.require('models.organization');
 const Project = M.require('models.project');
 const User = M.require('models.user');
 const jmi = M.require('lib.jmi-conversions');
-
-// Due to the use of MongoDB ObjectIDs, this file cannot be adjusted for other
-// databases, thus it must be rewritten or commented out
-if (M.config.db.strategy !== 'mongoose-mongodb-strategy') {
-  M.log.critical('The 0.6.0.1 migration is MongoDB specific. Please rewrite'
-    + ' this file or comment out helper functions if running for first time'
-    + ' and version is greater that 0.6.0.');
-  process.exit(1);
-}
-
-/**
- * @description Handles the database migration from 0.6.0.1 to 0.6.0. This drop in
- * versions is currently not supported.
- *
- * @returns {Promise} Returns an empty promise upon completion.
- */
-module.exports.down = function() {
-  return migrate.shiftVersion('0.6.0');
-};
 
 /**
  * @description Handles the database migration from version 0.6.0 to 0.6.0.1. The
@@ -110,7 +90,6 @@ module.exports.up = async function() {
   catch (error) {
     throw new M.DatabaseError(error.message, 'warn');
   }
-  return migrate.shiftVersion('0.6.0.1');
 };
 
 

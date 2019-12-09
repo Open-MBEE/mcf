@@ -24,7 +24,7 @@ const chai = require('chai');
 const User = M.require('models.user');
 const UserController = M.require('controllers.user-controller');
 const Organization = M.require('models.organization');
-const db = M.require('lib.db');
+const db = M.require('db');
 const jmi = M.require('lib.jmi-conversions');
 
 /* --------------------( Test Data )-------------------- */

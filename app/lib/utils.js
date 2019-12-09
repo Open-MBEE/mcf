@@ -275,7 +275,7 @@ module.exports.parseOptions = function(options, validOptions) {
  */
 module.exports.validateOptions = function(options, validOptions, model) {
   // Initialize the object to be returned to the user
-  const validatedOptions = { populateString: '', sort: { $natural: 1 } };
+  const validatedOptions = { populateString: '' };
 
   // Define valid search options depending on the model
   let validSearchOptions = [];
@@ -292,7 +292,7 @@ module.exports.validateOptions = function(options, validOptions, model) {
       break;
     case 'Element':
       validSearchOptions = ['parent', 'source', 'target', 'type', 'name', 'createdBy',
-        'lastModifiedBy', 'archived', 'archivedBy'];
+        'lastModifiedBy', 'archived', 'archivedBy', 'artifact'];
       // Set populateString to include require virtuals
       validatedOptions.populateString = 'contains sourceOf targetOf ';
       break;

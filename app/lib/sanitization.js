@@ -18,7 +18,7 @@
 // Disabled to allow table in description
 
 // MBEE modules
-const db = M.require('lib.db');
+const db = M.require('db');
 
 /**
  * @description Sanitizes database queries and scripting tags.

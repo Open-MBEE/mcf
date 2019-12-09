@@ -105,7 +105,7 @@ node mbee migrate
 
 By default, this will run the migration scripts to update to the latest version.
 MBEE stores the current schema version in the database and compares that version
-to the `schemaVersion` field in the `package.json` file.
+to the `version` field in the `package.json` file.
 
 When no schema version information can be found in the database, MBEE will 
 automatically apply any necessary migrations.

@@ -29,7 +29,7 @@ const should = chai.should(); // eslint-disable-line no-unused-vars
 const User = M.require('models.user');
 const UserController = M.require('controllers.user-controller');
 const APIController = M.require('controllers.api-controller');
-const db = M.require('lib.db');
+const db = M.require('db');
 const localAuth = M.require('auth.local-strategy');
 
 /* --------------------( Test Data )-------------------- */
@@ -64,7 +64,7 @@ describe(M.getModuleName(module.filename), () => {
   after(async function() {
     try {
       // Delete adminUser and test user (if they exist)
-      await User.deleteMany({ _id: { $in: [adminUser.username, testData.users[0].id] } });
+      await User.deleteMany({ _id: { $in: [adminUser._id, testData.users[0].username] } });
       await db.disconnect();
     }
     catch (error) {

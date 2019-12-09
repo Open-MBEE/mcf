@@ -20,7 +20,7 @@ const chai = require('chai');
 
 // MBEE modules
 const apiController = M.require('controllers.api-controller');
-const db = M.require('lib.db');
+const db = M.require('db');
 const utils = M.require('lib.utils');
 const jmi = M.require('lib.jmi-conversions');
 
@@ -83,7 +83,7 @@ describe(M.getModuleName(module.filename), () => {
   after((done) => {
     // Remove organization
     // Note: Projects under organization will also be removed
-    testUtils.removeTestOrg(adminUser)
+    testUtils.removeTestOrg()
     .then(() => testUtils.removeTestAdmin())
     .then(() => db.disconnect())
     .then(() => done())

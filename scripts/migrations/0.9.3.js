@@ -18,17 +18,6 @@
 const utils = M.require('lib.utils');
 const Branch = M.require('models.branch');
 const Element = M.require('models.element');
-const migrate = M.require('lib.migrate');
-
-
-/**
- * @description Handles the database migration from 0.9.3 to 0.9.0.
- *
- * @returns {Promise} Returns an empty promise upon completion.
- */
-module.exports.down = async function() {
-  return migrate.shiftVersion('0.9.0');
-};
 
 /**
  * @description Handles the database migration from 0.9.0 to 0.9.3.
@@ -104,6 +93,4 @@ module.exports.up = async function() {
   if (missingElems.length !== 0) {
     await Element.insertMany(missingElems);
   }
-
-  return migrate.shiftVersion('0.9.3');
 };

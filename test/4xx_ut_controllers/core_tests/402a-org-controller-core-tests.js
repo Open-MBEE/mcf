@@ -22,7 +22,7 @@ const chai = require('chai');
 
 // MBEE modules
 const OrgController = M.require('controllers.organization-controller');
-const db = M.require('lib.db');
+const db = M.require('db');
 const jmi = M.require('lib.jmi-conversions');
 
 /* --------------------( Test Data )-------------------- */

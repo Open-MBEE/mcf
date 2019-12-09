@@ -26,7 +26,7 @@ const chai = require('chai');
 // MBEE modules
 const OrgController = M.require('controllers.organization-controller');
 const apiController = M.require('controllers.api-controller');
-const db = M.require('lib.db');
+const db = M.require('db');
 
 /* --------------------( Test Data )-------------------- */
 const testUtils = M.require('lib.test-utils');
@@ -83,7 +83,6 @@ describe(M.getModuleName(module.filename), () => {
 });
 
 /* --------------------( Tests )-------------------- */
-
 /**
  * @description Verifies that a gzip file can be uploaded, unzipped, and
  * the contents can be used to create orgs.

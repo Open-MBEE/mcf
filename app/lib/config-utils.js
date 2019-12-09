@@ -133,11 +133,19 @@ module.exports.validate = function(config) {
   test(config, 'db', 'object');
   test(config, 'db.strategy', 'string');
 
+  // Ensure that the db strategy directory exists
+  const dirs = fs.readdirSync(path.join(M.root, 'app', 'db'))
+  .filter((file) => file.includes(config.db.strategy));
+  if (dirs.length === 0) {
+    throw new Error(`Configuration file: DB strategy directory ${config.db.strategy} not found in app/db directory.`);
+  }
+
   // Ensure that the db strategy exists
-  const dbFiles = fs.readdirSync(path.join(M.root, 'app', 'db'))
+  const dbFiles = fs.readdirSync(path.join(M.root, 'app', 'db', config.db.strategy))
   .filter((file) => file.includes(config.db.strategy));
   if (dbFiles.length === 0) {
-    throw new Error(`Configuration file: DB strategy file ${config.db.strategy} not found in app/db directory.`);
+    throw new Error(`Configuration file: DB strategy file ${config.db.strategy}`
+      + ` not found in app/db/${config.db.strategy} directory.`);
   }
 
   // Test supported database

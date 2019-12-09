@@ -24,8 +24,9 @@ const chai = require('chai'); // Test framework
 
 // MBEE modules
 const apiController = M.require('controllers.api-controller');
-const db = M.require('lib.db');
+const db = M.require('db');
 const utils = M.require('lib.utils');
+const jmi = M.require('lib.jmi-conversions');
 
 /* --------------------( Test Data )-------------------- */
 const testUtils = M.require('lib.test-utils');
@@ -80,7 +81,7 @@ describe(M.getModuleName(module.filename), () => {
     try {
       // Remove organization
       // Note: Projects under organization will also be removed
-      await testUtils.removeTestOrg(adminUser);
+      await testUtils.removeTestOrg();
       await testUtils.removeTestAdmin();
       await db.disconnect();
     }
@@ -90,16 +91,19 @@ describe(M.getModuleName(module.filename), () => {
     }
   });
 
-
   /* Execute tests */
   it('should POST an artifact', postArtifact);
+  it('should POST multiple artifacts', postArtifacts);
   it('should GET an artifact', getArtifact);
+  it('should GET multiple artifacts', getArtifacts);
   it('should POST an artifact blob', postBlob);
   it('should GET an artifact blob', getBlob);
   it('should GET an artifact blob by ID', getBlobById);
   it('should DELETE an artifact', deleteBlob);
   it('should PATCH an artifact', patchArtifact);
+  it('should PATCH multiple artifacts', patchArtifacts);
   it('should DELETE an artifact', deleteArtifact);
+  it('should DELETE multiple artifacts', deleteArtifacts);
 });
 
 /* --------------------( Tests )-------------------- */
@@ -115,10 +119,11 @@ function postArtifact(done) {
   // Create request body
   const body = {
     id: artData.id,
-    name: artData.name,
+    description: artData.description,
     filename: artData.filename,
     location: artData.location,
-    custom: artData.custom
+    custom: artData.custom,
+    size: artData.size
   };
 
   // Create request params
@@ -144,7 +149,7 @@ function postArtifact(done) {
     const createdArtifact = JSON.parse(_data);
     // Verify artifact created properly
     chai.expect(createdArtifact.id).to.equal(artData.id);
-    chai.expect(createdArtifact.name).to.equal(artData.name);
+    chai.expect(createdArtifact.description).to.equal(artData.description);
     chai.expect(createdArtifact.branch).to.equal(branchID);
     chai.expect(createdArtifact.project).to.equal(projID);
     chai.expect(createdArtifact.org).to.equal(orgID);
@@ -154,6 +159,7 @@ function postArtifact(done) {
     chai.expect(createdArtifact.custom || {}).to.deep.equal(
       artData.custom
     );
+    chai.expect(createdArtifact.size).to.equal(artData.size);
 
     // Verify additional properties
     chai.expect(createdArtifact.createdBy).to.equal(adminUser._id);
@@ -175,6 +181,84 @@ function postArtifact(done) {
 
   // POSTs an artifact
   apiController.postArtifact(req, res);
+}
+
+/**
+ * @description Verifies mock POST request to create multiple artifact documents.
+ *
+ * @param {Function} done - The mocha callback.
+ */
+function postArtifacts(done) {
+  // Define artifact metadata
+  const artData = [
+    testData.artifacts[1],
+    testData.artifacts[2]
+  ];
+
+  // Create request params
+  const params = {
+    orgid: orgID,
+    projectid: projID,
+    branchid: branchID
+  };
+
+  const method = 'POST';
+  const req = testUtils.createRequest(adminUser, params, artData, method);
+
+  // Set response as empty object
+  const res = {};
+
+  // Verifies status code and headers
+  testUtils.createResponse(res);
+
+  // Verifies the response data
+  res.send = function send(_data) {
+    // Verify response body
+    const createdArtifacts = JSON.parse(_data);
+
+    // Expect createdArtifacts not to be empty
+    chai.expect(createdArtifacts.length).to.equal(artData.length);
+
+    // Convert to JMI type 2 for easier lookup
+    const jmi2Artifacts = jmi.convertJMI(1, 2, createdArtifacts, 'id');
+
+    // Expect the statusCode to be 200
+    chai.expect(res.statusCode).to.equal(200);
+
+    // Loop through each artifact data object
+    artData.forEach((artObj) => {
+      const artifactID = utils.createID(artObj.id);
+      const createdArt = jmi2Artifacts[artifactID];
+
+      // Verify artifacts created properly
+      chai.expect(createdArt.id).to.equal(artifactID);
+      chai.expect(createdArt.custom || {}).to.deep.equal(artObj.custom);
+      chai.expect(createdArt.project).to.equal(projID);
+      chai.expect(createdArt.org).to.equal(orgID);
+      chai.expect(createdArt.description).to.equal(artObj.description);
+      chai.expect(createdArt.filename).to.equal(artObj.filename);
+      chai.expect(createdArt.location).to.equal(artObj.location);
+      chai.expect(createdArt.strategy).to.equal(M.config.artifact.strategy);
+      chai.expect(createdArt.custom || {}).to.deep.equal(artObj.custom);
+      chai.expect(createdArt.size).to.equal(artObj.size);
+
+      // Verify additional properties
+      chai.expect(createdArt.createdBy).to.equal(adminUser._id);
+      chai.expect(createdArt.lastModifiedBy).to.equal(adminUser._id);
+      chai.expect(createdArt.createdOn).to.not.equal(null);
+      chai.expect(createdArt.updatedOn).to.not.equal(null);
+
+      // Verify specific fields not returned
+      chai.expect(createdArt).to.not.have.any.keys('archivedOn', 'archivedBy',
+        '__v', '_id');
+    });
+
+    // Ensure the response was logged correctly
+    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+  };
+
+  // POST artifacts
+  apiController.postArtifacts(req, res);
 }
 
 /**
@@ -212,16 +296,17 @@ function getArtifact(done) {
 
     // Verify artifact created properly
     chai.expect(foundArtifact.id).to.equal(artData.id);
-    chai.expect(foundArtifact.name).to.equal(artData.name);
     chai.expect(foundArtifact.branch).to.equal(branchID);
     chai.expect(foundArtifact.project).to.equal(projID);
     chai.expect(foundArtifact.org).to.equal(orgID);
+    chai.expect(foundArtifact.description).to.equal(artData.description);
     chai.expect(foundArtifact.location).to.equal(artData.location);
     chai.expect(foundArtifact.filename).to.equal(artData.filename);
     chai.expect(foundArtifact.strategy).to.equal(M.config.artifact.strategy);
     chai.expect(foundArtifact.custom || {}).to.deep.equal(
       artData.custom
     );
+    chai.expect(foundArtifact.size).to.equal(artData.size);
 
     // Verify additional properties
     chai.expect(foundArtifact.createdBy).to.equal(adminUser._id);
@@ -243,6 +328,91 @@ function getArtifact(done) {
 
   // GETs an artifact
   apiController.getArtifact(req, res);
+}
+
+/**
+ * @description Verifies mock GET request to get multiple artifacts.
+ *
+ * @param {Function} done - The mocha callback.
+ */
+function getArtifacts(done) {
+  // Define artifact metadata
+  const artData = [
+    testData.artifacts[1],
+    testData.artifacts[2]
+  ];
+
+  const artIDs = [
+    testData.artifacts[1].id,
+    testData.artifacts[2].id
+  ];
+
+  // Create request params
+  const params = {
+    orgid: orgID,
+    projectid: projID,
+    branchid: branchID
+  };
+  const method = 'GET';
+  const req = testUtils.createRequest(adminUser, params, artIDs, method);
+
+  // Set response as empty object
+  const res = {};
+
+  // Verifies status code and headers
+  testUtils.createResponse(res);
+
+  // Verifies the response data
+  res.send = function send(_data) {
+    // Verify response body
+    const foundArtifacts = JSON.parse(_data);
+
+    // Expect foundArtifacts contain the same number of documents as in artData
+    chai.expect(foundArtifacts.length).to.equal(artData.length);
+
+    // Convert to JMI type 2 for easier lookup
+    const jmi2Artifacts = jmi.convertJMI(1, 2, foundArtifacts, 'id');
+
+    // Expect the statusCode to be 200
+    chai.expect(res.statusCode).to.equal(200);
+
+    // Loop through each artifact data object
+    artData.forEach((artObj) => {
+      const artifactID = utils.createID(artObj.id);
+      const foundArtifact = jmi2Artifacts[artifactID];
+
+      // Verify artifact created properly
+      chai.expect(foundArtifact.id).to.equal(artObj.id);
+      chai.expect(foundArtifact.branch).to.equal(branchID);
+      chai.expect(foundArtifact.project).to.equal(projID);
+      chai.expect(foundArtifact.org).to.equal(orgID);
+      chai.expect(foundArtifact.description).to.equal(artObj.description);
+      chai.expect(foundArtifact.location).to.equal(artObj.location);
+      chai.expect(foundArtifact.filename).to.equal(artObj.filename);
+      chai.expect(foundArtifact.strategy).to.equal(M.config.artifact.strategy);
+      chai.expect(foundArtifact.custom || {}).to.deep.equal(
+        artObj.custom
+      );
+      chai.expect(foundArtifact.size).to.equal(artObj.size);
+
+      // Verify additional properties
+      chai.expect(foundArtifact.createdBy).to.equal(adminUser._id);
+      chai.expect(foundArtifact.lastModifiedBy).to.equal(adminUser._id);
+      chai.expect(foundArtifact.createdOn).to.not.equal(null);
+      chai.expect(foundArtifact.updatedOn).to.not.equal(null);
+      chai.expect(foundArtifact.archived).to.equal(false);
+
+      // Verify specific fields not returned
+      chai.expect(foundArtifact).to.not.have.any.keys('archivedOn', 'archivedBy',
+        '__v', '_id');
+    });
+
+    // Ensure the response was logged correctly
+    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+  };
+
+  // GET artifacts
+  apiController.getArtifacts(req, res);
 }
 
 /**
@@ -457,7 +627,7 @@ function patchArtifact(done) {
 
   // Create request body
   const body = {
-    name: 'edited_name'
+    description: 'edited_description'
   };
 
   // Create request params
@@ -484,16 +654,17 @@ function patchArtifact(done) {
 
     // Verify artifact created properly
     chai.expect(updatedArtifact.id).to.equal(artData.id);
-    chai.expect(updatedArtifact.name).to.equal('edited_name');
     chai.expect(updatedArtifact.project).to.equal(projID);
     chai.expect(updatedArtifact.branch).to.equal(branchID);
     chai.expect(updatedArtifact.org).to.equal(orgID);
+    chai.expect(updatedArtifact.description).to.equal('edited_description');
     chai.expect(updatedArtifact.location).to.equal(artData.location);
     chai.expect(updatedArtifact.filename).to.equal(artData.filename);
     chai.expect(updatedArtifact.strategy).to.equal(M.config.artifact.strategy);
     chai.expect(updatedArtifact.custom || {}).to.deep.equal(
       artData.custom
     );
+    chai.expect(updatedArtifact.size).to.equal(artData.size);
 
     // Verify additional properties
     chai.expect(updatedArtifact.createdBy).to.equal(adminUser._id);
@@ -515,6 +686,92 @@ function patchArtifact(done) {
 
   // PATCHes an artifact
   apiController.patchArtifact(req, res);
+}
+
+/**
+ * @description Verifies mock PATCH request to update multiple artifacts.
+ *
+ * @param {Function} done - The mocha callback.
+ */
+function patchArtifacts(done) {
+  // Define artifact metadata
+  const artData = [
+    testData.artifacts[1],
+    testData.artifacts[2]
+  ];
+
+  const updateObj = artData.map(a => ({
+    id: a.id,
+    description: `${a.description}_edit`
+  }));
+
+  // Create request params
+  const params = {
+    orgid: orgID,
+    projectid: projID,
+    branchid: branchID
+  };
+
+  const method = 'PATCH';
+  const req = testUtils.createRequest(adminUser, params, updateObj, method);
+
+  // Set response as empty object
+  const res = {};
+
+  // Verifies status code and headers
+  testUtils.createResponse(res);
+
+  // Verifies the response data
+  res.send = function send(_data) {
+    // Verify response body
+    const updatedArtifacts = JSON.parse(_data);
+
+    // Expect updatedArtifacts not to be empty
+    chai.expect(updatedArtifacts.length).to.equal(artData.length);
+
+    // Convert to JMI type 2 for easier lookup
+    const jmi2Artifacts = jmi.convertJMI(1, 2, updatedArtifacts, 'id');
+
+    // Expect the statusCode to be 200
+    chai.expect(res.statusCode).to.equal(200);
+
+    // Loop through each artifact data object
+    artData.forEach((artObj) => {
+      const artifactID = utils.createID(artObj.id);
+      const updatedArtifact = jmi2Artifacts[artifactID];
+
+      // Verify artifact updated properly
+      chai.expect(updatedArtifact.id).to.equal(artObj.id);
+      chai.expect(updatedArtifact.project).to.equal(projID);
+      chai.expect(updatedArtifact.branch).to.equal(branchID);
+      chai.expect(updatedArtifact.org).to.equal(orgID);
+      chai.expect(updatedArtifact.description).to.equal(`${artObj.description}_edit`);
+      chai.expect(updatedArtifact.location).to.equal(artObj.location);
+      chai.expect(updatedArtifact.filename).to.equal(artObj.filename);
+      chai.expect(updatedArtifact.strategy).to.equal(M.config.artifact.strategy);
+      chai.expect(updatedArtifact.custom || {}).to.deep.equal(
+        artObj.custom
+      );
+      chai.expect(updatedArtifact.size).to.equal(artObj.size);
+
+      // Verify additional properties
+      chai.expect(updatedArtifact.createdBy).to.equal(adminUser._id);
+      chai.expect(updatedArtifact.lastModifiedBy).to.equal(adminUser._id);
+      chai.expect(updatedArtifact.createdOn).to.not.equal(null);
+      chai.expect(updatedArtifact.updatedOn).to.not.equal(null);
+      chai.expect(updatedArtifact.archived).to.equal(false);
+
+      // Verify specific fields not returned
+      chai.expect(updatedArtifact).to.not.have.any.keys('archivedOn', 'archivedBy',
+        '__v', '_id');
+    });
+
+    // Ensure the response was logged correctly
+    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+  };
+
+  // PATCH artifacts
+  apiController.patchArtifacts(req, res);
 }
 
 /**
@@ -559,4 +816,45 @@ function deleteArtifact(done) {
 
   // DELETEs an artifact
   apiController.deleteArtifact(req, res);
+}
+
+/**
+ * @description Verifies mock DELETE request to delete multiple artifacts.
+ *
+ * @param {Function} done - The mocha callback.
+ */
+function deleteArtifacts(done) {
+  // Define artifact metadata
+  const artIDs = [
+    testData.artifacts[1].id,
+    testData.artifacts[2].id
+  ];
+
+  // Create request params
+  const params = {
+    orgid: orgID,
+    projectid: projID,
+    branchid: branchID
+  };
+  const method = 'DELETE';
+  const req = testUtils.createRequest(adminUser, params, artIDs, method);
+
+  // Set response as empty object
+  const res = {};
+
+  // Verifies status code and headers
+  testUtils.createResponse(res);
+
+  // Verifies the response data
+  res.send = function send(_data) {
+    // Verify response body
+    const artifactIDs = JSON.parse(_data);
+    chai.expect(artifactIDs).to.have.members(artIDs);
+
+    // Ensure the response was logged correctly
+    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+  };
+
+  // DELETE artifacts
+  apiController.deleteArtifacts(req, res);
 }

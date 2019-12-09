@@ -228,6 +228,43 @@ module.exports.createTestOrg = async function(adminUser) {
 };
 
 /**
+ * @description Helper function to create a test artifact in MBEE tests.
+ *
+ * @param {object} adminUser - The admin user to create the artifact with.
+ * @param {string} orgID - The org to create the artifact on.
+ * @param {string} projID - The project to create the artifact on.
+ * @param {string} branchID - The branch to create the artifact on.
+ *
+ * @returns {Promise<Artifact>} Returns the newly created artifact upon
+ * completion.
+ */
+module.exports.createTestArt = async function(adminUser, orgID, projID, branchID) {
+  try {
+    // Create the new artifact
+    const newArt = {
+      _id: utils.createID(orgID, projID, branchID, testData.artifacts[0].id),
+      org: orgID,
+      project: utils.createID(orgID, projID),
+      description: testData.artifacts[0].description,
+      filename: testData.artifacts[0].filename,
+      location: testData.artifacts[0].location,
+      strategy: M.config.artifact.strategy,
+      branch: utils.createID(orgID, projID, branchID),
+      custom: {},
+      createdBy: adminUser._id,
+      createdOn: Date.now(),
+      lasModifiedBy: adminUser._id,
+      updatedOn: Date.now()
+    };
+
+    return (await Artifact.insertMany(newArt))[0];
+  }
+  catch (error) {
+    throw errors.captureError(error);
+  }
+};
+
+/**
  * @description Helper function to remove organization in MBEE tests.
  *
  * @returns {Promise<string>} Returns the id of the deleted org.

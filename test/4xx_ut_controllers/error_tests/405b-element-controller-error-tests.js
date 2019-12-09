@@ -26,7 +26,7 @@ const should = chai.should(); // eslint-disable-line no-unused-vars
 
 // MBEE modules
 const ElementController = M.require('controllers.element-controller');
-const db = M.require('lib.db');
+const db = M.require('db');
 const utils = M.require('lib.utils');
 
 /* --------------------( Test Data )-------------------- */
@@ -109,7 +109,7 @@ describe(M.getModuleName(module.filename), () => {
   after((done) => {
     // Remove organization
     // Note: Projects and elements under organization will also be removed
-    testUtils.removeTestOrg(adminUser)
+    testUtils.removeTestOrg()
     .then(() => testUtils.removeTestAdmin())
     .then(() => db.disconnect())
     .then(() => done())

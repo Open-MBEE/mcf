@@ -1,7 +1,7 @@
 /**
  * @classification UNCLASSIFIED
  *
- * @module lib.db
+ * @module db
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
@@ -19,7 +19,7 @@
 const events = require('events');
 
 // MBEE modules
-const DBModule = M.require(`db.${M.config.db.strategy}`);
+const DBModule = M.require(`db.${M.config.db.strategy}.${M.config.db.strategy}`);
 
 const requiredFunctions = ['connect', 'disconnect', 'clear', 'sanitize',
   'Schema', 'Model', 'Store'];
@@ -268,7 +268,7 @@ class Model extends DBModule.Model {
 
   /**
    * @description Performs a large write operation on a collection. Can create,
-   * update, or delete multiple documents.
+   * update, replace, or delete multiple documents.
    * @async
    *
    * @param {object[]} ops - An array of objects detailing what operations to
@@ -287,8 +287,12 @@ class Model extends DBModule.Model {
    * @param {object} [ops.deleteMany] - Specifies a deleteMany operation.
    * @param {object} [ops.deleteMany.filter] - An object containing parameters
    * to filter the find query by, for deleteMany.
+   * @param {object} [ops.replaceOne] - Specifies a replace operation.
+   * @param {object} [ops.replaceOne.filter] - An object containing parameters
+   * to filter the find query by, for replaceOne.
+   * @param {object} [ops.replaceOne.replacement] - The document to replace the
+   * found document with.
    * @param {object} [options] - An object containing options.
-   * @param {Function} [cb] - A callback function to run.
    *
    * @example
    * await bulkWrite([
@@ -309,6 +313,15 @@ class Model extends DBModule.Model {
    *     deleteOne: {
    *       filter: { _id: 'sample-id-to-delete' }
    *     }
+   *   },
+   *   {
+   *     replaceOne: {
+   *       filter: { _id: 'sample-id-to-replace' },
+   *       replacement: {
+   *         _id: 'sample-id-to-replace',
+   *         name: 'Sample Name'
+   *       }
+   *     }
    *   }
    * ]);
    *
@@ -318,8 +331,8 @@ class Model extends DBModule.Model {
    * (deletedCount) and the success of the operation (result), with 1 being
    * success and 0 being failure.
    */
-  async bulkWrite(ops, options, cb) {
-    return super.bulkWrite(ops, options, cb);
+  async bulkWrite(ops, options) {
+    return super.bulkWrite(ops, options);
   }
 
   /**
@@ -328,13 +341,12 @@ class Model extends DBModule.Model {
    *
    * @param {object} filter - An object containing parameters to filter the
    * find query by.
-   * @param {Function} [cb] - A callback function to run.
    *
    * @returns {Promise<number>} The number of documents which matched the
    * filter.
    */
-  async countDocuments(filter, cb) {
-    return super.countDocuments(filter, cb);
+  async countDocuments(filter) {
+    return super.countDocuments(filter);
   }
 
   /**
@@ -350,21 +362,20 @@ class Model extends DBModule.Model {
   }
 
   /**
-   * @description Deletes any documents that match the provided conditions.
+   * @description Deletes any documents that match the provided filter.
    * @async
    *
-   * @param {object} conditions - An object containing parameters to filter the
+   * @param {object} filter - An object containing parameters to filter the
    * find query by, and thus delete documents by.
    * @param {object} [options] - An object containing options.
-   * @param {Function} [cb] - A callback function to run.
    *
    * @returns {Promise<object>} An object denoting the success of the delete
    * operation. The object should contain the key "n" which is the number of
    * documents deleted and the key "ok" which is either 1 for success or 0 for
    * failure.
    */
-  async deleteMany(conditions, options, cb) {
-    return super.deleteMany(conditions, options, cb);
+  async deleteMany(filter, options) {
+    return super.deleteMany(filter, options);
   }
 
   /**
@@ -373,7 +384,7 @@ class Model extends DBModule.Model {
    *
    * @param {object} filter - An object containing parameters to filter the
    * find query by.
-   * @param {(object|string)} [projection] - Specifies the fields to return in
+   * @param {(string|null)} [projection] - Specifies the fields to return in
    * the documents that match the filter. To return all fields, omit this
    * parameter.
    * @param {object} [options] - An object containing options.
@@ -394,22 +405,21 @@ class Model extends DBModule.Model {
    * documents can be populated. Populating a field returns the entire
    * referenced document instead of that document's ID. If no document exists,
    * null is returned.
-   * @param {Function} [cb] - A callback function to run.
    *
    * @returns {Promise<object[]>} An array containing the found documents, if
    * any.
    */
-  async find(filter, projection, options, cb) {
-    return super.find(filter, projection, options, cb);
+  async find(filter, projection, options) {
+    return super.find(filter, projection, options);
   }
 
   /**
    * @description Finds a single document based on the filter provided.
    * @async
    *
-   * @param {object} conditions - An object containing parameters to filter the
-   * find query by.
-   * @param {(object|string)} [projection] - Specifies the fields to return in
+   * @param {object} filter - An object containing parameters to filter the find
+   * query by.
+   * @param {(string|null)} [projection] - Specifies the fields to return in
    * the document that matches the filter. To return all fields, omit this
    * parameter.
    * @param {object} [options] - An object containing options.
@@ -418,13 +428,12 @@ class Model extends DBModule.Model {
    * documents can be populated. Populating a field returns the entire
    * referenced document instead of that document's ID. If no document exists,
    * null is returned.
-   * @param {Function} [cb] - A callback function to run.
    *
    * @returns {Promise<(object|null)>} The found document, if any otherwise
    * null.
    */
-  async findOne(conditions, projection, options, cb) {
-    return super.findOne(conditions, projection, options, cb);
+  async findOne(filter, projection, options) {
+    return super.findOne(filter, projection, options);
   }
 
   /**
@@ -445,12 +454,11 @@ class Model extends DBModule.Model {
    * @param {object} [options] - An object containing options.
    * @param {boolean} [options.skipValidation] - If true, will not validate
    * the documents which are being created.
-   * @param {Function} [cb] - A callback function to run.
    *
    * @returns {Promise<object[]>} The created documents.
    */
-  async insertMany(docs, options, cb) {
-    return super.insertMany(docs, options, cb);
+  async insertMany(docs, options) {
+    return super.insertMany(docs, options);
   }
 
   /**
@@ -462,14 +470,13 @@ class Model extends DBModule.Model {
    * find query by.
    * @param {object} doc - The object containing updates to the found documents.
    * @param {object} [options] - An object containing options.
-   * @param {Function} [cb] - A callback function to run.
    *
    * @returns {Promise<object>} An object denoting the success of the operation.
    * It should contain two keys, "n" which is the number of documents matched
    * and "nModified" which is the number of documents updated.
    */
-  async updateMany(filter, doc, options, cb) {
-    return super.updateMany(filter, doc, options, cb);
+  async updateMany(filter, doc, options) {
+    return super.updateMany(filter, doc, options);
   }
 
   /**
@@ -481,14 +488,13 @@ class Model extends DBModule.Model {
    * find query by.
    * @param {object} doc - The object containing updates to the found document.
    * @param {object} [options] - An object containing options.
-   * @param {Function} [cb] - A callback function to run.
    *
    * @returns {Promise<object>} An object denoting the success of the operation.
    * It should contain two keys, "n" which is the number of documents matched
    * and "nModified" which is the number of documents updated.
    */
-  async updateOne(filter, doc, options, cb) {
-    return super.updateOne(filter, doc, options, cb);
+  async updateOne(filter, doc, options) {
+    return super.updateOne(filter, doc, options);
   }
 
 }

@@ -789,7 +789,7 @@ async function remove(requestingUser, users, options) {
 
     // Create memberQuery
     foundUsers.forEach((user) => {
-      memberQuery[`permissions.${user._id}`] = 'read';
+      memberQuery[`permissions.${user._id}`] = { $all: ['read'] };
     });
 
     // Check that user can remove each user
@@ -925,23 +925,13 @@ async function search(requestingUser, query, options) {
     }
 
     // Add text to search query
-    searchQuery.$text = { $search: query };
+    searchQuery.$text = query;
     // If the includeArchived field is true, remove archived from the query; return everything
     if (validatedOptions.includeArchived) {
       delete searchQuery.archived;
     }
 
-    // Add sorting by metadata
-    // If no sorting option was specified ($natural is the default) then remove
-    // $natural. $natural does not work with metadata sorting
-    if (validatedOptions.sort.$natural) {
-      validatedOptions.sort = { score: { $meta: 'textScore' } };
-    }
-    else {
-      validatedOptions.sort.score = { $meta: 'textScore' };
-    }
-
-    return await User.find(searchQuery, { score: { $meta: 'textScore' } },
+    return await User.find(searchQuery, null,
       { limit: validatedOptions.limit,
         skip: validatedOptions.skip,
         sort: validatedOptions.sort,

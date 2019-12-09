@@ -91,7 +91,7 @@ if (!ArtifactStrategy.hasOwnProperty('clear')) {
  * @param {string} [options.sort] - Provide a particular field to sort the results by.
  * You may also add a negative sign in front of the field to indicate sorting in
  * reverse order.
- * @param {string} [options.name] - Search for artifacts with a specific name.
+ * @param {string} [options.description] - Search for artifacts with a specific description.
  * @param {string} [options.filename] - Search for artifacts with a specific
  * filename.
  * @param {string} [options.createdBy] - Search for artifacts with a specific
@@ -146,7 +146,7 @@ async function find(requestingUser, organizationID, projectID, branchID, artifac
   // Ensure options are valid
   if (options) {
     // Create array of valid search options
-    const validSearchOptions = ['filename', 'name', 'createdBy',
+    const validSearchOptions = ['filename', 'description', 'createdBy',
       'lastModifiedBy', 'archived', 'archivedBy'];
 
     // Loop through provided options, look for validSearchOptions
@@ -228,11 +228,12 @@ async function find(requestingUser, organizationID, projectID, branchID, artifac
  * @param {(object|object[])} artifacts - Either an array of objects containing
  * artifact data or a single object containing artifact data to create.
  * @param {string} artifacts.id - The ID of the artifact being created.
- * @param {string} [artifacts.name] - The name of the artifact.
+ * @param {string} [artifacts.description] - The description of the artifact.
  * @param {string} artifacts.filename - The filename of the artifact.
  * @param {string} artifacts.location - The file blob location.
  * @param {object} [artifacts.custom] - Any additional key/value pairs for an
  * object. Must be proper JSON form.
+ * @param {string} [artifacts.size] - The artifact size.
  * @param {object} [options] - A parameter that provides supported options.
  * @param {string[]} [options.populate] - A list of fields to populate on return
  * of the found objects. By default, no fields are populated.
@@ -388,13 +389,14 @@ async function create(requestingUser, organizationID, projectID, branchID,
  * @param {(object|object[])} artifacts - Either an array of objects containing
  * artifact data or a single object containing artifact data to update.
  * @param {string} artifacts.id - The ID of the artifact being updated.
- * @param {string} [artifacts.name] - The name of the artifact.
+ * @param {string} [artifacts.description] - The description of the artifact.
  * @param {string} [artifacts.filename] - The filename of the artifact.
  * @param {string} [artifacts.location] - The file blob location.
  * @param {string} [artifacts.archived] - The updated archived field. If true,
  * the artifact will not be able to be found until unarchived.
  * @param {object} [artifacts.custom] - Any additional key/value pairs for an
  * object. Must be proper JSON form.
+ * @param {string} [artifacts.size] - The artifact size.
  * @param {object} [options] - A parameter that provides supported options.
  * @param {string[]} [options.populate] - A list of fields to populate on return
  * of the found objects. By default, no fields are populated.

@@ -252,7 +252,6 @@ class Model {
    * @param {object} [ops.deleteMany.filter] - An object containing parameters
    * to filter the find query by, for deleteMany.
    * @param {object} [options] - An object containing options.
-   * @param {Function} [cb] - A callback function to run.
    *
    * @example
    * await bulkWrite([
@@ -278,8 +277,8 @@ class Model {
    *
    * @returns {Promise<object>} Result of the bulkWrite operation.
    */
-  async bulkWrite(ops, options, cb) {
-    return this.model.bulkWrite(ops, options, cb);
+  async bulkWrite(ops, options) {
+    return this.model.bulkWrite(ops, options);
   }
 
   /**
@@ -289,15 +288,14 @@ class Model {
    *
    * @param {object} filter - An object containing parameters to filter the
    * find query by.
-   * @param {Function} [cb] - A callback function to run.
    *
    * @returns {Promise<number>} The number of documents which matched the filter.
    */
-  async countDocuments(filter, cb) {
+  async countDocuments(filter) {
     // Validate the query
     this.validateQuery(filter);
 
-    return this.model.countDocuments(filter, cb);
+    return this.model.countDocuments(filter);
   }
 
   /**
@@ -314,23 +312,22 @@ class Model {
   }
 
   /**
-   * @description Deletes any documents that match the provided conditions.
-   * Calls the mongoose deleteMany() function.
+   * @description Deletes any documents that match the provided filter. Calls
+   * the mongoose deleteMany() function.
    * @async
    *
-   * @param {object} conditions - An object containing parameters to filter the
+   * @param {object} filter - An object containing parameters to filter the
    * find query by, and thus delete documents by.
    * @param {object} [options] - An object containing options.
-   * @param {Function} [cb] - A callback function to run.
    *
    * @returns {Promise<object>} An object denoting the success of the delete
    * operation.
    */
-  async deleteMany(conditions, options, cb) {
+  async deleteMany(filter, options) {
     // Validate the query
-    this.validateQuery(conditions);
+    this.validateQuery(filter);
 
-    return this.model.deleteMany(conditions, options, cb);
+    return this.model.deleteMany(filter, options);
   }
 
   /**
@@ -340,7 +337,7 @@ class Model {
    *
    * @param {object} filter - An object containing parameters to filter the
    * find query by.
-   * @param {(object|string)} [projection] - Specifies the fields to return in
+   * @param {(string|null)} [projection] - Specifies the fields to return in
    * the documents that match the filter. To return all fields, omit this
    * parameter.
    * @param {object} [options] - An object containing options.
@@ -361,12 +358,11 @@ class Model {
    * documents can be populated. Populating a field returns the entire
    * referenced document instead of that document's ID. If no document exists,
    * null is returned.
-   * @param {Function} [cb] - A callback function to run.
    *
    * @returns {Promise<object[]>} An array containing the found documents, if
    * any.
    */
-  async find(filter, projection, options, cb) {
+  async find(filter, projection, options) {
     // Validate the query
     this.validateQuery(filter);
 
@@ -378,8 +374,51 @@ class Model {
       options.lean = true;
     }
 
+    // If options.sort is not defined, set it to $natural
+    if (!options.sort) {
+      options.sort = { $natural: 1 };
+    }
+
+    // Handle text search
+    if (Object.keys(filter).includes('$text')) {
+      // Modify to user proper mongoDB format, { $text: { $search: 'query-string' } }
+      filter.$text = { $search: filter.$text };
+
+      // If there is already a projection defined
+      if (projection) {
+        const newProj = {};
+        // Split the projection on spaces
+        const keys = projection.split(' ');
+        // For each key in the projection
+        keys.forEach((k) => {
+          // If it starts with a '-', we want to remove it from the document on return
+          if (k.startsWith('-')) {
+            newProj[k] = -1;
+          }
+          else {
+            newProj[k] = 1;
+          }
+        });
+
+        projection = newProj; // eslint-disable-line no-param-reassign
+      }
+      else {
+        // Make projection an object
+        projection = {}; // eslint-disable-line no-param-reassign
+      }
+
+      // Add the text search specific fields to the projection
+      projection.score = {};
+      projection.score.$meta = 'textScore';
+
+      // Delete the $natural sort option
+      delete options.sort.$natural;
+      // Add the text search specific sorting
+      options.sort.score = { $meta: 'textScore' };
+    }
+
     // Call model.find()
-    return this.model.find(filter, projection, options, cb);
+    return this.model.find(filter, projection, options);
   }
 
   /**
@@ -387,9 +426,9 @@ class Model {
    * the mongoose findOne() function.
    * @async
    *
-   * @param {object} conditions - An object containing parameters to filter the
-   * find query by.
-   * @param {(object|string)} [projection] - Specifies the fields to return in
+   * @param {object} filter - An object containing parameters to filter the find
+   * query by.
+   * @param {(string|null)} [projection] - Specifies the fields to return in
    * the document that matches the filter. To return all fields, omit this
    * parameter.
    * @param {object} [options] - An object containing options.
@@ -398,13 +437,12 @@ class Model {
    * documents can be populated. Populating a field returns the entire
    * referenced document instead of that document's ID. If no document exists,
    * null is returned.
-   * @param {Function} [cb] - A callback function to run.
    *
    * @returns {Promise<object>} The found document, if any.
    */
-  async findOne(conditions, projection, options, cb) {
+  async findOne(filter, projection, options) {
     // Validate the query
-    this.validateQuery(conditions);
+    this.validateQuery(filter);
 
     // Set lean option to true
     if (!options) {
@@ -415,7 +453,7 @@ class Model {
     }
 
     // Call model.findOne()
-    return this.model.findOne(conditions, projection, options, cb);
+    return this.model.findOne(filter, projection, options);
   }
 
   /**
@@ -438,11 +476,10 @@ class Model {
    * @param {object} [options] - An object containing options.
    * @param {boolean} [options.skipValidation] - If true, will not validate
    * the documents which are being created.
-   * @param {Function} [cb] - A callback function to run.
    *
    * @returns {Promise<object[]>} The created documents.
    */
-  async insertMany(docs, options, cb) {
+  async insertMany(docs, options) {
     let useCollection = false;
 
     // Define the rawResult option
@@ -467,7 +504,7 @@ class Model {
     }
     else {
       // Insert the documents
-      responseQuery = await this.model.insertMany(docs, options, cb);
+      responseQuery = await this.model.insertMany(docs, options);
     }
 
     // Return responseQuery.ops, the array of inserted documents
@@ -483,15 +520,14 @@ class Model {
    * find query by.
    * @param {object} doc - The object containing updates to the found documents.
    * @param {object} [options] - An object containing options.
-   * @param {Function} [cb] - A callback function to run.
    *
    * @returns {Promise<object[]>} The updated objects.
    */
-  async updateMany(filter, doc, options, cb) {
+  async updateMany(filter, doc, options) {
     // Validate the query
     this.validateQuery(filter);
 
-    return this.model.updateMany(filter, doc, options, cb);
+    return this.model.updateMany(filter, doc, options);
   }
 
   /**
@@ -503,15 +539,14 @@ class Model {
    * find query by.
    * @param {object} doc - The object containing updates to the found document.
    * @param {object} [options] - An object containing options.
-   * @param {Function} [cb] - A callback function to run.
    *
    * @returns {Promise<object>} The updated document.
    */
-  async updateOne(filter, doc, options, cb) {
+  async updateOne(filter, doc, options) {
     // Validate the query
     this.validateQuery(filter);
 
-    return this.model.updateOne(filter, doc, options, cb);
+    return this.model.updateOne(filter, doc, options);
   }
 
   /**
@@ -530,7 +565,7 @@ class Model {
         this.validateQuery(query[k]);
       }
 
-      const validKeys = ['$in', '$search', '$text'];
+      const validKeys = ['$in', '$text', '$all'];
       // If the key starts with '$' and is not in the validKeys array, throw an error
       if (k.startsWith('$') && !validKeys.includes(k)) {
         throw new M.ServerError(`The mongo keyword ${k} is no longer supported`

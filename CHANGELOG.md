@@ -1,6 +1,26 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [0.10.2] - 2019-11-22
+### Major Features and Improvements
+* Abstracted out database migrations to support the database abstraction layer.
+  Each database can now have migrations which are specific to that database, in
+  addition to the system-wide database migrations
+* Updated the Artifact schema by adding a `size` field, and changing the name of
+  `name` to `description`
+* Updated the Element schema by adding an `artifact` field which allows for
+  referencing an artifact.
+  
+### Bug Fixes and Other Changes
+* Refactored the database abstraction layer by removing the need to support
+  callback functions in the parameters and by adding the requirement for
+  supporting the operation `replaceOne` in `Model.bulkWrite()`
+* Removed usage of the MongoDB specifc keywords `$unset`, `$push`, `$search` and
+  `$meta`
+* Modified queries searching the `permissions` field to use the keyword `$all`.
+  Usage of this keyword specifies that all contents in the query **must** be
+  found in an array for a document to match
+
 ## [0.10.1] - 2019-11-08
 ### Major Features and Improvements
 * Added batch CRUD operations for artifact documents

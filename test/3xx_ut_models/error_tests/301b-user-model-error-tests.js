@@ -25,7 +25,7 @@ const should = chai.should(); // eslint-disable-line no-unused-vars
 
 // MBEE modules
 const User = M.require('models.user');
-const db = M.require('lib.db');
+const db = M.require('db');
 const validators = M.require('lib.validators');
 
 /* --------------------( Test Data )-------------------- */
@@ -207,7 +207,6 @@ async function lnameInvalid() {
     should.not.exist(error);
   }
 }
-
 
 /**
  * @description Attempts to create a user with an invalid preferred name.

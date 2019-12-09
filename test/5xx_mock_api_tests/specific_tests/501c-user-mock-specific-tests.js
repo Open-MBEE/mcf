@@ -26,7 +26,7 @@ const chai = require('chai');
 // MBEE modules
 const UserController = M.require('controllers.user-controller');
 const apiController = M.require('controllers.api-controller');
-const db = M.require('lib.db');
+const db = M.require('db');
 
 /* --------------------( Test Data )-------------------- */
 const testUtils = M.require('lib.test-utils');
@@ -70,7 +70,7 @@ describe(M.getModuleName(module.filename), () => {
   after(async () => {
     try {
       // Remove organization
-      await testUtils.removeTestOrg(adminUser);
+      await testUtils.removeTestOrg();
       await testUtils.removeTestAdmin();
       await fs.unlinkSync(filepath);
       await db.disconnect();
@@ -89,7 +89,6 @@ describe(M.getModuleName(module.filename), () => {
 });
 
 /* --------------------( Tests )-------------------- */
-
 /**
  * @description Verifies that a gzip file can be uploaded, unzipped, and
  * the contents can be used to create users.
