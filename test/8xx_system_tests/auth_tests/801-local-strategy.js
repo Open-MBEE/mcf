@@ -1,7 +1,7 @@
 /**
  * @classification UNCLASSIFIED
  *
- * @module test.auth_tests.801-local-strategy
+ * @module test.801-auth-local-strategy
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
@@ -29,12 +29,12 @@ const should = chai.should(); // eslint-disable-line no-unused-vars
 const User = M.require('models.user');
 const UserController = M.require('controllers.user-controller');
 const APIController = M.require('controllers.api-controller');
-const db = M.require('db');
 const localAuth = M.require('auth.local-strategy');
 
 /* --------------------( Test Data )-------------------- */
 const testUtils = M.require('lib.test-utils');
 const testData = testUtils.importTestData('test_data.json');
+const next = testUtils.next;
 let adminUser = null;
 
 /* --------------------( Main )-------------------- */
@@ -46,11 +46,10 @@ let adminUser = null;
  */
 describe(M.getModuleName(module.filename), () => {
   /**
-   * Before: runs before all tests. Open the database connection.
+   * Before: runs before all tests. Creates a test admin.
    */
   before(async function() {
     try {
-      await db.connect();
       adminUser = await testUtils.createTestAdmin();
     }
     catch (error) {
@@ -59,13 +58,11 @@ describe(M.getModuleName(module.filename), () => {
   });
 
   /**
-   * After: runs after all tests. Close database connection.
+   * After: runs after all tests. Removes any remaining users if they exist.
    */
   after(async function() {
     try {
-      // Delete adminUser and test user (if they exist)
       await User.deleteMany({ _id: { $in: [adminUser._id, testData.users[0].username] } });
-      await db.disconnect();
     }
     catch (error) {
       should.not.exist(error);
@@ -164,8 +161,8 @@ async function failedloginsField() {
     foundUser.should.have.property('failedlogins');
     res.statusCode.should.equal(200);
   };
-  // GETs the test user as an admin
-  await APIController.getUser(req, res);
+  // GET the test user as an admin
+  await APIController.getUser(req, res, next(req, res));
 
   // *************** Verify failedlogins field not returned for non-admin *************** //
   // Create a mock req object for the api controller
@@ -179,8 +176,8 @@ async function failedloginsField() {
     foundUser.should.not.have.property('failedlogins');
     res.statusCode.should.equal(200);
   };
-  // GETs the user as a non-admin
-  await APIController.getUser(req, res);
+  // GET the user as a non-admin
+  await APIController.getUser(req, res, next(req, res));
 
   // Remove the test user
   await UserController.remove(adminUser, user._id);

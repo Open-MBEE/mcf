@@ -22,7 +22,6 @@ const chai = require('chai');
 
 // MBEE modules
 const OrgController = M.require('controllers.organization-controller');
-const db = M.require('db');
 const jmi = M.require('lib.jmi-conversions');
 
 /* --------------------( Test Data )-------------------- */
@@ -42,38 +41,31 @@ describe(M.getModuleName(module.filename), () => {
   /**
    * Before: Create admin user.
    */
-  before((done) => {
-    // Connect to the database
-    db.connect()
-    // Create test admin
-    .then(() => testUtils.createTestAdmin())
-    .then((user) => {
-      // Set global admin user
-      adminUser = user;
-      done();
-    })
-    .catch((error) => {
+  before(async () => {
+    try {
+      // Create test admin
+      adminUser = await testUtils.createTestAdmin();
+    }
+    catch (error) {
       M.log.error(error);
       // Expect no error
       chai.expect(error).to.equal(null);
-      done();
-    });
+    }
   });
 
   /**
    * After: Delete admin user.
    */
-  after((done) => {
-    // Removing admin user
-    testUtils.removeTestAdmin()
-    .then(() => db.disconnect())
-    .then(() => done())
-    .catch((error) => {
+  after(async () => {
+    try {
+      // Removing admin user
+      await testUtils.removeTestAdmin();
+    }
+    catch (error) {
       M.log.error(error);
       // Expect no error
       chai.expect(error).to.equal(null);
-      done();
-    });
+    }
   });
 
   /* Execute the tests */

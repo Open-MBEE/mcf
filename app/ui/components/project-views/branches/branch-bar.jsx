@@ -42,7 +42,8 @@ class BranchBar extends Component {
     // Initialize state props
     this.state = {
       branches: null,
-      currentBranch: null
+      currentBranch: null,
+      error: null
     };
 
     this.handleChange = this.handleChange.bind(this);
@@ -52,12 +53,11 @@ class BranchBar extends Component {
   // Handles branch change
   handleChange(event) {
     if (event.target.value !== null) {
-      const orgId = this.props.project.org;
-      const projId = this.props.project.id;
-      let newUrl = `/orgs/${orgId}/projects/${projId}/branches/${event.target.value}`;
+      const { org, id } = this.props.project;
+      let newUrl = `/orgs/${org}/projects/${id}/branches/${event.target.value}`;
 
-      // Update URL endpoint if component is on the Search page
-      newUrl = (this.props.searchForm) ? `${newUrl}/search` : `${newUrl}/elements`;
+      // Update URL endpoint to the page of the corresponding component: search, elements, artifacts
+      newUrl = `${newUrl}${this.props.endpoint}`;
 
       // Reload the place with new branch
       window.location.replace(newUrl);
@@ -114,6 +114,8 @@ class BranchBar extends Component {
     let archived = false;
     const branchOptions = [];
     const tagOptions = [];
+    // Only display options on the project elements page.
+    const displayOptions = (this.props.endpoint !== '/elements');
 
     // Verify branches were grabbed
     if (this.state.branches) {
@@ -194,7 +196,7 @@ class BranchBar extends Component {
               }
             </div>
             { /* Hide Options on Search Form */ }
-            {(this.props.searchForm)
+            {(displayOptions)
               ? ''
               : <div className='options-btn'>
                 <UncontrolledButtonDropdown>

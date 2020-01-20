@@ -21,13 +21,13 @@ const chai = require('chai');
 
 // MBEE modules
 const APIController = M.require('controllers.api-controller');
-const db = M.require('db');
 const jmi = M.require('lib.jmi-conversions');
 
 /* --------------------( Test Data )-------------------- */
 // Variables used across test functions
 const testUtils = M.require('lib.test-utils');
 const testData = testUtils.importTestData('test_data.json');
+const next = testUtils.next;
 let adminUser = null;
 
 /* --------------------( Main )-------------------- */
@@ -41,37 +41,29 @@ describe(M.getModuleName(module.filename), () => {
   /**
    * Before: Run before all tests. Creates the admin user.
    */
-  before((done) => {
-    // Connect to the database
-    db.connect()
-    // Create test admin
-    .then(() => testUtils.createTestAdmin())
-    .then((reqUser) => {
-      adminUser = reqUser;
-      done();
-    })
-    .catch((error) => {
+  before(async () => {
+    try {
+      adminUser = await testUtils.createTestAdmin();
+    }
+    catch (error) {
       M.log.error(error);
       // Expect no error
       chai.expect(error).to.equal(null);
-      done();
-    });
+    }
   });
 
   /**
    * After: Delete admin user.
    */
-  after((done) => {
-    // Delete test admin
-    testUtils.removeTestAdmin()
-    .then(() => db.disconnect())
-    .then(() => done())
-    .catch((error) => {
+  after(async () => {
+    try {
+      await testUtils.removeTestAdmin();
+    }
+    catch (error) {
       M.log.error(error);
       // Expect no error
       chai.expect(error).to.equal(null);
-      done();
-    });
+    }
   });
 
   /* Execute tests */
@@ -120,12 +112,11 @@ function whoami(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
-  // GETs the requesting user
-  APIController.whoami(req, res);
+  // GET the requesting user
+  APIController.whoami(req, res, next(req, res));
 }
 
 /**
@@ -170,12 +161,11 @@ function postUser(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
-  // POSTs a user
-  APIController.postUser(req, res);
+  // POST a user
+  APIController.postUser(req, res, next(req, res));
 }
 
 /**
@@ -232,12 +222,11 @@ function postUsers(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
-  // POSTs multiple users
-  APIController.postUsers(req, res);
+  // POST multiple users
+  APIController.postUsers(req, res, next(req, res));
 }
 
 /**
@@ -282,12 +271,11 @@ function putUser(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
   // PUTs a user
-  APIController.putUser(req, res);
+  APIController.putUser(req, res, next(req, res));
 }
 
 /**
@@ -345,12 +333,11 @@ function putUsers(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
   // PUTs multiple users
-  APIController.putUsers(req, res);
+  APIController.putUsers(req, res, next(req, res));
 }
 
 /**
@@ -395,12 +382,11 @@ function getUser(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
-  // GETs a user
-  APIController.getUser(req, res);
+  // GET a user
+  APIController.getUser(req, res, next(req, res));
 }
 
 /**
@@ -459,12 +445,11 @@ function getUsers(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
-  // GETs multiple users
-  APIController.getUsers(req, res);
+  // GET multiple users
+  APIController.getUsers(req, res, next(req, res));
 }
 
 /**
@@ -533,12 +518,11 @@ function getAllUsers(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
-  // GETs all users
-  APIController.getUsers(req, res);
+  // GET all users
+  APIController.getUsers(req, res, next(req, res));
 }
 
 /**
@@ -602,12 +586,11 @@ function searchUsers(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
   // Searches for a user
-  APIController.searchUsers(req, res);
+  APIController.searchUsers(req, res, next(req, res));
 }
 
 /**
@@ -656,12 +639,11 @@ function patchUser(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
-  // PATCHs a user
-  APIController.patchUser(req, res);
+  // PATCH a user
+  APIController.patchUser(req, res, next(req, res));
 }
 
 /**
@@ -723,12 +705,11 @@ function patchUsers(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
-  // PATCHs multiple users
-  APIController.patchUsers(req, res);
+  // PATCH multiple users
+  APIController.patchUsers(req, res, next(req, res));
 }
 
 /**
@@ -779,12 +760,11 @@ function patchUserPassword(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
-  // PATCHs a users password
-  APIController.patchPassword(req, res);
+  // PATCH a users password
+  APIController.patchPassword(req, res, next(req, res));
 }
 
 /**
@@ -814,12 +794,11 @@ function deleteUser(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
-  // DELETEs a user
-  APIController.deleteUser(req, res);
+  // DELETE a user
+  APIController.deleteUser(req, res, next(req, res));
 }
 
 /**
@@ -854,10 +833,9 @@ function deleteUsers(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
-  // DELETEs multiple users
-  APIController.deleteUsers(req, res);
+  // DELETE multiple users
+  APIController.deleteUsers(req, res, next(req, res));
 }

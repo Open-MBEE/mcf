@@ -29,6 +29,7 @@ import SidebarHeader from '../general/sidebar/sidebar-header.jsx';
 import InformationPage from '../shared-views/information-page.jsx';
 import MembersPage from '../shared-views/members/members-page.jsx';
 import ProjectElements from '../project-views/elements/project-elements.jsx';
+import ProjectArtifacts from '../project-views/artifacts/project-artifacts.jsx';
 import Search from '../project-views/search/search.jsx';
 import BranchesTags from '../project-views/branches/branches-tags.jsx';
 
@@ -206,6 +207,10 @@ class ProjectHome extends Component {
                          title='Branches/Tags'
                          icon='fas fa-code-branch'
                          routerLink={`${this.props.match.url}/branches`}/>
+            <SidebarLink id='Artifacts'
+                         title='Artifacts'
+                         icon='fas fa-archive'
+                         routerLink={`${this.props.match.url}/branches/${branch}/artifacts`}/>
             <SidebarLink id='Search'
                          title='Search'
                          icon='fas fa-search'
@@ -235,6 +240,11 @@ class ProjectHome extends Component {
                          render={ (props) => <ProjectElements {...props}
                                                               permissions={this.state.permissions}
                                                               project={this.state.project}/> } />
+                  { /* Route to artifacts page */ }
+                  <Route exact path={`${this.props.match.url}/branches/:branchid/artifacts`}
+                         render={ (props) => <ProjectArtifacts {...props}
+                                                           permissions={this.state.permissions}
+                                                           project={this.state.project} /> } />
                   <Route path={`${this.props.match.url}/branches/:branchid/search`}
                          render={ (props) => <Search {...props}
                                                      project={this.state.project} /> } />

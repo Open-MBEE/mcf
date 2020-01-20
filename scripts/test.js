@@ -39,9 +39,15 @@ if (module.parent == null) {
  * Any command line accepted by Mocha is valid.
  *
  * @param {string} _args - Options from the user for how to run the tests.
+ *
+ * @returns {Promise} Returns a promise which allows plugin testing to be synchronous
+ * upon startup. When used purely as a script, the function will terminate with a
+ * process.exit().
  */
 function test(_args) {
-  printHeader();
+  // Don't print the header if specified; this is usually only used for server startup
+  if (!_args.includes('--no-header')) printHeader();
+
   M.log.verbose(`Running tests with DB strategy: ${M.config.db.strategy}`);
 
   // Default timeout changed to 5000
@@ -71,12 +77,13 @@ function test(_args) {
         + 'This operation could ERASE PRODUCTION DATA PERMANENTLY.\n'
         + 'If you would still like to perform this action, use the\n'
         + 'optional parameter --force\n\n'
-        + 'node mbee test --grep "[^[1-8]]" --force\n');
+        + 'The following command is recommended:'
+        + 'node mbee test --grep "[^[1-8]]"\n');
       process.exit(-1);
     }
     else if (_args.includes('--grep')) {
       // Throw an error if --grep and --all are used together
-      M.log.error('Cannot use arguements --grep and --all together');
+      M.log.error('Cannot use arguments --grep and --all together');
       process.exit(-1);
     }
     const removeInd = _args.indexOf('--all');
@@ -95,6 +102,35 @@ function test(_args) {
   if (_args.includes('--suppress-console')) {
     const removeInd = _args.indexOf('--suppress-console');
     _args.splice(removeInd, 1);
+  }
+
+  // Remove --no-header
+  if (_args.includes('--no-header')) {
+    const removeInd = _args.indexOf('--no-header');
+    _args.splice(removeInd, 1);
+  }
+
+  // Handle the plugin option
+  let plugin;
+  let pluginName;
+  if (_args.includes('--plugin')) {
+    const ind = _args.indexOf('--plugin');
+    try {
+      pluginName = _args[ind + 1];
+    }
+    catch (error) {
+      throw new M.DataFormatError('No plugin name provided');
+    }
+    const pluginNames = Object.keys(M.config.server.plugins.plugins);
+    if (!pluginNames.includes(pluginName)) {
+      throw new M.DataFormatError(`Plugin [${pluginName}] is not specified in the config`);
+    }
+    plugin = true;
+    // Remove the plugin arguments
+    _args.splice(ind, 2);
+    // Remove the grep command
+    const grepInd = _args.indexOf('--grep');
+    _args.splice(grepInd, 2);
   }
 
   // Allocate options variable for mocha
@@ -118,22 +154,27 @@ function test(_args) {
   // Create mocha object with options
   const mocha = new Mocha(opts);
   // Set the test directory
-  const testDir = `${M.root}/test`;
+  const testDir = plugin ? `${M.root}/plugins/${pluginName}/test` : `${M.root}/test`;
 
   // Call the mochaWalk function to load in all of the test files
   mochaWalk(testDir, mocha);
 
-  // Run the tests.
-  mocha.run((error) => {
-    // Check for failures
-    if (error) {
-      // mocha did not pass all test, exit with error code -1
-      process.exit(-1);
-    }
-    else {
-      // mocha passed all tests, exit with error code 0
-      process.exit(0);
-    } // if (failures) {}
+  return new Promise((resolve) => {
+    // Run the tests.
+    mocha.run((error) => {
+      // Check for failures
+      if (error) {
+        // mocha did not pass all test, exit with error code -1
+        process.exit(-1);
+      }
+      else if (plugin) {
+        resolve();
+      }
+      else {
+        // mocha passed all tests, exit with error code 0
+        process.exit(0);
+      }
+    });
   });
 }
 

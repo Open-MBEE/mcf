@@ -9,7 +9,7 @@
  *
  * @license MIT
  *
- * @owner Connor Doyle
+ * @owner Phillip Lee
  *
  * @author Josh Kaplan
  * @author Jake Ursetta
@@ -68,10 +68,10 @@ const extensions = M.require('models.plugin.extensions');
  * @property {string} preferredName - The users preferred first name.
  * @property {string} lname - The users last name.
  * @property {boolean} admin - Indicates if the user is a global admin.
- * @property {string} provider - Defines the authentication provider for the
- * user.
- * @property {object} failedLogins - Stores the history of failed login
- * attempts.
+ * @property {string} provider - Defines the authentication provider for the user.
+ * @property {object} failedlogins - Stores the history of failed login attempts.
+ * @property {object} oldPasswords - Stores previous passwords; used to prevent users
+ * from re-using recent passwords.
  *
  */
 const UserSchema = new db.Schema({
@@ -79,37 +79,20 @@ const UserSchema = new db.Schema({
     type: 'String',
     required: [true, 'Username is required.'],
     validate: [{
-      validator: function(v) {
-        // If the ID is a reserved keyword, reject
-        return !validators.reserved.includes(v);
-      },
-      message: 'Username cannot include the following words: '
+      validator: validators.user._id.reserved,
+      message: props => 'Username cannot include the following words: '
       + `[${validators.reserved}].`
     }, {
-      validator: function(v) {
-        // If the username is longer than max length, reject
-        return v.length <= validators.user.usernameLength;
-      },
+      validator: validators.user._id.match,
+      message: props => `Invalid username [${props.value}].`
+    }, {
+      validator: validators.user._id.maxLength,
       message: props => `Username length [${props.value.length}] must not be`
         + ` more than ${validators.user.usernameLength} characters.`
     }, {
-      validator: function(v) {
-        // If the username is shorter than min length, reject
-        return v.length > 2;
-      },
+      validator: validators.user._id.minLength,
       message: props => `Username length [${props.value.length}] must not be`
         + ' less than 3 characters.'
-    }, {
-      validator: function(v) {
-        if (typeof validators.user.username === 'string') {
-          // If the username is invalid, reject
-          return RegExp(validators.user.username).test(v);
-        }
-        else {
-          return validators.user.username(v);
-        }
-      },
-      message: props => `Invalid username [${props.value}].`
     }]
   },
   password: {
@@ -136,15 +119,7 @@ const UserSchema = new db.Schema({
     type: 'String',
     default: '',
     validate: [{
-      validator: function(v) {
-        if (typeof validators.user.fname === 'string') {
-          // If the fname is invalid and provided, reject
-          return !(!RegExp(validators.user.fname).test(v) && v);
-        }
-        else {
-          return !(!validators.user.fname(v) && v);
-        }
-      },
+      validator: validators.user.fname,
       message: props => `Invalid first name [${props.value}].`
     }]
   },
@@ -152,15 +127,7 @@ const UserSchema = new db.Schema({
     type: 'String',
     default: '',
     validate: [{
-      validator: function(v) {
-        if (typeof validators.user.fname === 'string') {
-          // If the preferredName is invalid and provided, reject
-          return !(!RegExp(validators.user.fname).test(v) && v);
-        }
-        else {
-          return !(!validators.user.fname(v) && v);
-        }
-      },
+      validator: validators.user.preferredName,
       message: props => `Invalid preferred name [${props.value}].`
     }]
   },
@@ -168,15 +135,7 @@ const UserSchema = new db.Schema({
     type: 'String',
     default: '',
     validate: [{
-      validator: function(v) {
-        if (typeof validators.user.lname === 'string') {
-          // If the lname is invalid and provided, reject
-          return !(!RegExp(validators.user.lname).test(v) && v);
-        }
-        else {
-          return !(!validators.user.lname(v) && v);
-        }
-      },
+      validator: validators.user.lname,
       message: props => `Invalid last name [${props.value}].`
     }]
   },
@@ -187,16 +146,18 @@ const UserSchema = new db.Schema({
   provider: {
     type: 'String',
     validate: [{
-      validator: function(v) {
-        return validators.user.provider(v);
-      },
+      validator: validators.user.provider,
       message: props => `Invalid provider [${props.value}].`
     }],
-    default: 'local'
+    default: 'local',
+    immutable: true
   },
   failedlogins: {
     type: 'Object',
     default: []
+  },
+  oldPasswords: {
+    type: 'Object'
   }
 });
 
@@ -213,17 +174,11 @@ UserSchema.plugin(extensions);
  * @memberOf UserSchema
  */
 UserSchema.static('verifyPassword', function(user, pass) {
-  return new Promise((resolve, reject) => {
-    // Hash the input plaintext password
-    crypto.pbkdf2(pass, user._id.toString(), 1000, 32, 'sha256', (err, derivedKey) => {
-      // If err, reject it
-      if (err) reject(err);
-
-      // Compare the hashed input password with the stored hashed password
-      // and return it.
-      return resolve(derivedKey.toString('hex') === user.password);
-    });
-  });
+  // Hash the input plaintext password
+  const derivedKey = crypto.pbkdf2Sync(pass, user._id.toString(), 1000, 32, 'sha256');
+  // Compare the hashed input password with the stored hashed password
+  // and return it.
+  return derivedKey.toString('hex') === user.password;
 });
 
 /**
@@ -250,7 +205,7 @@ UserSchema.static('hashPassword', function(obj) {
   // Require auth module
   const AuthController = M.require('lib.auth');
 
-  // If the provider is not defined, set it the the default, its needed for this fxn
+  // If the provider is not defined, set it the the default, it's needed for this fxn
   if (!obj.hasOwnProperty('provider')) {
     obj.provider = 'local';
   }
@@ -265,6 +220,41 @@ UserSchema.static('hashPassword', function(obj) {
     const derivedKey = crypto.pbkdf2Sync(obj.password, obj._id.toString(), 1000, 32, 'sha256');
     obj.password = derivedKey.toString('hex');
   }
+});
+
+/**
+ * @description Checks that the new password does not match any of the stored previous passwords
+ *
+ * @param {object} user - The user object being validated.
+ * @param {string} pass - The new password to be compared with the old passwords.
+ * @memberOf UserSchema
+ */
+UserSchema.static('checkOldPasswords', function(user, pass) {
+  // Check that this feature is enabled in the config file
+  // This check should only be run on users stored locally
+  if (M.config.auth.hasOwnProperty('oldPasswords')
+    && (!user.hasOwnProperty('provider') || user.provider === 'local')) {
+    // Get the hash of the new password
+    const newPassword = crypto.pbkdf2Sync(pass, user._id.toString(), 1000, 32, 'sha256');
+
+    // Add the current password to the list of old passwords
+    if (!user.hasOwnProperty('oldPasswords')) user.oldPasswords = [user.password];
+    else user.oldPasswords.push(user.password);
+
+    // Check that the user hasn't reused a recent password
+    if (user.oldPasswords.includes(newPassword.toString('hex'))) {
+      throw new M.OperationError('Password has been used too recently.', 'warn');
+    }
+
+    // Trim the list of old passwords if necessary
+    if (user.oldPasswords.length > M.config.auth.oldPasswords) {
+      user.oldPasswords.shift();
+    }
+
+    // Return the new list of old passwords to be used in an update
+    return user.oldPasswords;
+  }
+  return [];
 });
 
 /* ------------------------------( User Index )------------------------------ */

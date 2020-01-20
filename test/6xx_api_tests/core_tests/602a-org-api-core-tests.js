@@ -22,7 +22,6 @@ const chai = require('chai');
 const request = require('request');
 
 // MBEE modules
-const db = M.require('db');
 const jmi = M.require('lib.jmi-conversions');
 
 /* --------------------( Test Data )-------------------- */
@@ -45,8 +44,6 @@ describe(M.getModuleName(module.filename), () => {
    */
   before(async () => {
     try {
-      // Open the database connection
-      await db.connect();
       // Create test admin
       adminUser = await testUtils.createTestAdmin();
     }
@@ -64,7 +61,6 @@ describe(M.getModuleName(module.filename), () => {
     try {
       // Delete test admin
       await testUtils.removeTestAdmin();
-      await db.disconnect();
     }
     catch (error) {
       M.log.error(error);
@@ -124,6 +120,7 @@ function postOrg(done) {
     // Verify specific fields not returned
     chai.expect(postedOrg).to.not.have.any.keys('archivedOn', 'archivedBy',
       '__v', '_id');
+
     done();
   });
 }
@@ -177,6 +174,7 @@ function postOrgs(done) {
       chai.expect(postedOrg).to.not.have.any.keys('archivedOn', 'archivedBy',
         '__v', '_id');
     });
+
     done();
   });
 }
@@ -217,6 +215,7 @@ function putOrg(done) {
     // Verify specific fields not returned
     chai.expect(replacedOrg).to.not.have.any.keys('archivedOn', 'archivedBy',
       '__v', '_id');
+
     done();
   });
 }
@@ -271,6 +270,7 @@ function putOrgs(done) {
       chai.expect(replacedOrg).to.not.have.any.keys('archivedOn', 'archivedBy',
         '__v', '_id');
     });
+
     done();
   });
 }
@@ -556,6 +556,7 @@ function deleteOrg(done) {
 
     // Verify correct orgs deleted
     chai.expect(deletedID).to.equal(orgData.id);
+
     done();
   });
 }
@@ -588,6 +589,7 @@ function deleteOrgs(done) {
 
     // Verify correct orgs deleted
     chai.expect(deletedIDs).to.have.members(orgData.map(p => p.id));
+
     done();
   });
 }

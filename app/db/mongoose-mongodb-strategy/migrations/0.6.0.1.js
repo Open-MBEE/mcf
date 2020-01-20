@@ -7,7 +7,7 @@
  *
  * @license MIT
  *
- * @owner Austin Bieber
+ * @owner Connor Doyle
  *
  * @author Austin Bieber
  *
@@ -305,7 +305,7 @@ function sixToSevenProjectHelper(projects, jmi2Users, jmi2Orgs) {
     .then(() => {
       // If there are projects to add, add them
       if (projectsToInsert.length > 0) {
-        Project.insertMany(projectsToInsert);
+        return Project.insertMany(projectsToInsert);
       }
     })
     .then(() => {
@@ -427,7 +427,7 @@ function sixToSevenElementHelper(elements, jmi2Users, jmi2Projects, jmi2Elements
     .then(() => {
       // If there are elements to add, add them
       if (elementsToInsert.length > 0) {
-        Element.insertMany(elementsToInsert);
+        return Element.insertMany(elementsToInsert);
       }
     })
     .then(() => {
@@ -499,7 +499,7 @@ function sixToSevenUserHelper(users, jmi2Users) {
     .then(() => {
       // If there are users to add, add them
       if (usersToInsert.length > 0) {
-        User.insertMany(usersToInsert);
+        return User.insertMany(usersToInsert);
       }
     })
     .then(() => {

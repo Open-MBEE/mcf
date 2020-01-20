@@ -21,7 +21,6 @@ const chai = require('chai');
 
 // MBEE modules
 const APIController = M.require('controllers.api-controller');
-const db = M.require('db');
 const jmi = M.require('lib.jmi-conversions');
 const utils = M.require('lib.utils');
 
@@ -29,6 +28,7 @@ const utils = M.require('lib.utils');
 // Variables used across test functions
 const testUtils = M.require('lib.test-utils');
 const testData = testUtils.importTestData('test_data.json');
+const next = testUtils.next;
 let adminUser = null;
 let org = null;
 
@@ -43,45 +43,31 @@ describe(M.getModuleName(module.filename), () => {
   /**
    * Before: Run before all tests. Creates the admin user and test org.
    */
-  before((done) => {
-    // Connect db
-    db.connect()
-    // Create test admin
-    .then(() => testUtils.createTestAdmin())
-    .then((_adminUser) => {
-      // Set global admin user
-      adminUser = _adminUser;
-
-      // Create test org
-      return testUtils.createTestOrg(adminUser);
-    })
-    .then((retOrg) => {
-      org = retOrg;
-      done();
-    })
-    .catch((error) => {
+  before(async () => {
+    try {
+      adminUser = await testUtils.createTestAdmin();
+      org = await testUtils.createTestOrg(adminUser);
+    }
+    catch (error) {
       M.log.error(error);
       // Expect no error
       chai.expect(error).to.equal(null);
-      done();
-    });
+    }
   });
 
   /**
    * After: Delete admin user and test org.
    */
-  after((done) => {
-    // Removing the test organization
-    testUtils.removeTestOrg()
-    .then(() => testUtils.removeTestAdmin())
-    .then(() => db.disconnect())
-    .then(() => done())
-    .catch((error) => {
+  after(async () => {
+    try {
+      await testUtils.removeTestOrg();
+      await testUtils.removeTestAdmin();
+    }
+    catch (error) {
       M.log.error(error);
       // Expect no error
       chai.expect(error).to.equal(null);
-      done();
-    });
+    }
   });
 
   /* Execute tests */
@@ -148,12 +134,11 @@ function postProject(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
-  // POSTs a project
-  APIController.postProject(req, res);
+  // POST a project
+  APIController.postProject(req, res, next(req, res));
 }
 
 /**
@@ -215,12 +200,11 @@ function postProjects(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
-  // POSTs multiple projects
-  APIController.postProjects(req, res);
+  // POST multiple projects
+  APIController.postProjects(req, res, next(req, res));
 }
 
 /**
@@ -271,12 +255,11 @@ function putProject(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
   // PUTs a project
-  APIController.putProject(req, res);
+  APIController.putProject(req, res, next(req, res));
 }
 
 /**
@@ -339,12 +322,11 @@ function putProjects(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
   // PUTs multiple projects
-  APIController.putProjects(req, res);
+  APIController.putProjects(req, res, next(req, res));
 }
 
 /**
@@ -395,12 +377,11 @@ function getProject(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
-  // GETs a project
-  APIController.getProject(req, res);
+  // GET a project
+  APIController.getProject(req, res, next(req, res));
 }
 
 /**
@@ -464,12 +445,11 @@ function getProjects(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
-  // GETs multiple projects
-  APIController.getProjects(req, res);
+  // GET multiple projects
+  APIController.getProjects(req, res, next(req, res));
 }
 
 /**
@@ -534,12 +514,11 @@ function getAllProjectsOnOrg(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
-  // GETs multiple projects
-  APIController.getProjects(req, res);
+  // GET multiple projects
+  APIController.getProjects(req, res, next(req, res));
 }
 
 /**
@@ -614,12 +593,11 @@ function getAllProjects(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
-  // GETs multiple projects
-  APIController.getAllProjects(req, res);
+  // GET multiple projects
+  APIController.getAllProjects(req, res, next(req, res));
 }
 
 /**
@@ -674,12 +652,11 @@ function patchProject(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
-  // PATCHs a project
-  APIController.patchProject(req, res);
+  // PATCH a project
+  APIController.patchProject(req, res, next(req, res));
 }
 
 /**
@@ -747,12 +724,11 @@ function patchProjects(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
-  // PATCHs multiple projects
-  APIController.patchProjects(req, res);
+  // PATCH multiple projects
+  APIController.patchProjects(req, res, next(req, res));
 }
 
 /**
@@ -787,12 +763,11 @@ function deleteProject(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
-  // DELETEs a project
-  APIController.deleteProject(req, res);
+  // DELETE a project
+  APIController.deleteProject(req, res, next(req, res));
 }
 
 /**
@@ -831,10 +806,9 @@ function deleteProjects(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
-  // DELETEs multiple project
-  APIController.deleteProjects(req, res);
+  // DELETE multiple project
+  APIController.deleteProjects(req, res, next(req, res));
 }

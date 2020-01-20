@@ -7,7 +7,7 @@
  *
  * @license MIT
  *
- * @owner Austin Bieber
+ * @owner Connor Doyle
  *
  * @author Austin Bieber
  *
@@ -27,6 +27,7 @@ const Organization = M.require('models.organization');
 const Project = M.require('models.project');
 const ServerData = M.require('models.server-data');
 const User = M.require('models.user');
+const Webhook = M.require('models.webhook');
 const db = M.require('db');
 
 /**
@@ -46,9 +47,9 @@ module.exports.migrate = async function(args) {
     await prompt(args);
 
     // Initialize models
-    const promises = [Artifact.init(), Branch.init(), Element.init(),
-      Organization.init(), Project.init(), ServerData.init(), User.init()];
-    await Promise.all(promises);
+    await Promise.all([Artifact.init(), Branch.init(), Element.init(),
+      Organization.init(), Project.init(), ServerData.init(), User.init(),
+      Webhook.init()]);
 
     // Get the server data documents
     const serverData = await ServerData.find({}, null);
@@ -70,7 +71,8 @@ module.exports.migrate = async function(args) {
     // A list of MCF versions
     const knownVersions = ['0.6.0', '0.6.0.1', '0.7.0', '0.7.1', '0.7.2', '0.7.3',
       '0.7.3.1', '0.8.0', '0.8.1', '0.8.2', '0.8.3', '0.9.0', '0.9.1', '0.9.2',
-      '0.9.3', '0.9.4', '0.9.5', '0.10.0', '0.10.1', '0.10.2'];
+      '0.9.3', '0.9.4', '0.9.5', '0.10.0', '0.10.1', '0.10.2', '0.10.3',
+      '0.10.4', '0.10.5', '1.0.0'];
 
     // Run the migrations
     await runMigrations(knownVersions.slice(knownVersions.indexOf(fromVersion) + 1));
@@ -199,9 +201,9 @@ module.exports.getVersion = async function() {
         await db.clear();
 
         // Re-initialize models
-        const promises = [Artifact.init(), Branch.init(), Element.init(),
-          Organization.init(), Project.init(), ServerData.init(), User.init()];
-        await Promise.all(promises);
+        await Promise.all([Artifact.init(), Branch.init(), Element.init(),
+          Organization.init(), Project.init(), ServerData.init(), User.init(),
+          Webhook.init()]);
 
         // Insert server data document, with current schema version
         await ServerData.insertMany({ _id: 'server_data', version: M.version });

@@ -1,6 +1,113 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [1.0.0] - 2020-01-20
+### Bug Fixes and Other Changes
+* Added CONTRIBUTING.md file for detailing expectations for code contribution
+* Added 8.0 User Interface Overview page to flight manual
+* Updated element edit modal in the UI
+
+## [0.10.5] - 2020-01-06
+### Bug Fixes and Other Changes
+* Upgraded the minimum mongoose version due to a bug with one of its dependencies
+
+## [0.10.4] - 2019-12-20
+### Major Features and Improvements
+* Added a new database strategy for Amazon's DynamoDB. At this time the strategy
+  is still in beta and should NOT be used in production
+* Added the ability to allow for plugin functions to be triggered
+  **synchronously** before and after most API routes
+* Added a new system-admin only API endpoint to retrieve system logs
+* Added a configuration option to enforce unique project ids, allowing for
+  better backwards compatibility with the MMS API
+* Added support for a configuration option which allows for enforcing how old a
+  password must be, before in can be reused
+* Added a new log file for requests and responses to security related endpoints
+
+
+### Bug Fixes and Other Changes
+* Added support for the `immutable` field in the `mongoose-mongodb-strategy.js`
+* Fixed a bug where artifact documents were not cloned on creation of a branch
+* Fixed a deprecation warning from the `crypto` library
+* Added an ESlint plugin which enforces security related best practices
+* Added an option to DELETE `/artifacts` and `/artifacts/:artifactid`
+  called `deleteBlob` which if true, deletes the associated blob if no other
+  artifact documents reference it
+
+### Configuration Changes
+* With the addition of the DynamoDB database strategy, there are new
+  configuration options when the DynamoDB strategy is selected. Please refer to
+  the database [README](/app/db/README.md) for configuration guidance
+* Added the **required** string `log.security_file`, which specifies the name of
+  the log file which stores requests/responses of security related endpoints
+```json
+{
+  "log": {
+    "security_file": "security.log"
+  }
+}
+```
+* Added the optional number `auth.oldPasswords` which specifies the minimum
+  number of different passwords before a password can be reused. If this
+  option is not supplied, there is no limit.
+```json
+{
+  "auth": {
+    "oldPasswords": 12
+  }
+}
+```
+* Added the optional boolean `server.uniqueProjects` which if true, enforces
+  project IDs to be unique. Normally, two projects can have the same ID on
+  different orgs, but if this option is true, attempting this will result in an
+  error. This option helps support backwards compatibility with the MMS API
+```json
+{
+  "server": {
+    "uniqueProjects": true
+  }
+}
+```
+
+## [0.10.3] - 2019-12-06
+### Major Features and Improvements
+* Added page in UI for managing Artifacts. Allows the user to create,
+  edit and delete artifacts on different branches
+* Added support for webhooks. Webhooks can be created at the organization,
+  project, branch and server levels. Webhooks can be triggered internally
+  through the Node.js event system or externally through a URL
+* Added the ability to run Mocha tests written in plugins. Any tests defined
+  in a `tests` directory at the root of the plugin can be run by running the
+  command `node mbee test --plugin {pluginName}` where `pluginName` is the
+  name of the plugin defined in the config
+
+### Bug Fixes and Other Changes
+* Added the virtual field `referencedBy` to artifacts. If populated, returns
+  all elements which reference the artifact
+* Increased error testing coverage of branch and element controllers
+
+### Configuration Changes
+* Added the optional field `testOnStartup` to plugins. If this boolean value
+  is true, the tests in the plugin will be run when it is built at server
+  startup. This option can be defined for each plugin that is installed
+```json
+{
+  "plugins": {
+    "enabled": true,
+    "plugins": {
+      "sample-plugin": {
+        "source": "path/to/sample/plugin",
+        "testOnStartup": true
+      },
+      "test-plugin": {
+        "source": "path/to/test/plugin",
+        "testOnStartup": false
+      }
+    }
+  }
+}
+```
+
 ## [0.10.2] - 2019-11-22
 ### Major Features and Improvements
 * Abstracted out database migrations to support the database abstraction layer.
@@ -10,7 +117,7 @@ All notable changes to this project will be documented in this file.
   `name` to `description`
 * Updated the Element schema by adding an `artifact` field which allows for
   referencing an artifact.
-  
+
 ### Bug Fixes and Other Changes
 * Refactored the database abstraction layer by removing the need to support
   callback functions in the parameters and by adding the requirement for
@@ -26,7 +133,7 @@ All notable changes to this project will be documented in this file.
 * Added batch CRUD operations for artifact documents
 * Refactored the Database Abstraction layer by removing the required methods
   `Schema.pre()`, `Schema.method()` and` Model.createDocument()`
-* Updated tests to use random test data generated from custom validators if 
+* Updated tests to use random test data generated from custom validators if
   custom validators are defined in the running config
 
 ### Bug Fixes and Other Changes
@@ -48,7 +155,7 @@ All notable changes to this project will be documented in this file.
   which are archived
 * Added a configuration validator, which verifies the running config has all
   required fields
-  
+
 ### Bug Fixes and Other Changes
 * Added pages for viewing all organizations and projects in the admin console
 * Added `rootpath` option to GET `/elements/:elementid` which returns all
@@ -61,7 +168,7 @@ All notable changes to this project will be documented in this file.
 * Removed usage of $or and $regex in database queries to aid in implementation
   of different database strategies
 * Removed organization and project pages from the profile page on the UI
-  
+
 ### Configuration Changes
 * Added the **required** field `db.strategy` whose value is a string, the name
   of the selected strategy. Please note that each strategy will have its own

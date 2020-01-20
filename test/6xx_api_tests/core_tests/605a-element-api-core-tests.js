@@ -20,7 +20,6 @@ const chai = require('chai');
 const request = require('request');
 
 // MBEE modules
-const db = M.require('db');
 const utils = M.require('lib.utils');
 const jmi = M.require('lib.jmi-conversions');
 
@@ -46,8 +45,6 @@ describe(M.getModuleName(module.filename), () => {
    */
   before(async () => {
     try {
-      // Open the database connection
-      await db.connect();
       // Create test admin
       adminUser = await testUtils.createTestAdmin();
       // Create org
@@ -72,7 +69,6 @@ describe(M.getModuleName(module.filename), () => {
       await testUtils.removeTestOrg();
       // Delete admin user
       await testUtils.removeTestAdmin();
-      await db.disconnect();
     }
     catch (error) {
       M.log.error(error);

@@ -25,7 +25,6 @@ const should = chai.should(); // eslint-disable-line no-unused-vars
 
 // MBEE modules
 const User = M.require('models.user');
-const db = M.require('db');
 const validators = M.require('lib.validators');
 
 /* --------------------( Test Data )-------------------- */
@@ -41,30 +40,6 @@ const customValidators = M.config.validators || {};
  * name of the current file.
  */
 describe(M.getModuleName(module.filename), () => {
-  /**
-   * Before: runs before all tests. Open database connection.
-   */
-  before(async () => {
-    try {
-      db.connect();
-    }
-    catch (error) {
-      chai.expect(error.message).to.equal(null);
-    }
-  });
-
-  /**
-   * After: runs after all tests. Close database connection.
-   */
-  after(async () => {
-    try {
-      db.disconnect();
-    }
-    catch (error) {
-      chai.expect(error.message).to.equal(null);
-    }
-  });
-
   /* Execute the tests */
   it('should reject when a username is too short', usernameTooShort);
   it('should reject when a username is too long', usernameTooLong);
@@ -76,6 +51,7 @@ describe(M.getModuleName(module.filename), () => {
   it('should reject if the provider field is not a string', providerNotString);
   it('should reject if no username (_id) is provided', usernameNotProvided);
   it('should reject with an invalid email', emailInvalid);
+  it('should reject the re-use a recent password', noPasswordReuse);
 });
 
 /* --------------------( Tests )-------------------- */
@@ -324,6 +300,33 @@ async function emailInvalid() {
     // Expect insertMany() to fail with specific error message
     await User.insertMany(userData).should.eventually.be.rejectedWith('User '
       + `validation failed: email: Invalid email [${userData.email}].`);
+  }
+  catch (error) {
+    M.log.error(error);
+    // There should be no error
+    should.not.exist(error);
+  }
+}
+
+/**
+ * @description Verifies that the User static function checkOldPasswords throws an error when
+ * presented with a new password stored in the user's oldPasswords field.
+ */
+async function noPasswordReuse() {
+  // Skip test if this feature is not enabled
+  if (!M.config.auth.hasOwnProperty('oldPasswords')) this.skip();
+
+  try {
+    // Create user object with an old password to test
+    const userObj = testData.users[0];
+    userObj._id = userObj.username;
+    const pass = 'ABCabc1!';
+    userObj.password = pass;
+    User.hashPassword(userObj);
+    userObj.oldPasswords = [userObj.password];
+
+    // Test the checkOldPasswords function; expect an error
+    User.checkOldPasswords.bind(User, userObj, pass).should.throw(M.OperationError);
   }
   catch (error) {
     M.log.error(error);

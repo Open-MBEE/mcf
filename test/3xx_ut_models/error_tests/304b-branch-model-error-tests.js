@@ -25,7 +25,6 @@ const should = chai.should(); // eslint-disable-line no-unused-vars
 
 // MBEE modules
 const Branch = M.require('models.branch');
-const db = M.require('db');
 const utils = M.require('lib.utils');
 const validators = M.require('lib.validators');
 
@@ -42,32 +41,6 @@ const customValidators = M.config.validators || {};
  * name of the current file.
  */
 describe(M.getModuleName(module.filename), () => {
-  /**
-   * Before: runs before all tests. Open database connection and create test
-   * branch.
-   */
-  before(async () => {
-    try {
-      db.connect();
-    }
-    catch (error) {
-      chai.expect(error.message).to.equal(null);
-    }
-  });
-
-  /**
-   * After: runs after all tests. Close database connection and delete test
-   * branch.
-   */
-  after(async () => {
-    try {
-      db.disconnect();
-    }
-    catch (error) {
-      chai.expect(error.message).to.equal(null);
-    }
-  });
-
   /* Execute the tests */
   it('should reject when a branch ID is too short', idTooShort);
   it('should reject when a branch ID is too long', idTooLong);

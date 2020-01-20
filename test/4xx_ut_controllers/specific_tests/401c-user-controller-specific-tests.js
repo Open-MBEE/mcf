@@ -22,7 +22,6 @@ const chai = require('chai');
 // MBEE modules
 const UserController = M.require('controllers.user-controller');
 const User = M.require('models.user');
-const db = M.require('db');
 
 /* --------------------( Test Data )-------------------- */
 const testUtils = M.require('lib.test-utils');
@@ -37,12 +36,10 @@ let adminUser = null;
  */
 describe(M.getModuleName(module.filename), () => {
   /**
-   * Before: Connect to the database, create an admin user.
+   * Before: Create an admin user.
    */
   before(async () => {
     try {
-      // Connect to the database
-      await db.connect();
       // Create test admin
       adminUser = await testUtils.createTestAdmin();
     }
@@ -54,12 +51,11 @@ describe(M.getModuleName(module.filename), () => {
   });
 
   /**
-   * After: Delete admin user, disconnect from database.
+   * After: Delete admin user.
    */
   after(async () => {
     try {
       await testUtils.removeTestAdmin();
-      await db.disconnect();
     }
     catch (error) {
       M.log.error(error.message);
@@ -233,7 +229,7 @@ async function optionFieldsCreate() {
     const notFindUsers = await UserController.create(adminUser, userObjNotFind, notFindOptions);
     const notFindUser = notFindUsers[0];
 
-    // Create a list of visible user fields. Object.keys(createdUser) returns hidden fields as well
+    // Create a list of visible user fields
     const visibleFields2 = Object.keys(notFindUser);
 
     // Check that the keys in the notFindOptions are not in createdUser

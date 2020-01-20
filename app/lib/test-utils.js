@@ -28,7 +28,6 @@ const path = require('path');
 const fs = require('fs');
 
 // NPM modules
-const chai = require('chai');
 const Randexp = require('randexp');
 
 // MBEE modules
@@ -38,6 +37,7 @@ const Branch = M.require('models.branch');
 const Organization = M.require('models.organization');
 const Project = M.require('models.project');
 const User = M.require('models.user');
+const Middleware = M.require('lib.middleware');
 const errors = M.require('lib.errors');
 const utils = M.require('lib.utils');
 const ArtifactStrategy = M.require(`artifact.${M.config.artifact.strategy}`);
@@ -498,6 +498,7 @@ module.exports.createRequest = function(user, params, body, method, query = {}) 
   }
 
   return {
+    url: 'test',
     headers: this.getHeaders(),
     method: method,
     originalUrl: 'ThisIsATest',
@@ -535,6 +536,7 @@ module.exports.createReadStreamRequest = function(user, params, body, method, qu
   }
 
   const req = fs.createReadStream(filepath);
+  req.url = 'test';
   req.user = user;
   req.params = params;
   req.body = body;
@@ -557,6 +559,7 @@ module.exports.createResponse = function(res) {
   // Verifies the response code: 200 OK
   res.status = function status(code) {
     res.statusCode = code;
+    res.locals = {};
     return this;
   };
   // Provides headers to response object
@@ -591,37 +594,6 @@ module.exports.readCaFile = function() {
   if (M.config.test.hasOwnProperty('ca')) {
     return fs.readFileSync(`${M.root}/${M.config.test.ca}`);
   }
-};
-
-/**
- * @description Tests response logging. This is designed for the 500 tests and
- * expects the res and req objects to be the mock objects created in those tests.
- *
- * @param {number} responseLength - The length of the response in bytes.
- * @param {object} req - The request object.
- * @param {object} res - The response object.
- * @param {Function} done - The callback function to mark the end of the test.
- */
-module.exports.testResponseLogging = async function(responseLength, req, res, done) {
-  // Get the log file path
-  const filePath = path.join(M.root, 'logs', M.config.log.file);
-
-  // Read the file
-  const fileContents = fs.readFileSync(filePath).toString();
-  // Split the file, and remove an non-response entries, and get the final response
-  const response = fileContents.split('\n').filter(e => e.includes('RESPONSE: ')).pop();
-  // split on spaces
-  const content = response.split('RESPONSE: ')[1].split(' ');
-
-  // Ensure parts of response log are correct
-  chai.expect(content[0]).to.equal((req.ip === '::1') ? '127.0.0.1' : req.ip);
-  chai.expect(content[1]).to.equal((req.user) ? req.user._id : 'anonymous');
-  chai.expect(content[3]).to.equal(`"${req.method}`);
-  chai.expect(content[4]).to.equal(`${req.originalUrl}"`);
-  chai.expect(content[5]).to.equal(res.statusCode.toString());
-  chai.expect(content[6]).to.equal(responseLength.toString());
-
-  done();
 };
 
 /**
@@ -737,9 +709,21 @@ function generateCustomTestData() {
     // Generate a new random id
     let id = generator.gen();
 
-    // Ensure that the id is always at least the minimum length
+    // Set counter and number of retries for generating an id
+    let count = 0;
+    const retries = 50;
+
+    // Attempt to ensure that the id is at least the minimum length
+    // Sometimes, if the user supplies a bad RegEx, this will never work
     while (id.length < min) {
       id = generator.gen();
+      if (count > retries) {
+        M.log.critical(`An id could not be generated for the RegEx pattern ${pattern} from the custom`
+          + ' validators in the config which also meets the criteria for a minimum length of '
+          + `${min}.`);
+        process.exit(0);
+      }
+      count++;
     }
 
     return id;
@@ -750,3 +734,20 @@ function generateCustomTestData() {
 
   return customTestData;
 }
+
+/**
+ * @description A factory function that returns a mock next() function to use in the
+ * mock API tests. Instead of routing through the plugin middleware, this function calls
+ * the final function in the api chain, since we're not testing plugin functionality in
+ * the core tests.
+ *
+ * @param {object} req - A mock Express.js request object.
+ * @param {object} res - A mock Express.js response object.
+ *
+ * @returns {Function} The Middleware respond function.
+ */
+module.exports.next = function next(req, res) {
+  return function() {
+    Middleware.respond(req, res);
+  };
+};

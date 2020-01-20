@@ -9,7 +9,7 @@
  *
  * @license MIT
  *
- * @owner Austin Bieber
+ * @owner Phillip Lee
  *
  * @author Austin Bieber
  * @author Josh Kaplan
@@ -86,48 +86,30 @@ const utils = M.require('lib.utils');
  * element is a relationship. NOTE: If target is provided, source is required.
  * @property {string} documentation - The element documentation.
  * @property {string} type - An optional type string.
- *
+ * @property {string} artifact - A reference to an artifact.
  */
 const ElementSchema = new db.Schema({
   _id: {
     type: 'String',
     required: true,
     validate: [{
-      validator: function(v) {
-        const elemID = utils.parseID(v).pop();
-        // If the ID is a reserved keyword, reject
-        return !validators.reserved.includes(elemID);
-      },
-      message: 'Element ID cannot include the following words: '
+      validator: validators.element._id.reserved,
+      message: props => 'Element ID cannot include the following words: '
         + `[${validators.reserved}].`
     }, {
-      validator: function(v) {
-        // If the ID is longer than max length, reject
-        return v.length <= validators.element.idLength;
-      },
+      validator: validators.element._id.match,
+      message: props => `Invalid element ID [${utils.parseID(props.value).pop()}].`
+    }, {
+      validator: validators.element._id.maxLength,
       // Return a message, with calculated length of element ID (element.max - branch.max - :)
       message: props => `Element ID length [${props.value.length - validators.branch.idLength - 1}]`
         + ` must not be more than ${validators.element.idLength - validators.branch.idLength - 1}`
         + ' characters.'
     }, {
-      validator: function(v) {
-        // If the ID is shorter than min length, reject
-        return v.length > 10;
-      },
+      validator: validators.element._id.minLength,
       // Return a message, with calculated length of element ID (element.min - branch.min - :)
       message: props => `Element ID length [${props.value.length - 9}] must not`
         + ' be less than 2 characters.'
-    }, {
-      validator: function(v) {
-        if (typeof validators.element.id === 'string') {
-          // If the ID is invalid, reject
-          return RegExp(validators.element.id).test(v);
-        }
-        else {
-          return validators.element.id(v);
-        }
-      },
-      message: props => `Invalid element ID [${utils.parseID(props.value).pop()}].`
     }]
   },
   name: {
@@ -139,17 +121,10 @@ const ElementSchema = new db.Schema({
     required: true,
     ref: 'Project',
     validate: [{
-      validator: function(v) {
-        if (typeof validators.project.id === 'string') {
-          // If the ID is invalid, reject
-          return RegExp(validators.project.id).test(v);
-        }
-        else {
-          return validators.project.id(v);
-        }
-      },
+      validator: validators.element.project,
       message: props => `${props.value} is not a valid project ID.`
-    }]
+    }],
+    immutable: true
   },
   branch: {
     type: 'String',
@@ -157,17 +132,10 @@ const ElementSchema = new db.Schema({
     ref: 'Branch',
     index: true,
     validate: [{
-      validator: function(v) {
-        if (typeof validators.branch.id === 'string') {
-          // If the ID is invalid, reject
-          return RegExp(validators.branch.id).test(v);
-        }
-        else {
-          return validators.branch.id(v);
-        }
-      },
+      validator: validators.element.branch,
       message: props => `${props.value} is not a valid branch ID.`
-    }]
+    }],
+    immutable: true
   },
   parent: {
     type: 'String',
@@ -175,15 +143,7 @@ const ElementSchema = new db.Schema({
     default: null,
     index: true,
     validate: [{
-      validator: function(v) {
-        if (typeof validators.element.id === 'string') {
-          // If the ID is invalid, reject
-          return RegExp(validators.element.id).test(v) || (v === null);
-        }
-        else {
-          return validators.element.id(v) || (v === null);
-        }
-      },
+      validator: validators.element.parent,
       message: props => `${props.value} is not a valid parent ID.`
     }]
   },
@@ -193,28 +153,10 @@ const ElementSchema = new db.Schema({
     default: null,
     index: true,
     validate: [{
-      validator: function(v) {
-        if (typeof validators.element.id === 'string') {
-          // If the ID is invalid, reject
-          return RegExp(validators.element.id).test(v) || (v === null);
-        }
-        else {
-          return validators.element.id(v) || (v === null);
-        }
-      },
+      validator: validators.element.source.id,
       message: props => `${props.value} is not a valid source ID.`
     }, {
-      validator: function(v) {
-        // If source is provided
-        if (v) {
-          // Reject if target is null
-          return this.target;
-        }
-        // Source null, return true
-        else {
-          return true;
-        }
-      },
+      validator: validators.element.source.target,
       message: props => 'Target is required if source is provided.'
     }]
   },
@@ -224,28 +166,10 @@ const ElementSchema = new db.Schema({
     default: null,
     index: true,
     validate: [{
-      validator: function(v) {
-        if (typeof validators.element.id === 'string') {
-          // If the ID is invalid, reject
-          return RegExp(validators.element.id).test(v) || (v === null);
-        }
-        else {
-          return validators.element.id(v) || (v === null);
-        }
-      },
+      validator: validators.element.target.id,
       message: props => `${props.value} is not a valid target ID.`
     }, {
-      validator: function(v) {
-        // If target is provided
-        if (v) {
-          // Reject if source is null
-          return this.source;
-        }
-        // Target null, return true
-        else {
-          return true;
-        }
-      },
+      validator: validators.element.target.source,
       message: props => 'Source is required if target is provided.'
     }]
   },
@@ -264,19 +188,7 @@ const ElementSchema = new db.Schema({
     index: true,
     default: null,
     validate: [{
-      validator: function(v) {
-        // If v not defined, validation not required
-        if (v === null) {
-          return true;
-        }
-        else if (typeof validators.artifact.id === 'string') {
-          // If the ID is invalid, reject
-          return RegExp(validators.artifact.id).test(v);
-        }
-        else {
-          return validators.artifact.id(v);
-        }
-      },
+      validator: validators.element.artifact,
       message: props => `${props.value} is not a valid artifact ID.`
     }]
   }

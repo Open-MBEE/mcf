@@ -21,7 +21,6 @@ const chai = require('chai');
 const request = require('request');
 
 // MBEE modules
-const db = M.require('db');
 const jmi = M.require('lib.jmi-conversions');
 
 /* --------------------( Test Data )-------------------- */
@@ -40,14 +39,10 @@ let adminUser = null;
  */
 describe(M.getModuleName(module.filename), () => {
   /**
-   * Before: Run before all tests. Find
-   * non-admin user and elevate to admin user.
+   * Before: Runs before all tests. Creates admin user.
    */
   before(async () => {
     try {
-      // Open the database connection
-      await db.connect();
-      // Create test admin
       adminUser = await testUtils.createTestAdmin();
     }
     catch (error) {
@@ -58,13 +53,12 @@ describe(M.getModuleName(module.filename), () => {
   });
 
   /**
-   * After: Delete admin user.
+   * After: Runs after all tests. Deletes admin user.
    */
   after(async () => {
     try {
       // Delete test admin
       await testUtils.removeTestAdmin();
-      await db.disconnect();
     }
     catch (error) {
       M.log.error(error);
@@ -159,6 +153,7 @@ function postUser(done) {
     chai.expect(createdUser.lastModifiedBy).to.equal(adminUser._id);
     chai.expect(createdUser.archived).to.equal(false);
     chai.expect(createdUser).to.not.have.any.keys('archivedOn', 'archivedBy');
+
     done();
   });
 }
@@ -174,7 +169,7 @@ function postUsers(done) {
     testData.users[2]
   ];
   request({
-    url: `${test.url}/api/users`,
+    url: `${test.url}/api/users/`,
     headers: testUtils.getHeaders(),
     ca: testUtils.readCaFile(),
     method: 'POST',
@@ -214,6 +209,7 @@ function postUsers(done) {
       chai.expect(createdUser.archived).to.equal(false);
       chai.expect(createdUser).to.not.have.any.keys('archivedOn', 'archivedBy');
     });
+
     done();
   });
 }
@@ -257,6 +253,7 @@ function putUser(done) {
     chai.expect(replacedUser.lastModifiedBy).to.equal(adminUser._id);
     chai.expect(replacedUser.archived).to.equal(false);
     chai.expect(replacedUser).to.not.have.any.keys('archivedOn', 'archivedBy');
+
     done();
   });
 }
@@ -273,7 +270,7 @@ function putUsers(done) {
     testData.users[3]
   ];
   request({
-    url: `${test.url}/api/users`,
+    url: `${test.url}/api/users/`,
     headers: testUtils.getHeaders(),
     ca: testUtils.readCaFile(),
     method: 'PUT',
@@ -313,6 +310,7 @@ function putUsers(done) {
       chai.expect(replacedUser.archived).to.equal(false);
       chai.expect(replacedUser).to.not.have.any.keys('archivedOn', 'archivedBy');
     });
+
     done();
   });
 }
@@ -656,6 +654,7 @@ function patchUsers(done) {
 function patchUserPassword(done) {
   // Create request object
   const userData = testData.users[0];
+  userData._id = userData.username;
   const updateObj = {
     password: 'NewPass1234?',
     confirmPassword: 'NewPass1234?',
@@ -693,6 +692,7 @@ function patchUserPassword(done) {
     chai.expect(updatedUser.lastModifiedBy).to.equal(adminUser._id);
     chai.expect(updatedUser.archived).to.equal(false);
     chai.expect(updatedUser).to.not.have.any.keys('archivedOn', 'archivedBy');
+
     done();
   });
 }

@@ -25,7 +25,7 @@ looks something like this:
 ### Creating some test data
 
 To generate a simple test model, we will first write a brief Python script
-for adding the model to MBEE via the API. See "Section 4.0 Integrations" of
+for adding the model to MBEE via the API. See `Section 4.0 Integrations` of
 this document for more on writing API-based integrations.
 
 ```python

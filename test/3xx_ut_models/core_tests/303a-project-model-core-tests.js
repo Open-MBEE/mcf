@@ -28,7 +28,6 @@ const should = chai.should(); // eslint-disable-line no-unused-vars
 
 // MBEE modules
 const Project = M.require('models.project');
-const db = M.require('db');
 const utils = M.require('lib.utils');
 
 /* --------------------( Test Data )-------------------- */
@@ -46,34 +45,6 @@ const org = testData.orgs[0];
  * name of the current file.
  */
 describe(M.getModuleName(module.filename), () => {
-  /**
-   * Before: runs before all tests. Opens database connection.
-   */
-  before((done) => {
-    db.connect()
-    .then(() => done())
-    .catch((error) => {
-      M.log.error(error);
-      // Expect no error
-      chai.expect(error).to.equal(null);
-      done();
-    });
-  });
-
-  /**
-   * After: runs after all tests. Closes database connection.
-   */
-  after((done) => {
-    db.disconnect()
-    .then(() => done())
-    .catch((error) => {
-      M.log.error(error);
-      // Expect no error
-      chai.expect(error).to.equal(null);
-      done();
-    });
-  });
-
   /* Execute the tests */
   it('should create a project', createProject);
   it('should find a project', findProject);

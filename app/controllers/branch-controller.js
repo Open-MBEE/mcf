@@ -34,6 +34,7 @@ const Element = M.require('models.element');
 const Branch = M.require('models.branch');
 const Project = M.require('models.project');
 const Org = M.require('models.organization');
+const Webhook = M.require('models.webhook');
 const EventEmitter = M.require('lib.events');
 const sani = M.require('lib.sanitization');
 const utils = M.require('lib.utils');
@@ -374,10 +375,7 @@ async function create(requestingUser, organizationID, projectID, branches, optio
     // will remove anything that has been partially created.
     try {
       // Create the branches
-      const createdBranches = await Branch.insertMany(branchObjects);
-
-      // Set the branches created to the new branches
-      newBranches = createdBranches;
+      newBranches = await Branch.insertMany(branchObjects);
 
       // Find all the elements in the branch we are branching from
       const elementsToClone = await Element.find({ branch: sourceID }, null);
@@ -386,9 +384,8 @@ async function create(requestingUser, organizationID, projectID, branches, optio
       // Grabbing all the element ids
       elementsCloning = elementsToClone.map((e) => e._id);
 
-      const promises = [];
       // Loop through all the branches
-      promises.push(newBranches.forEach((branch) => {
+      newBranches.forEach((branch) => {
         // Create the new element objects for each element in the cloned from branch
         elementsToCreate = elementsToCreate.concat(elementsToClone.map((e) => {
           // Grab the element ID and parent ID
@@ -464,9 +461,8 @@ async function create(requestingUser, organizationID, projectID, branches, optio
           // Return the element object
           return elemObj;
         }));
-      }));
+      });
 
-      await Promise.all(promises);
       // Create the new elements
       const newElements = await Element.insertMany(elementsToCreate);
 
@@ -474,15 +470,65 @@ async function create(requestingUser, organizationID, projectID, branches, optio
         // Not all elements were created
         throw new M.DatabaseError('Not all elements were cloned from branch.', 'error');
       }
+
+      // Find all the artifacts in the branch we are branching from
+      const artifactsToClone = await Artifact.find({ branch: sourceID }, null);
+
+      // Check if there are artifacts to be cloned
+      if (artifactsToClone.length > 0) {
+        // Grabbing all the artifact ids
+        const artifactIDs = artifactsToClone.map((a) => a._id);
+
+        let artifactsToCreate = [];
+
+        // Loop through each branch
+        newBranches.forEach((branch) => {
+          // Loop through each artifact
+          artifactsToCreate = artifactsToCreate.concat(artifactsToClone.map((a) => {
+            // Grab the artifact ID
+            const oldArtID = utils.parseID(a._id).pop();
+            const artID = utils.createID(branch._id, oldArtID);
+
+            return {
+              _id: artID,
+              project: a.project,
+              branch: branch._id,
+              filename: a.filename,
+              location: a.location,
+              custom: a.custom,
+              lastModifiedBy: reqUser._id,
+              createdBy: a.createdBy,
+              createdOn: a.createdOn,
+              updatedOn: Date.now(),
+              archived: a.archived,
+              description: a.description,
+              size: a.size,
+              strategy: a.strategy,
+              archivedOn: (a.archivedOn) ? a.archivedOn : null,
+              archivedBy: (a.archivedBy) ? a.archivedBy : null
+            };
+          }));
+        });
+
+        // Create the new artifacts
+        const newArtifacts = await Artifact.insertMany(artifactsToCreate);
+
+        if (newArtifacts.length !== (newBranches.length * artifactIDs.length)) {
+          // Not all artifacts were created
+          throw new M.DatabaseError('Not all artifacts were cloned from branch.', 'error');
+        }
+      }
     }
     catch (error) {
-      const finalError = await new Promise(async (resolve) => {
+      throw await new Promise(async (resolve) => {
         try {
           // If there was an error with inserting elements into the branch
           // Delete any elements created from branch
           await Element.deleteMany({ branch: { $in: arrIDs } });
           // Delete the branches
           await Branch.deleteMany({ _id: { $in: arrIDs } });
+          // Delete the artifacts
+          await Artifact.deleteMany({ branch: { $in: arrIDs } });
           // Send original error
           resolve(error);
         }
@@ -491,7 +537,6 @@ async function create(requestingUser, organizationID, projectID, branches, optio
           resolve(err);
         }
       });
-      throw finalError;
     }
 
     // Emit the event branches-created
@@ -648,8 +693,8 @@ async function update(requestingUser, organizationID, projectID, branches, optio
       // Error Check: if branch is currently archived, it must first be unarchived
       if (branch.archived && (updateBranch.archived === undefined
         || JSON.parse(updateBranch.archived) !== false)) {
-        throw new M.OperationError(`Branch [${utils.parseID(branch._id).pop()}]`
-          + ' is archived. Archived objects cannot be modified.', 'warn');
+        throw new M.OperationError(`The Branch [${utils.parseID(branch._id).pop()}]`
+          + ' is archived. It must first be unarchived before performing this operation.', 'warn');
       }
 
       // For each key in the updated object
@@ -828,11 +873,14 @@ async function remove(requestingUser, organizationID, projectID, branches, optio
       }
     });
 
-    // Delete any elements in the branch
+    // Delete any elements in the branches
     await Element.deleteMany(ownedQuery);
 
-    // Delete any artifacts in the branch
+    // Delete any artifacts in the branches
     await Artifact.deleteMany(ownedQuery);
+
+    // Delete any webhooks on the branches
+    await Webhook.deleteMany({ reference: ownedQuery.branch });
 
     // Delete all the branches
     const retQuery = await Branch.deleteMany(searchQuery);

@@ -33,26 +33,6 @@ const db = M.require('db');
  * name of the current file.
  */
 describe(M.getModuleName(module.filename), () => {
-  /* Runs before all tests . Opens the database connection. */
-  before((done) => {
-    db.connect()
-    .then(() => done())
-    .catch((error) => {
-      chai.expect(error.message).to.equal(null);
-      done();
-    });
-  });
-
-  /* Runs after all tests. Close database connection. */
-  after((done) => {
-    db.disconnect()
-    .then(() => done())
-    .catch((error) => {
-      chai.expect(error.message).to.equal(null);
-      done();
-    });
-  });
-
   /* Execute the tests */
   it('clean database', cleanDB);
   it('should initialize the server data model', initServerDataModel);

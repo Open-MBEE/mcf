@@ -20,6 +20,7 @@ const express = require('express');
 const router = express.Router();
 
 // MBEE modules
+const APIController = M.require('controllers.api-controller');
 const UIController = M.require('controllers.ui-controller');
 const AuthController = M.require('lib.auth');
 const Middleware = M.require('lib.middleware');
@@ -67,6 +68,7 @@ router.route('/login')
   AuthController.authenticate,
   Middleware.logRoute,
   AuthController.doLogin,
+  APIController.login,
   UIController.login
 );
 
@@ -262,6 +264,16 @@ router.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements')
  * @description This renders a project's element page for a user.
  **/
 router.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements#:elementid')
+.get(
+  AuthController.authenticate,
+  Middleware.logRoute,
+  UIController.project
+);
+
+/**
+ * @description This renders a project's artifacts page for a user.
+ **/
+router.route('/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts')
 .get(
   AuthController.authenticate,
   Middleware.logRoute,

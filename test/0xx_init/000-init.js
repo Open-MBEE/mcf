@@ -34,6 +34,7 @@ const Organization = M.require('models.organization');
 const Project = M.require('models.project');
 const ServerData = M.require('models.server-data');
 const User = M.require('models.user');
+const Webhook = M.require('models.webhook');
 const db = M.require('db');
 
 /* --------------------( Main )-------------------- */
@@ -44,30 +45,6 @@ const db = M.require('db');
  * name of the current file.
  */
 describe(M.getModuleName(module.filename), function() {
-  /**
-   * Runs before all tests . Opens the database connection.
-   */
-  before((done) => {
-    db.connect()
-    .then(() => done())
-    .catch((error) => {
-      chai.expect(error.message).to.equal(null);
-      done();
-    });
-  });
-
-  /**
-   * Runs after all tests. Close database connection.
-   */
-  after((done) => {
-    db.disconnect()
-    .then(() => done())
-    .catch((error) => {
-      chai.expect(error.message).to.equal(null);
-      done();
-    });
-  });
-
   /**
    * Execute the tests.
    */
@@ -107,13 +84,9 @@ async function cleanDB() {
 async function initModels() {
   try {
     // Initialize all models
-    await Artifact.init();
-    await Branch.init();
-    await Element.init();
-    await Organization.init();
-    await Project.init();
-    await ServerData.init();
-    await User.init();
+    await Promise.all([Artifact.init(), Branch.init(), Element.init(),
+      Organization.init(), Project.init(), ServerData.init(), User.init(),
+      Webhook.init()]);
 
     // Insert server data
     await ServerData.insertMany([{ _id: 'server_data', version: M.version }]);

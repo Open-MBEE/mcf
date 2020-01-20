@@ -42,7 +42,6 @@ class ElementEdit extends Component {
   constructor(props) {
     // Initialize parent props
     super(props);
-
     // Set mounted variable
     this.mounted = false;
 
@@ -188,6 +187,8 @@ class ElementEdit extends Component {
       name: this.state.name,
       type: this.state.type,
       parent: this.state.parent,
+      source: this.state.source,
+      target: this.state.target,
       archived: this.state.archived,
       documentation: this.state.documentation,
       custom: JSON.parse(this.state.custom)
@@ -195,12 +196,6 @@ class ElementEdit extends Component {
 
     if (this.state.parentUpdate !== this.state.parent) {
       doRefresh = true;
-    }
-
-    // Verify that there is a source and target
-    if (this.state.source !== null && this.state.target !== null) {
-      data.source = this.state.source;
-      data.target = this.state.target;
     }
 
     // Verify if there is a targetNamespace and target

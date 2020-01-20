@@ -136,3 +136,20 @@ function decodeHTML(encodedString) {
     .replace(/&#039;/g, "'");
   }
 }
+
+/**
+ * @description Converts a passed in string to camel case.
+ *
+ * @param {string} aString - string to convert to camel case.
+ *
+ * @returns {string} - Camel case string.
+ */
+// eslint-disable-next-line no-unused-vars
+function toCamel(aString) {
+  return aString.replace(/\W/g, ' ').trim().toLowerCase().replace(
+    /(?:\b\w|\s+)/g,
+    function(match, index) {
+      if (+match === 0) return ''; return index === 0 ? match.toLowerCase() : match.toUpperCase();
+    }
+  );
+}

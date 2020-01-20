@@ -21,6 +21,7 @@
 
 // Node modules
 const assert = require('assert');
+const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 
@@ -222,10 +223,10 @@ module.exports.parseOptions = function(options, validOptions) {
     // Check option of boolean type
     if (validOptions[option] === 'boolean') {
       // Check and convert string to boolean
-      if (options[option] === 'true') {
+      if (options[option] === 'true' || options[option] === true) {
         parsedOptions[option] = true;
       }
-      else if (options[option] === 'false') {
+      else if (options[option] === 'false' || options[option] === false) {
         parsedOptions[option] = false;
       }
       else if (!(typeof options[option] === 'boolean')) {
@@ -297,13 +298,15 @@ module.exports.validateOptions = function(options, validOptions, model) {
       validatedOptions.populateString = 'contains sourceOf targetOf ';
       break;
     case 'Artifact':
-      validSearchOptions = ['name', 'createdBy', 'archived',
-        'lastModifiedBy', 'archivedBy'];
-
+      validSearchOptions = ['name', 'createdBy', 'archived', 'lastModifiedBy', 'archivedBy'];
       break;
     case 'User':
       validSearchOptions = ['fname', 'preferredName', 'lname', 'email', 'createdBy',
         'lastModifiedBy', 'archived', 'archivedBy'];
+      break;
+    case 'Webhook':
+      validSearchOptions = ['type', 'name', 'createdBy', 'lastModifiedBy', 'archived',
+        'archivedBy', 'org', 'project', 'branch'];
       break;
     default:
       throw new M.DataFormatError('No model provided', 'warn');
@@ -471,6 +474,17 @@ module.exports.validateOptions = function(options, validOptions, model) {
       // Return the parsed sort option in the format {sort_field: order}
       validatedOptions.sort[val] = order;
     }
+
+    // Handle the deleteBlob option
+    if (opt === 'deleteBlob') {
+      // Ensure the value is a boolean
+      if (typeof options.deleteBlob !== 'boolean') {
+        throw new M.DataFormatError('The option \'deleteBlob\' is not a boolean.', 'warn');
+      }
+
+      // Set the deleteBlob option in the returnObject
+      validatedOptions.deleteBlob = val;
+    }
   });
 
   return validatedOptions;
@@ -512,7 +526,7 @@ module.exports.handleGzip = function(dataStream) {
  * @description Looks up the content type based on the file extension.
  * Defaults to 'application/octet-stream' if no extension is found.
  *
- * @param {string} filename - Name of the file.
+ * @param {(string|null)} filename - Name of the file.
  *
  * @returns {string} - The content type of the file.
  */
@@ -532,4 +546,69 @@ module.exports.getContentType = function(filename) {
     contentType = mineTypeTable[ext];
   }
   return contentType;
+};
+
+/**
+ * @description Checks that the available heap memory allows for a file to be
+ * read into memory.
+ *
+ * @param {string} filePath - The path of the file.
+ *
+ * @returns {boolean} If the file is safe to read or not.
+ */
+module.exports.readFileCheck = function(filePath) {
+  // Check that the file exists
+  if (fs.existsSync(filePath)) {
+    // Get the size of the file, in bytes
+    const fileSize = fs.statSync(filePath).size;
+    // Get the total heap usage, in bytes
+    const currentHeapUsage = process.memoryUsage().heapUsed;
+
+    // Get the theoretical remaining heap usage after reading the file
+    const totalHeapUsage = currentHeapUsage + fileSize;
+
+    // If within 95% of memory limit, file is NOT safe to read
+    return !(totalHeapUsage / 1024 / 1024 >= M.memoryLimit * 0.95);
+  }
+  else {
+    // File does not exist, not safe to read
+    return false;
+  }
+};
+
+/**
+ * @description This is a utility function that formats an object as JSON.
+ * This function is used for formatting all API responses.
+ *
+ * @param {object} req - The request object.
+ * @param {object} res - The response object.
+ * @param {string} message - The response message or error message.
+ * @param {number} statusCode - The status code for the response.
+ * @param {Function} next - Callback to to trigger the next middleware.
+ * @param {string} [contentType="application/json"] - The content type for
+ * the response.
+ */
+module.exports.formatResponse = function formatResponse(req, res, message, statusCode,
+  next = null, contentType = 'application/json') {
+  if (statusCode === 200) {
+    // We send these headers for a success response
+    res.header('Content-Type', contentType);
+  }
+  else {
+    // We send these headers for an error response
+    res.header('Content-Type', 'text/plain');
+  }
+
+  // Set the status code
+  res.status(statusCode);
+
+  // Pass the message along
+  res.locals.message = message;
+
+  // Set a marker that this response has been formatted
+  res.locals.responseFormatted = true;
+
+  // Calling next() allows post-APIController middleware to log the response. next should only
+  // be passed in to this function when this function is called due to an error.
+  if (next !== null) next();
 };

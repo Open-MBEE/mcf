@@ -7,7 +7,7 @@
  *
  * @license MIT
  *
- * @owner Austin Bieber
+ * @owner Connor Doyle
  *
  * @author Josh Kaplan
  *

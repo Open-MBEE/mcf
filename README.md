@@ -15,21 +15,20 @@ distributed services.
 
 ## Prerequisites
 
-**Node.js**
+#### Node.js
 MBEE's only dependency to get started is Node.js and NPM. NPM comes with
 Node.js; just install packages with NPM to get started. To start up MBEE,
 node version 10.15.0 or greater is required.
 See [nodejs.org](https://nodejs.org/en/) for information on Node.js.
 
-**Database**
+#### Database
 You will also need an instance of a document based database. MongoDB is the
-preferred and only currently supported database, but MBEE does support 
-plug-n-play with different databases, as long as a database strategy has been
-defined. To view more information on the database abstraction layer and
-how to configure existing strategies, please visit 
-[the README in app/db](app/db/README.md).
+preferred database, but MBEE does support plug-n-play with different databases,
+as long as a database strategy has been defined. To view more information on the
+database abstraction layer and how to configure existing strategies, please
+visit [the README in app/db](app/db/README.md).
 
-**Source Code**
+#### Source Code
 1. Clone the MBEE code by running: `git clone https://github.com/lmco/mbee.git`. 
 2. Enter the directory with `cd mbee`.
 
@@ -44,12 +43,16 @@ for all encompassing user manual of MBEE.
 
 You can view the MBEE Flight Manual at the `/doc/flight-manual` route on a
 running MBEE server.
-Included documentation:
-- Flight Manual
-  - API Documentation
-  - Developer Documentation
-  - Test Framework Documentation
-  - Docker Set Up Documentation
+
+Included MBEE documentation:
+- Configuration
+- Integrations
+- Plugins
+- Developer Guide
+
+Swagger API documentation can be viewed at the `/doc/api` route.
+
+JSDoc developer documentation can be viewed at the `/doc/` route.
 
 ## Reporting Vulnerabilities and Bugs
 

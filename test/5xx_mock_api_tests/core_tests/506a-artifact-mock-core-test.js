@@ -24,19 +24,19 @@ const chai = require('chai'); // Test framework
 
 // MBEE modules
 const apiController = M.require('controllers.api-controller');
-const db = M.require('db');
 const utils = M.require('lib.utils');
 const jmi = M.require('lib.jmi-conversions');
 
 /* --------------------( Test Data )-------------------- */
 const testUtils = M.require('lib.test-utils');
 const testData = testUtils.importTestData('test_data.json');
+const next = testUtils.next;
 let adminUser = null;
 let org = null;
 let orgID = null;
 let proj = null;
 let projID = null;
-let branchID = null;
+const branchID = testData.branches[0].id;
 
 /* --------------------( Main )-------------------- */
 /**
@@ -47,13 +47,10 @@ let branchID = null;
  */
 describe(M.getModuleName(module.filename), () => {
   /**
-   * After: Connect to database. Create an admin user, organization, and project.
+   * Before: Create an admin user, organization, and project.
    */
   before(async () => {
     try {
-      // Connect to the database
-      await db.connect();
-
       // Create test admin
       adminUser = await testUtils.createTestAdmin();
 
@@ -64,7 +61,6 @@ describe(M.getModuleName(module.filename), () => {
       // Create project
       proj = await testUtils.createTestProject(adminUser, orgID);
       projID = utils.parseID(proj._id).pop();
-      branchID = testData.branches[0].id;
     }
     catch (error) {
       M.log.error(error);
@@ -83,7 +79,6 @@ describe(M.getModuleName(module.filename), () => {
       // Note: Projects under organization will also be removed
       await testUtils.removeTestOrg();
       await testUtils.removeTestAdmin();
-      await db.disconnect();
     }
     catch (error) {
       // Expect no error
@@ -175,12 +170,11 @@ function postArtifact(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
-  // POSTs an artifact
-  apiController.postArtifact(req, res);
+  // POST an artifact
+  apiController.postArtifact(req, res, next(req, res));
 }
 
 /**
@@ -253,12 +247,11 @@ function postArtifacts(done) {
         '__v', '_id');
     });
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
   // POST artifacts
-  apiController.postArtifacts(req, res);
+  apiController.postArtifacts(req, res, next(req, res));
 }
 
 /**
@@ -322,12 +315,11 @@ function getArtifact(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
-  // GETs an artifact
-  apiController.getArtifact(req, res);
+  // GET an artifact
+  apiController.getArtifact(req, res, next(req, res));
 }
 
 /**
@@ -407,12 +399,11 @@ function getArtifacts(done) {
         '__v', '_id');
     });
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
   // GET artifacts
-  apiController.getArtifacts(req, res);
+  apiController.getArtifacts(req, res, next(req, res));
 }
 
 /**
@@ -461,11 +452,10 @@ function postBlob(done) {
     chai.expect(postedArtifact.location).to.equal(artData.location);
     chai.expect(postedArtifact.filename).to.equal(artData.filename);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
-  // POSTs a blob
-  apiController.postBlob(req, res);
+  // POST a blob
+  apiController.postBlob(req, res, next(req, res));
 }
 
 /**
@@ -513,11 +503,10 @@ function getBlob(done) {
     // Deep compare both binaries
     chai.expect(_data).to.deep.equal(fileData);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
-  // GETs a blob
-  apiController.getBlob(req, res);
+  // GET a blob
+  apiController.getBlob(req, res, next(req, res));
 }
 
 /**
@@ -563,11 +552,10 @@ function getBlobById(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
-  // GETs a blob
-  apiController.getBlobById(req, res);
+  // GET a blob
+  apiController.getBlobById(req, res, next(req, res));
 }
 
 /**
@@ -609,11 +597,10 @@ function deleteBlob(done) {
     chai.expect(deletedArtifact.location).to.equal(artData.location);
     chai.expect(deletedArtifact.filename).to.equal(artData.filename);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
-  // DELETEs a blob
-  apiController.deleteBlob(req, res);
+  // DELETE a blob
+  apiController.deleteBlob(req, res, next(req, res));
 }
 
 /**
@@ -680,12 +667,11 @@ function patchArtifact(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
-  // PATCHes an artifact
-  apiController.patchArtifact(req, res);
+  // PATCH an artifact
+  apiController.patchArtifact(req, res, next(req, res));
 }
 
 /**
@@ -766,12 +752,11 @@ function patchArtifacts(done) {
         '__v', '_id');
     });
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
   // PATCH artifacts
-  apiController.patchArtifacts(req, res);
+  apiController.patchArtifacts(req, res, next(req, res));
 }
 
 /**
@@ -810,12 +795,11 @@ function deleteArtifact(done) {
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
-  // DELETEs an artifact
-  apiController.deleteArtifact(req, res);
+  // DELETE an artifact
+  apiController.deleteArtifact(req, res, next(req, res));
 }
 
 /**
@@ -851,10 +835,9 @@ function deleteArtifacts(done) {
     const artifactIDs = JSON.parse(_data);
     chai.expect(artifactIDs).to.have.members(artIDs);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
   // DELETE artifacts
-  apiController.deleteArtifacts(req, res);
+  apiController.deleteArtifacts(req, res, next(req, res));
 }

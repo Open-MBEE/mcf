@@ -24,7 +24,6 @@ const chai = require('chai');
 const ElementController = M.require('controllers.element-controller');
 const ProjectController = M.require('controllers.project-controller');
 const Element = M.require('models.element');
-const db = M.require('db');
 const jmi = M.require('lib.jmi-conversions');
 const utils = M.require('lib.utils');
 
@@ -48,13 +47,10 @@ let artifactID = null;
  */
 describe(M.getModuleName(module.filename), () => {
   /**
-   * After: Connect to database. Create an admin user, organization, project,
-   * and elements.
+   * Before: Create an admin user, organization, project, and elements.
    */
   before(async () => {
     try {
-      // Open the database connection
-      await db.connect();
       // Create test admin
       adminUser = await testUtils.createTestAdmin();
 
@@ -107,7 +103,6 @@ describe(M.getModuleName(module.filename), () => {
 
   /**
    * After: Remove organization, project and elements.
-   * Close database connection.
    */
   after(async () => {
     try {
@@ -115,7 +110,6 @@ describe(M.getModuleName(module.filename), () => {
       // Note: Projects and elements under organization will also be removed
       await testUtils.removeTestOrg();
       await testUtils.removeTestAdmin();
-      await db.disconnect();
     }
     catch (error) {
       M.log.error(error);
@@ -315,7 +309,7 @@ async function optionFieldsFind() {
     // Create the list of fields that should be returned
     const expectedFields = findOptions.fields.concat(fieldsAlwaysProvided);
 
-    // Create a list of visible element fields. Object.keys(elem) returns hidden fields as well
+    // Create a list of visible element fields
     const visibleFields = Object.keys(elem);
 
     // Check that the only keys in the element are the expected ones
@@ -328,7 +322,7 @@ async function optionFieldsFind() {
     chai.expect(notFindElements.length).to.equal(1);
     const elem2 = foundElements[0];
 
-    // Create a list of visible element fields. Object.keys(elem) returns hidden fields as well
+    // Create a list of visible element fields
     const visibleFields2 = Object.keys(elem2);
 
     // Check that the keys in the notFindOptions are not in elem
@@ -452,7 +446,7 @@ async function optionSortFind() {
       testElems.map((e) => e.id),
       sortOptionReverse);
     // Expect to find all three elements
-    chai.expect(foundElems.length).to.equal(3);
+    chai.expect(reverseElems.length).to.equal(3);
 
     // Validate that the sort option is working
     chai.expect(reverseElems[0].name).to.equal('c');
@@ -724,7 +718,7 @@ async function optionFieldsCreate() {
     // Create the list of fields that should be returned
     const expectedFields = findOptions.fields.concat(fieldsAlwaysProvided);
 
-    // Create a list of visible element fields. Object.keys(elem) returns hidden fields as well
+    // Create a list of visible element fields
     const visibleFields = Object.keys(elem);
 
     // Check that the only keys in the element are the expected ones
@@ -737,7 +731,7 @@ async function optionFieldsCreate() {
     chai.expect(notFindElements.length).to.equal(1);
     const elem2 = notFindElements[0];
 
-    // Create a list of visible element fields. Object.keys(elem) returns hidden fields as well
+    // Create a list of visible element fields
     const visibleFields2 = Object.keys(elem2);
 
     // Check that the keys in the notFindOptions are not in elem
@@ -931,7 +925,7 @@ async function optionFieldsUpdate() {
     // Create the list of fields that should be returned
     const expectedFields = findOptions.fields.concat(fieldsAlwaysProvided);
 
-    // Create a list of visible element fields. Object.keys(elem) returns hidden fields as well
+    // Create a list of visible element fields
     const visibleFields = Object.keys(elem);
 
     // Check that the only keys in the element are the expected ones
@@ -944,7 +938,7 @@ async function optionFieldsUpdate() {
     chai.expect(notFindElements.length).to.equal(1);
     const elem2 = notFindElements[0];
 
-    // Create a list of visible element fields. Object.keys(elem) returns hidden fields as well
+    // Create a list of visible element fields
     const visibleFields2 = Object.keys(elem2);
 
     // Check that the keys in the notFindOptions are not in elem
@@ -1040,7 +1034,7 @@ async function optionFieldsReplace() {
     // Create the list of fields that should be returned
     const expectedFields = findOptions.fields.concat(fieldsAlwaysProvided);
 
-    // Create a list of visible element fields. Object.keys(elem) returns hidden fields as well
+    // Create a list of visible element fields
     const visibleFields = Object.keys(elem);
 
     // Check that the only keys in the element are the expected ones
@@ -1053,7 +1047,7 @@ async function optionFieldsReplace() {
     chai.expect(notFieldsElems.length).to.equal(1);
     const elem2 = notFieldsElems[0];
 
-    // Create a list of visible element fields. Object.keys(elem) returns hidden fields as well
+    // Create a list of visible element fields
     const visibleFields2 = Object.keys(elem2);
 
     // Check that the keys in the notFindOptions are not in elem

@@ -7,7 +7,7 @@
  *
  * @license MIT
  *
- * @owner Austin Bieber
+ * @owner Connor Doyle
  *
  * @author Austin Bieber
  * @author Josh Kaplan
@@ -24,6 +24,7 @@
 
 
 // Node modules
+const fs = require('fs');
 const path = require('path');
 
 // NPM modules
@@ -38,12 +39,17 @@ const BranchController = M.require('controllers.branch-controller');
 const OrgController = M.require('controllers.organization-controller');
 const ProjectController = M.require('controllers.project-controller');
 const UserController = M.require('controllers.user-controller');
+const WebhookController = M.require('controllers.webhook-controller');
+const Webhook = M.require('models.webhook');
+const EventEmitter = M.require('lib.events');
 const errors = M.require('lib.errors');
 const jmi = M.require('lib.jmi-conversions');
 const logger = M.require('lib.logger');
+const permissions = M.require('lib.permissions');
 const publicData = M.require('lib.get-public-data');
 const sani = M.require('lib.sanitization');
 const utils = M.require('lib.utils');
+
 
 // Expose `API Controller functions`
 module.exports = {
@@ -51,6 +57,7 @@ module.exports = {
   login,
   test,
   version,
+  getLogs,
   getOrgs,
   postOrgs,
   putOrgs,
@@ -116,6 +123,14 @@ module.exports = {
   postBlob,
   deleteBlob,
   getBlobById,
+  getWebhooks,
+  postWebhooks,
+  patchWebhooks,
+  deleteWebhooks,
+  getWebhook,
+  patchWebhook,
+  deleteWebhook,
+  triggerWebhook,
   invalidRoute
 };
 
@@ -138,38 +153,6 @@ function formatJSON(obj, minified = false) {
   else {
     return JSON.stringify(obj, null, M.config.server.api.json.indent);
   }
-}
-
-/**
- * @description This is a utility function that formats an object as JSON.
- * This function is used for formatting all API responses.
- *
- * @param {object} req - The request object.
- * @param {object} res - The response object.
- * @param {string} message - The response message or error message.
- * @param {number} statusCode - The status code for the response.
- * @param {string} [contentType="application/json"] - The content type for
- * the response.
- *
- * @returns {object} The response object.
- */
-function returnResponse(req, res, message, statusCode,
-  contentType = 'application/json') {
-  if (statusCode === 200) {
-    // We send these headers for a success response
-    res.header('Content-Type', contentType);
-  }
-  else {
-    // We send these headers for an error response
-    res.header('Content-Type', 'text/plain');
-  }
-
-  // Send the message
-  res.status(statusCode).send(message);
-  // Log the response
-  logger.logResponse(message.length, req, res);
-  // Return res
-  return res;
 }
 
 /**
@@ -200,13 +183,14 @@ function swaggerSpec() {
  *
  * @param {object} req - Request express object.
  * @param {object} res - Response express object.
+ * @param {Function} next - Middleware callback to trigger the next function.
  *
  * @returns {object} Response object with swagger JSON
  */
-function swaggerJSON(req, res) {
+function swaggerJSON(req, res, next) {
   // Return swagger specification
   const json = formatJSON(swaggerSpec());
-  return returnResponse(req, res, json, 200);
+  return utils.formatResponse(req, res, json, 200, next);
 }
 
 /**
@@ -216,12 +200,15 @@ function swaggerJSON(req, res) {
  *
  * @param {object} req - Request express object.
  * @param {object} res - Response express object.
- *
- * @returns {object} Response object with session token
+ * @param {Function} next - Middleware callback to trigger the next function.
  */
-function login(req, res) {
+function login(req, res, next) {
   const json = formatJSON({ token: req.session.token });
-  return returnResponse(req, res, json, 200);
+  res.locals = {
+    message: json,
+    statusCode: 200
+  };
+  next();
 }
 
 /**
@@ -234,7 +221,7 @@ function login(req, res) {
  */
 function test(req, res) {
   res.status(200).send('');
-  logger.logResponse(0, req, res);
+  logger.logResponse(req, res);
 }
 
 /**
@@ -244,10 +231,11 @@ function test(req, res) {
  *
  * @param {object} req - Request express object.
  * @param {object} res - Response express object.
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with version
  */
-function version(req, res) {
+function version(req, res, next) {
   // Create version object
   const json = formatJSON({
     version: M.version,
@@ -255,7 +243,119 @@ function version(req, res) {
   });
 
   // Return version object
-  return returnResponse(req, res, json, 200);
+  return utils.formatResponse(req, res, json, 200, next);
+}
+
+/**
+ * GET /api/logs
+ *
+ * @description Returns the contents of the main log. Reserved for system-wide
+ * admins only.
+ *
+ * @param {object} req - Express request object.
+ * @param {object} res - Express response object.
+ * @param {Function} next - Middleware callback to trigger the next function
+ *
+ * @returns {object} Response object with log info.
+ */
+function getLogs(req, res, next) {
+  let options;
+  let logContent;
+  let returnedLines;
+
+  // Sanity Check: there should always be a user in the request
+  if (!req.user) return noUserError(req, res, next);
+
+  // Ensure that the user has permission to get the logs
+  try {
+    permissions.getLogs(req.user);
+  }
+  catch (error) {
+    // Error occurred with options, report it
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+
+  // Define valid options and their types
+  const validOptions = {
+    skip: 'number',
+    limit: 'number',
+    removeColor: 'boolean'
+  };
+
+  // Attempt to parse query options
+  try {
+    // Extract options from request query
+    options = utils.parseOptions(req.query, validOptions);
+
+    // Set limit and skip options if not already set
+    if (!options.hasOwnProperty('limit')) options.limit = 1000;
+    if (!options.skip) options.skip = 0;
+
+    // Return error if limit of 0 is supplied
+    if (options.limit === 0) {
+      throw new M.DataFormatError('A limit of 0 is not allowed.', 'warn');
+    }
+  }
+  catch (error) {
+    // Error occurred with options, report it
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+
+  const logPath = path.join(M.root, 'logs', M.config.log.file);
+
+  // Read the log file
+  if (fs.existsSync(logPath)) {
+    // Ensure that there is enough memory to read the log file
+    if (!utils.readFileCheck(logPath)) {
+      const error = new M.ServerError('There is not enough memory to read the log'
+        + ' file. Please consider restarting the process with the flag '
+        + '--max-old-space-size.', 'error');
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+    }
+
+    logContent = fs.readFileSync(logPath).toString();
+  }
+  else {
+    const error = new M.ServerError('Server log file does not exist.', 'critical');
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+
+  // Get the number of lines in the log file
+  const numLines = logContent.split('\n').length;
+
+  // If limit is -1, all log content should be returned
+  if (options.limit < 0) {
+    returnedLines = logContent.split('\n');
+  }
+  else {
+    // Ensure skip option is in correct range
+    if (options.skip < 0) {
+      options.skip = 0;
+    }
+    else if (options.skip > numLines) {
+      options.skip = numLines;
+    }
+
+    // Skip the correct number of lines
+    returnedLines = logContent.split('\n').slice(options.skip);
+    // Limit the correct number of lines
+    returnedLines = returnedLines.slice(0, options.limit);
+  }
+
+  // Remove the color characters from log if removeColor is specified
+  if (options.removeColor) {
+    const colorizeRegex = /(\[30m|\[31m|\[32m|\[33m|\[34m|\[35m|\[36m|\[37m|\[38m|\[39m)/g;
+    returnedLines = returnedLines.map((l) => l.replace(colorizeRegex, ''));
+  }
+
+  // Sets the message to the log content, content type to text/plain
+  // and the status code to 200
+  res.locals = {
+    message: returnedLines.join('\n'),
+    statusCode: 200,
+    contentType: 'text/plain'
+  };
+  next();
 }
 
 /* ----------------------( Organization API Endpoints )---------------------- */
@@ -266,13 +366,14 @@ function version(req, res) {
  *
  * @param {object} req - Request express object.
  * @param {object} res - Response express object.
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with orgs' public data
  *
  * NOTE: All users are members of the 'default' org, should always have
  * access to at least this organization.
  */
-async function getOrgs(req, res) {
+async function getOrgs(req, res, next) {
   // Define options and ids
   // Note: Undefined if not set
   let ids;
@@ -307,11 +408,7 @@ async function getOrgs(req, res) {
   }
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -320,7 +417,7 @@ async function getOrgs(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check query for ids
@@ -360,12 +457,16 @@ async function getOrgs(req, res) {
     // Format JSON
     const json = formatJSON(orgsPublicData, minified);
 
-    // Return 200: OK and public org data
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the found orgs' public data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -376,10 +477,11 @@ async function getOrgs(req, res) {
  *
  * @param {object} req - Request express object.
  * @param {object} res - Response express object.
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with orgs' public data
  */
-async function postOrgs(req, res) {
+async function postOrgs(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -393,11 +495,7 @@ async function postOrgs(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -406,7 +504,7 @@ async function postOrgs(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -424,7 +522,7 @@ async function postOrgs(req, res) {
     }
     catch (error) {
       // Error occurred with options, report it
-      return returnResponse(req, res, error.message, errors.getStatusCode(error));
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   }
   else {
@@ -443,12 +541,16 @@ async function postOrgs(req, res) {
     // Format JSON
     const json = formatJSON(orgsPublicData, minified);
 
-    // Return 200: OK and created orgs
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the created orgs and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -460,10 +562,11 @@ async function postOrgs(req, res) {
  *
  * @param {object} req - Request express object.
  * @param {object} res - Response express object.
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with orgs' public data
  */
-async function putOrgs(req, res) {
+async function putOrgs(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -477,11 +580,7 @@ async function putOrgs(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -490,7 +589,7 @@ async function putOrgs(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -508,7 +607,7 @@ async function putOrgs(req, res) {
     }
     catch (error) {
       // Error occurred with options, report it
-      return returnResponse(req, res, error.message, errors.getStatusCode(error));
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   }
   else {
@@ -527,12 +626,16 @@ async function putOrgs(req, res) {
     // Format JSON
     const json = formatJSON(orgsPublicData, minified);
 
-    // Return 200: OK and created/replaced orgs
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the replaced orgs and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -543,10 +646,11 @@ async function putOrgs(req, res) {
  *
  * @param {object} req - Request express object.
  * @param {object} res - Response express object.
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with orgs' public data
  */
-async function patchOrgs(req, res) {
+async function patchOrgs(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -560,11 +664,7 @@ async function patchOrgs(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -573,7 +673,7 @@ async function patchOrgs(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -591,7 +691,7 @@ async function patchOrgs(req, res) {
     }
     catch (error) {
       // Error occurred with options, report it
-      return returnResponse(req, res, error.message, errors.getStatusCode(error));
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   }
   else {
@@ -610,12 +710,16 @@ async function patchOrgs(req, res) {
     // Format JSON
     const json = formatJSON(orgsPublicData, minified);
 
-    // Return 200: OK and the updated orgs
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the updated orgs and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -628,10 +732,11 @@ async function patchOrgs(req, res) {
  *
  * @param {object} req - Request express object.
  * @param {object} res - Response express object.
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with array of deleted org IDs.
  */
-async function deleteOrgs(req, res) {
+async function deleteOrgs(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -643,11 +748,7 @@ async function deleteOrgs(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -656,7 +757,7 @@ async function deleteOrgs(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // If req.body contains objects, grab the org IDs from the objects
@@ -673,15 +774,19 @@ async function deleteOrgs(req, res) {
   try {
     // Remove the specified orgs
     const orgIDs = await OrgController.remove(req.user, req.body, options);
-    // Return 200: OK and the deleted org IDs
     // Format JSON
     const json = formatJSON(orgIDs, minified);
 
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the deleted org ids and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -692,10 +797,11 @@ async function deleteOrgs(req, res) {
  *
  * @param {object} req - Request express object.
  * @param {object} res - Response express object.
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with org's public data
  */
-async function getOrg(req, res) {
+async function getOrg(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -710,11 +816,7 @@ async function getOrg(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -723,7 +825,7 @@ async function getOrg(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -751,12 +853,16 @@ async function getOrg(req, res) {
     // Format JSON
     const json = formatJSON(orgsPublicData[0], minified);
 
-    // Return a 200: OK and the org's public data
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the org's public data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -768,10 +874,11 @@ async function getOrg(req, res) {
  *
  * @param {object} req - Request express object.
  * @param {object} res - Response express object.
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with org's public data
  */
-async function postOrg(req, res) {
+async function postOrg(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -785,16 +892,12 @@ async function postOrg(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Singular api: should not accept arrays
   if (Array.isArray(req.body)) {
     const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // If an ID was provided in the body, ensure it matches the ID in params
@@ -802,7 +905,7 @@ async function postOrg(req, res) {
     const error = new M.DataFormatError(
       'Organization ID in the body does not match ID in the params.', 'warn'
     );
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Attempt to parse query options
@@ -812,7 +915,7 @@ async function postOrg(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Set the org ID in the body equal req.params.orgid
@@ -836,12 +939,16 @@ async function postOrg(req, res) {
     // Format JSON
     const json = formatJSON(orgsPublicData[0], minified);
 
-    // Return 200: OK and created org
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the created org and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -853,10 +960,11 @@ async function postOrg(req, res) {
  *
  * @param {object} req - Request express object.
  * @param {object} res - Response express object.
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with org's public data
  */
-async function putOrg(req, res) {
+async function putOrg(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -870,16 +978,12 @@ async function putOrg(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Singular api: should not accept arrays
   if (Array.isArray(req.body)) {
     const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // If an ID was provided in the body, ensure it matches the ID in params
@@ -887,7 +991,7 @@ async function putOrg(req, res) {
     const error = new M.DataFormatError(
       'Organization ID in the body does not match ID in the params.', 'warn'
     );
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Attempt to parse query options
@@ -897,7 +1001,7 @@ async function putOrg(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Set the org ID in the body equal req.params.orgid
@@ -921,12 +1025,16 @@ async function putOrg(req, res) {
     // Format JSON
     const json = formatJSON(orgsPublicData[0], minified);
 
-    // Return 200: OK and created org
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the replaced org and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -937,10 +1045,11 @@ async function putOrg(req, res) {
  *
  * @param {object} req - Request express object.
  * @param {object} res - Response express object.
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with updated org
  */
-async function patchOrg(req, res) {
+async function patchOrg(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -954,16 +1063,12 @@ async function patchOrg(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Singular api: should not accept arrays
   if (Array.isArray(req.body)) {
     const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // If an ID was provided in the body, ensure it matches the ID in params
@@ -971,7 +1076,7 @@ async function patchOrg(req, res) {
     const error = new M.DataFormatError(
       'Organization ID in the body does not match ID in the params.', 'warn'
     );
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Attempt to parse query options
@@ -981,7 +1086,7 @@ async function patchOrg(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Set body org id
@@ -1005,12 +1110,16 @@ async function patchOrg(req, res) {
     // Format JSON
     const json = formatJSON(orgsPublicData[0], minified);
 
-    // Return 200: OK and the updated org
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the updated org and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -1022,7 +1131,7 @@ async function patchOrg(req, res) {
  *
  * @param {object} req - Request express object.
  * @param {object} res - Response express object.
- * @param {Function} next - Callback function.
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with deleted org ID.
  */
@@ -1038,11 +1147,7 @@ async function deleteOrg(req, res, next) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -1051,7 +1156,7 @@ async function deleteOrg(req, res, next) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -1069,12 +1174,16 @@ async function deleteOrg(req, res, next) {
     // Format JSON
     const json = formatJSON(orgID, minified);
 
-    // Return 200: OK and the deleted org IDs
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the deleted org id and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -1086,10 +1195,11 @@ async function deleteOrg(req, res, next) {
  *
  * @param {object} req - Request express object.
  * @param {object} res - Response express object.
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with projects' public data
  */
-async function getAllProjects(req, res) {
+async function getAllProjects(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1123,11 +1233,7 @@ async function getAllProjects(req, res) {
   }
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -1136,7 +1242,7 @@ async function getAllProjects(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -1160,12 +1266,16 @@ async function getAllProjects(req, res) {
     // Format JSON
     const json = formatJSON(publicProjectData, minified);
 
-    // Return 200: OK and public project data
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public project data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -1177,10 +1287,11 @@ async function getAllProjects(req, res) {
  *
  * @param {object} req - Request express object.
  * @param {object} res - Response express object.
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with projects' public data
  */
-async function getProjects(req, res) {
+async function getProjects(req, res, next) {
   // Define options and ids
   // Note: Undefined if not set
   let ids;
@@ -1216,11 +1327,7 @@ async function getProjects(req, res) {
   }
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -1229,7 +1336,7 @@ async function getProjects(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check if ids was provided in the request query
@@ -1270,12 +1377,16 @@ async function getProjects(req, res) {
     // Format JSON
     const json = formatJSON(publicProjectData, minified);
 
-    // Return 200: OK and public project data
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public project data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -1286,10 +1397,11 @@ async function getProjects(req, res) {
  *
  * @param {object} req - Request express object.
  * @param {object} res - Response express object.
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with created projects.
  */
-async function postProjects(req, res) {
+async function postProjects(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1303,11 +1415,7 @@ async function postProjects(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -1316,7 +1424,7 @@ async function postProjects(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -1334,7 +1442,7 @@ async function postProjects(req, res) {
     }
     catch (error) {
       // Error occurred with options, report it
-      return returnResponse(req, res, error.message, errors.getStatusCode(error));
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   }
   else {
@@ -1353,12 +1461,16 @@ async function postProjects(req, res) {
     // Format JSON
     const json = formatJSON(publicProjectData, minified);
 
-    // Return 200: OK and created project data
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the created projects and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -1370,10 +1482,11 @@ async function postProjects(req, res) {
  *
  * @param {object} req - Request express object.
  * @param {object} res - Response express object.
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with created/replaced projects.
  */
-async function putProjects(req, res) {
+async function putProjects(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1387,11 +1500,7 @@ async function putProjects(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -1400,7 +1509,7 @@ async function putProjects(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -1418,7 +1527,7 @@ async function putProjects(req, res) {
     }
     catch (error) {
       // Error occurred with options, report it
-      return returnResponse(req, res, error.message, errors.getStatusCode(error));
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   }
   else {
@@ -1437,12 +1546,16 @@ async function putProjects(req, res) {
     // Format JSON
     const json = formatJSON(publicProjectData, minified);
 
-    // Return 200: OK and created/replaced project data
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the replaced projects and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -1453,10 +1566,11 @@ async function putProjects(req, res) {
  *
  * @param {object} req - request express object
  * @param {object} res - response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with updated projects.
  */
-async function patchProjects(req, res) {
+async function patchProjects(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1470,11 +1584,7 @@ async function patchProjects(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -1483,7 +1593,7 @@ async function patchProjects(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -1501,7 +1611,7 @@ async function patchProjects(req, res) {
     }
     catch (error) {
       // Error occurred with options, report it
-      return returnResponse(req, res, error.message, errors.getStatusCode(error));
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   }
   else {
@@ -1520,12 +1630,16 @@ async function patchProjects(req, res) {
     // Format JSON
     const json = formatJSON(publicProjectData, minified);
 
-    // Return 200: OK and updated project data
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the updated projects and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -1538,10 +1652,11 @@ async function patchProjects(req, res) {
  *
  * @param {object} req - request express object
  * @param {object} res - response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with deleted project IDs.
  */
-async function deleteProjects(req, res) {
+async function deleteProjects(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1553,11 +1668,7 @@ async function deleteProjects(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -1566,7 +1677,7 @@ async function deleteProjects(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // If req.body contains objects, grab the project IDs from the objects
@@ -1589,12 +1700,16 @@ async function deleteProjects(req, res) {
     // Format JSON
     const json = formatJSON(parsedIDs, minified);
 
-    // Return 200: OK and the deleted project IDs
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the deleted project ids and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -1605,10 +1720,11 @@ async function deleteProjects(req, res) {
  *
  * @param {object} req - request express object
  * @param {object} res - response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with project's public data
  */
-async function getProject(req, res) {
+async function getProject(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1623,11 +1739,7 @@ async function getProject(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -1636,7 +1748,7 @@ async function getProject(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -1664,12 +1776,16 @@ async function getProject(req, res) {
     // Format JSON
     const json = formatJSON(publicProjectData[0], minified);
 
-    // Return 200: OK and public project data
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public project data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -1681,10 +1797,11 @@ async function getProject(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with created project.
  */
-async function postProject(req, res) {
+async function postProject(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1698,16 +1815,12 @@ async function postProject(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Singular api: should not accept arrays
   if (Array.isArray(req.body)) {
     const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // If project ID was provided in the body, ensure it matches project ID in params
@@ -1715,7 +1828,7 @@ async function postProject(req, res) {
     const error = new M.DataFormatError(
       'Project ID in the body does not match ID in the params.', 'warn'
     );
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Attempt to parse query options
@@ -1725,7 +1838,7 @@ async function postProject(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Set the projectid in req.body in case it wasn't provided
@@ -1748,12 +1861,16 @@ async function postProject(req, res) {
     // Format JSON
     const json = formatJSON(publicProjectData[0], minified);
 
-    // Return 200: OK and created project data
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the created project and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -1765,10 +1882,11 @@ async function postProject(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with created project.
  */
-async function putProject(req, res) {
+async function putProject(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1782,16 +1900,12 @@ async function putProject(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Singular api: should not accept arrays
   if (Array.isArray(req.body)) {
     const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // If project ID was provided in the body, ensure it matches project ID in params
@@ -1799,7 +1913,7 @@ async function putProject(req, res) {
     const error = new M.DataFormatError(
       'Project ID in the body does not match ID in the params.', 'warn'
     );
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Attempt to parse query options
@@ -1809,7 +1923,7 @@ async function putProject(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Set the orgid in req.body in case it wasn't provided
@@ -1833,12 +1947,16 @@ async function putProject(req, res) {
     // Format JSON
     const json = formatJSON(publicProjectData[0], minified);
 
-    // Return 200: OK and created/replaced project data
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the replaced project and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -1849,10 +1967,11 @@ async function putProject(req, res) {
  *
  * @param {object} req - request express object
  * @param {object} res - response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with updated project.
  */
-async function patchProject(req, res) {
+async function patchProject(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1866,16 +1985,12 @@ async function patchProject(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Singular api: should not accept arrays
   if (Array.isArray(req.body)) {
     const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // If project ID was provided in the body, ensure it matches project ID in params
@@ -1883,7 +1998,7 @@ async function patchProject(req, res) {
     const error = new M.DataFormatError(
       'Project ID in the body does not match ID in the params.', 'warn'
     );
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Attempt to parse query options
@@ -1893,7 +2008,7 @@ async function patchProject(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Set the orgid in req.body in case it wasn't provided
@@ -1917,12 +2032,16 @@ async function patchProject(req, res) {
     // Format JSON
     const json = formatJSON(publicProjectData[0], minified);
 
-    // Return 200: OK and updated project data
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the updated project and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -1934,10 +2053,11 @@ async function patchProject(req, res) {
  *
  * @param {object} req - request express object
  * @param {object} res - response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with deleted project ID.
  */
-async function deleteProject(req, res) {
+async function deleteProject(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1949,11 +2069,7 @@ async function deleteProject(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -1962,7 +2078,7 @@ async function deleteProject(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -1981,12 +2097,16 @@ async function deleteProject(req, res) {
     // Format JSON
     const json = formatJSON(parsedIDs, minified);
 
-    // Return 200: OK and the deleted project ID
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the deleted project id and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -1998,10 +2118,11 @@ async function deleteProject(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with users' public data
  */
-async function getUsers(req, res) {
+async function getUsers(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2029,11 +2150,7 @@ async function getUsers(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -2042,7 +2159,7 @@ async function getUsers(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Set usernames to undefined
@@ -2088,12 +2205,16 @@ async function getUsers(req, res) {
     // Format JSON
     const json = formatJSON(publicUserData, minified);
 
-    // Return 200: OK and public user data
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public user data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -2105,10 +2226,11 @@ async function getUsers(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with users' public data
  */
-async function postUsers(req, res) {
+async function postUsers(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2122,11 +2244,7 @@ async function postUsers(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -2135,7 +2253,7 @@ async function postUsers(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -2153,7 +2271,7 @@ async function postUsers(req, res) {
     }
     catch (error) {
       // Error occurred with options, report it
-      return returnResponse(req, res, error.message, errors.getStatusCode(error));
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   }
   else {
@@ -2171,12 +2289,16 @@ async function postUsers(req, res) {
     // Format JSON
     const json = formatJSON(publicUserData, minified);
 
-    // Return 200: OK and public user data
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public user data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -2188,10 +2310,11 @@ async function postUsers(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with users' public data
  */
-async function putUsers(req, res) {
+async function putUsers(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2205,11 +2328,7 @@ async function putUsers(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -2218,7 +2337,7 @@ async function putUsers(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -2236,7 +2355,7 @@ async function putUsers(req, res) {
     }
     catch (error) {
       // Error occurred with options, report it
-      return returnResponse(req, res, error.message, errors.getStatusCode(error));
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   }
   else {
@@ -2254,12 +2373,16 @@ async function putUsers(req, res) {
     // Format JSON
     const json = formatJSON(publicUserData, minified);
 
-    // Return 200: OK and public user data
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public user data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -2271,10 +2394,11 @@ async function putUsers(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with users' public data
  */
-async function patchUsers(req, res) {
+async function patchUsers(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2288,11 +2412,7 @@ async function patchUsers(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -2301,7 +2421,7 @@ async function patchUsers(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -2319,7 +2439,7 @@ async function patchUsers(req, res) {
     }
     catch (error) {
       // Error occurred with options, report it
-      return returnResponse(req, res, error.message, errors.getStatusCode(error));
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   }
   else {
@@ -2337,12 +2457,16 @@ async function patchUsers(req, res) {
     // Format JSON
     const json = formatJSON(publicUserData, minified);
 
-    // Return 200: OK and the updated users
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public user data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -2355,10 +2479,11 @@ async function patchUsers(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with usernames
  */
-async function deleteUsers(req, res) {
+async function deleteUsers(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2370,11 +2495,7 @@ async function deleteUsers(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -2383,7 +2504,7 @@ async function deleteUsers(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -2399,12 +2520,16 @@ async function deleteUsers(req, res) {
     // Format JSON
     const json = formatJSON(usernames, minified);
 
-    // Return 200: OK and deleted usernames
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the deleted usernames and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -2415,10 +2540,11 @@ async function deleteUsers(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with user's public data
  */
-async function getUser(req, res) {
+async function getUser(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2433,11 +2559,7 @@ async function getUser(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -2446,7 +2568,7 @@ async function getUser(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -2476,12 +2598,16 @@ async function getUser(req, res) {
     // Format JSON
     const json = formatJSON(publicUserData[0], minified);
 
-    // Return a 200: OK and the user's public data
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public user data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -2493,10 +2619,11 @@ async function getUser(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with created user
  */
-async function postUser(req, res) {
+async function postUser(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2510,16 +2637,12 @@ async function postUser(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Singular api: should not accept arrays
   if (Array.isArray(req.body)) {
     const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // If username was provided in the body, ensure it matches username in params
@@ -2527,7 +2650,7 @@ async function postUser(req, res) {
     const error = new M.DataFormatError(
       'Username in body does not match username in params.', 'warn'
     );
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Set the username in req.body in case it wasn't provided
@@ -2540,7 +2663,7 @@ async function postUser(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -2560,12 +2683,16 @@ async function postUser(req, res) {
     // Format JSON
     const json = formatJSON(publicUserData[0], minified);
 
-    // Return 200: OK and created user
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public user data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -2577,10 +2704,11 @@ async function postUser(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with created user
  */
-async function putUser(req, res) {
+async function putUser(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2594,16 +2722,12 @@ async function putUser(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Singular api: should not accept arrays
   if (Array.isArray(req.body)) {
     const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // If username was provided in the body, ensure it matches username in params
@@ -2611,7 +2735,7 @@ async function putUser(req, res) {
     const error = new M.DataFormatError(
       'Username in body does not match username in params.', 'warn'
     );
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Set the username in req.body in case it wasn't provided
@@ -2624,7 +2748,7 @@ async function putUser(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -2644,12 +2768,16 @@ async function putUser(req, res) {
     // Format JSON
     const json = formatJSON(publicUserData[0], minified);
 
-    // Return 200: OK and created/replaced user
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public user data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -2661,10 +2789,11 @@ async function putUser(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with updated user
  */
-async function patchUser(req, res) {
+async function patchUser(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2678,16 +2807,12 @@ async function patchUser(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Singular api: should not accept arrays
   if (Array.isArray(req.body)) {
     const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // If username was provided in the body, ensure it matches username in params
@@ -2695,7 +2820,7 @@ async function patchUser(req, res) {
     const error = new M.DataFormatError(
       'Username in body does not match username in params.', 'warn'
     );
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Attempt to parse query options
@@ -2705,7 +2830,7 @@ async function patchUser(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Set body username
@@ -2728,12 +2853,16 @@ async function patchUser(req, res) {
     // Format JSON
     const json = formatJSON(publicUserData[0], minified);
 
-    // Return 200: OK and updated user
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public user data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -2745,10 +2874,11 @@ async function patchUser(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with deleted username
  */
-async function deleteUser(req, res) {
+async function deleteUser(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2760,16 +2890,12 @@ async function deleteUser(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Singular api: should not accept arrays
   if (Array.isArray(req.body)) {
     const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Attempt to parse query options
@@ -2779,7 +2905,7 @@ async function deleteUser(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -2797,12 +2923,16 @@ async function deleteUser(req, res) {
     // Format JSON
     const json = formatJSON(username, minified);
 
-    // Return 200: OK and the deleted username
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the deleted username and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -2813,10 +2943,11 @@ async function deleteUser(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with user's public data
  */
-async function whoami(req, res) {
+async function whoami(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2828,11 +2959,7 @@ async function whoami(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -2841,7 +2968,7 @@ async function whoami(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -2857,8 +2984,12 @@ async function whoami(req, res) {
   // Format JSON
   const json = formatJSON(publicUserData, minified);
 
-  // Returns 200: OK and the users public data
-  return returnResponse(req, res, json, 200);
+  // Sets the message to the public user data and the status code to 200
+  res.locals = {
+    message: json,
+    statusCode: 200
+  };
+  next();
 }
 
 /**
@@ -2868,10 +2999,11 @@ async function whoami(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with found users
  */
-async function searchUsers(req, res) {
+async function searchUsers(req, res, next) {
   // Define options and query
   // Note: Undefined if not set
   let options;
@@ -2891,11 +3023,7 @@ async function searchUsers(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -2904,7 +3032,7 @@ async function searchUsers(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for q (query)
@@ -2938,12 +3066,16 @@ async function searchUsers(req, res) {
     // Format JSON
     const json = formatJSON(usersPublicData, minified);
 
-    // Return a 200: OK and public user data
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public user data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -2954,10 +3086,11 @@ async function searchUsers(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with updated user public data.
  */
-async function patchPassword(req, res) {
+async function patchPassword(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2969,34 +3102,30 @@ async function patchPassword(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Ensure old password was provided
   if (!req.body.oldPassword) {
     const error = new M.DataFormatError('Old password not in request body.', 'warn');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Ensure new password was provided
   if (!req.body.password) {
     const error = new M.DataFormatError('New password not in request body.', 'warn');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Ensure confirmed password was provided
   if (!req.body.confirmPassword) {
     const error = new M.DataFormatError('Confirmed password not in request body.', 'warn');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Ensure user is not trying to change another user's password
   if (req.user._id !== req.params.username) {
     const error = new M.OperationError('Cannot change another user\'s password.', 'warn');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Attempt to parse query options
@@ -3006,7 +3135,7 @@ async function patchPassword(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -3026,12 +3155,16 @@ async function patchPassword(req, res) {
     // Format JSON
     const json = formatJSON(publicUserData, minified);
 
-    // Returns 200: OK and the updated user's public data
-    return returnResponse(req, res, json, 200);
+    // Sends 200: OK and the updated user's public data
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -3043,10 +3176,11 @@ async function patchPassword(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with elements' public data
  */
-async function getElements(req, res) {
+async function getElements(req, res, next) {
   // Define options and ids
   // Note: Undefined if not set
   let elemIDs;
@@ -3089,11 +3223,7 @@ async function getElements(req, res) {
   }
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -3102,7 +3232,7 @@ async function getElements(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check query for element IDs
@@ -3126,7 +3256,7 @@ async function getElements(req, res) {
     if (!validFormats.includes(options.format)) {
       const error = new M.DataFormatError(`The format ${options.format} is not a `
         + 'valid format.', 'warn');
-      return returnResponse(req, res, error.message, errors.getStatusCode(error));
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
     format = options.format;
     delete options.format;
@@ -3174,8 +3304,12 @@ async function getElements(req, res) {
         // Format JSON
         const json = formatJSON(jmiData, minified);
 
-        // Return a 200: OK and public JMI type 3 element data
-        return returnResponse(req, res, json, 200);
+        // Send a 200: OK and public JMI type 3 element data
+        res.locals = {
+          message: json,
+          statusCode: 200
+        };
+        next();
       }
       catch (err) {
         throw err;
@@ -3185,12 +3319,16 @@ async function getElements(req, res) {
     // Format JSON
     const json = formatJSON(retData, minified);
 
-    // Return a 200: OK and public element data
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public element data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -3201,10 +3339,11 @@ async function getElements(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with created elements
  */
-async function postElements(req, res) {
+async function postElements(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -3219,11 +3358,7 @@ async function postElements(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -3232,7 +3367,7 @@ async function postElements(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -3250,7 +3385,7 @@ async function postElements(req, res) {
     }
     catch (error) {
       // Error occurred with options, report it
-      return returnResponse(req, res, error.message, errors.getStatusCode(error));
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   }
   else {
@@ -3269,12 +3404,16 @@ async function postElements(req, res) {
     // Format JSON
     const json = formatJSON(elementsPublicData, minified);
 
-    // Return 200: OK and the new elements
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public element data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -3286,10 +3425,11 @@ async function postElements(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with created/replaced elements
  */
-async function putElements(req, res) {
+async function putElements(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -3303,11 +3443,7 @@ async function putElements(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -3316,7 +3452,7 @@ async function putElements(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -3334,7 +3470,7 @@ async function putElements(req, res) {
     }
     catch (error) {
       // Error occurred with options, report it
-      return returnResponse(req, res, error.message, errors.getStatusCode(error));
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   }
   else {
@@ -3353,12 +3489,16 @@ async function putElements(req, res) {
     // Format JSON
     const json = formatJSON(elementsPublicData, minified);
 
-    // Return 200: OK and the new/replaced elements
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public element data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -3369,10 +3509,11 @@ async function putElements(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with updated elements
  */
-async function patchElements(req, res) {
+async function patchElements(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -3386,11 +3527,7 @@ async function patchElements(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -3399,7 +3536,7 @@ async function patchElements(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -3417,7 +3554,7 @@ async function patchElements(req, res) {
     }
     catch (error) {
       // Error occurred with options, report it
-      return returnResponse(req, res, error.message, errors.getStatusCode(error));
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   }
   else {
@@ -3436,12 +3573,16 @@ async function patchElements(req, res) {
     // Format JSON
     const json = formatJSON(elementsPublicData, minified);
 
-    // Return 200: OK and the updated elements
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public element data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -3453,9 +3594,11 @@ async function patchElements(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
+ *
  * @returns {object} Response object with element ids.
  */
-async function deleteElements(req, res) {
+async function deleteElements(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -3467,11 +3610,7 @@ async function deleteElements(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -3480,7 +3619,7 @@ async function deleteElements(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -3499,12 +3638,16 @@ async function deleteElements(req, res) {
     // Format JSON
     const json = formatJSON(parsedIDs, minified);
 
-    // Return 200: OK and the deleted element ids
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the deleted element ids and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -3515,10 +3658,11 @@ async function deleteElements(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with elements
  */
-async function searchElements(req, res) {
+async function searchElements(req, res, next) {
   // Define options and query
   // Note: Undefined if not set
   let options;
@@ -3558,11 +3702,7 @@ async function searchElements(req, res) {
   }
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -3571,7 +3711,7 @@ async function searchElements(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for q (query)
@@ -3603,12 +3743,16 @@ async function searchElements(req, res) {
     // Format JSON
     const json = formatJSON(elementsPublicData, minified);
 
-    // Return a 200: OK and public element data
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public element data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -3619,10 +3763,11 @@ async function searchElements(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with element's public data
  */
-async function getElement(req, res) {
+async function getElement(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -3639,11 +3784,7 @@ async function getElement(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -3652,7 +3793,7 @@ async function getElement(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -3685,12 +3826,16 @@ async function getElement(req, res) {
     // Format JSON
     const json = formatJSON(elementsPublicData, minified);
 
-    // Return 200: OK and the elements
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public element data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -3701,10 +3846,11 @@ async function getElement(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with created element
  */
-async function postElement(req, res) {
+async function postElement(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -3718,16 +3864,12 @@ async function postElement(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Singular api: should not accept arrays
   if (Array.isArray(req.body)) {
     const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // If an ID was provided in the body, ensure it matches the ID in params
@@ -3735,7 +3877,7 @@ async function postElement(req, res) {
     const error = new M.DataFormatError(
       'Element ID in the body does not match ID in the params.', 'warn'
     );
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Attempt to parse query options
@@ -3745,7 +3887,7 @@ async function postElement(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Set the element ID in the body equal req.params.elementid
@@ -3769,12 +3911,16 @@ async function postElement(req, res) {
     // Format JSON
     const json = formatJSON(elementsPublicData[0], minified);
 
-    // Return 200: OK and the created element
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public element data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -3786,10 +3932,11 @@ async function postElement(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with created/replaced element
  */
-async function putElement(req, res) {
+async function putElement(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -3803,16 +3950,12 @@ async function putElement(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Singular api: should not accept arrays
   if (Array.isArray(req.body)) {
     const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // If an ID was provided in the body, ensure it matches the ID in params
@@ -3820,7 +3963,7 @@ async function putElement(req, res) {
     const error = new M.DataFormatError(
       'Element ID in the body does not match ID in the params.', 'warn'
     );
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Attempt to parse query options
@@ -3830,7 +3973,7 @@ async function putElement(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Set the element ID in the body equal req.params.elementid
@@ -3854,12 +3997,16 @@ async function putElement(req, res) {
     // Format JSON
     const json = formatJSON(elementsPublicData[0], minified);
 
-    // Return 200: OK and the created/replaced element
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public element data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -3870,10 +4017,11 @@ async function putElement(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with updated element
  */
-async function patchElement(req, res) {
+async function patchElement(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -3887,16 +4035,12 @@ async function patchElement(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Singular api: should not accept arrays
   if (Array.isArray(req.body)) {
     const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // If an ID was provided in the body, ensure it matches the ID in params
@@ -3904,7 +4048,7 @@ async function patchElement(req, res) {
     const error = new M.DataFormatError(
       'Element ID in the body does not match ID in the params.', 'warn'
     );
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Attempt to parse query options
@@ -3914,7 +4058,7 @@ async function patchElement(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Set the element ID in the body equal req.params.elementid
@@ -3938,12 +4082,16 @@ async function patchElement(req, res) {
     // Format JSON
     const json = formatJSON(elementsPublicData[0], minified);
 
-    // Return 200: OK and the updated element
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public element data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -3954,10 +4102,11 @@ async function patchElement(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with deleted element id.
  */
-async function deleteElement(req, res) {
+async function deleteElement(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -3969,11 +4118,7 @@ async function deleteElement(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -3982,7 +4127,7 @@ async function deleteElement(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -4001,12 +4146,16 @@ async function deleteElement(req, res) {
     // Format JSON
     const json = formatJSON(parsedID, minified);
 
-    // Return 200: OK and deleted element ID
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the deleted element id and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -4018,10 +4167,11 @@ async function deleteElement(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with branches' public data
  */
-async function getBranches(req, res) {
+async function getBranches(req, res, next) {
   // Define options and ids
   // Note: Undefined if not set
   let branchIDs;
@@ -4058,11 +4208,7 @@ async function getBranches(req, res) {
   }
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -4071,7 +4217,7 @@ async function getBranches(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check query for branch IDs
@@ -4111,12 +4257,16 @@ async function getBranches(req, res) {
     // Format JSON
     const json = formatJSON(branchesPublicData, minified);
 
-    // Return a 200: OK and public branch data
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public branch data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -4127,10 +4277,11 @@ async function getBranches(req, res) {
  *
  * @param {object} req - request express object
  * @param {object} res - response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with created branches.
  */
-async function postBranches(req, res) {
+async function postBranches(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -4144,11 +4295,7 @@ async function postBranches(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -4157,7 +4304,7 @@ async function postBranches(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -4175,7 +4322,7 @@ async function postBranches(req, res) {
     }
     catch (error) {
       // Error occurred with options, report it
-      return returnResponse(req, res, error.message, errors.getStatusCode(error));
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   }
   else {
@@ -4194,12 +4341,16 @@ async function postBranches(req, res) {
     // Format JSON
     const json = formatJSON(publicBranchData, minified);
 
-    // Return 200: OK and created branch data
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public branch data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -4210,10 +4361,11 @@ async function postBranches(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with updated branches
  */
-async function patchBranches(req, res) {
+async function patchBranches(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -4227,11 +4379,7 @@ async function patchBranches(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -4240,7 +4388,7 @@ async function patchBranches(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -4258,7 +4406,7 @@ async function patchBranches(req, res) {
     }
     catch (error) {
       // Error occurred with options, report it
-      return returnResponse(req, res, error.message, errors.getStatusCode(error));
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   }
   else {
@@ -4277,12 +4425,16 @@ async function patchBranches(req, res) {
     // Format JSON
     const json = formatJSON(branchesPublicData, minified);
 
-    // Return 200: OK and the updated branches
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public branch data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -4294,10 +4446,11 @@ async function patchBranches(req, res) {
  *
  * @param {object} req - request express object
  * @param {object} res - response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with deleted branch IDs.
  */
-async function deleteBranches(req, res) {
+async function deleteBranches(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -4309,11 +4462,7 @@ async function deleteBranches(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -4322,7 +4471,7 @@ async function deleteBranches(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // If req.body contains objects, grab the branch IDs from the objects
@@ -4345,12 +4494,16 @@ async function deleteBranches(req, res) {
     // Format JSON
     const json = formatJSON(parsedIDs, minified);
 
-    // Return 200: OK and the deleted branch IDs
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the deleted branch ids and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -4361,10 +4514,11 @@ async function deleteBranches(req, res) {
  *
  * @param {object} req - request express object
  * @param {object} res - response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with branch's public data
  */
-async function getBranch(req, res) {
+async function getBranch(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -4379,11 +4533,7 @@ async function getBranch(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -4392,7 +4542,7 @@ async function getBranch(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -4420,12 +4570,16 @@ async function getBranch(req, res) {
     // Format JSON
     const json = formatJSON(publicBranchData[0], minified);
 
-    // Return 200: OK and public branch data
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public branch data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -4436,10 +4590,11 @@ async function getBranch(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with created branch
  */
-async function postBranch(req, res) {
+async function postBranch(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -4453,16 +4608,12 @@ async function postBranch(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Singular api: should not accept arrays
   if (Array.isArray(req.body)) {
     const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // If an ID was provided in the body, ensure it matches the ID in params
@@ -4470,7 +4621,7 @@ async function postBranch(req, res) {
     const error = new M.DataFormatError(
       'Branch ID in the body does not match ID in the params.', 'warn'
     );
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Attempt to parse query options
@@ -4480,7 +4631,7 @@ async function postBranch(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Set the branch ID in the body equal req.params.branchid
@@ -4504,12 +4655,16 @@ async function postBranch(req, res) {
     // Format JSON
     const json = formatJSON(branchesPublicData[0], minified);
 
-    // Return 200: OK and the created branch
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public branch data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -4520,10 +4675,11 @@ async function postBranch(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with updated branch
  */
-async function patchBranch(req, res) {
+async function patchBranch(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -4537,16 +4693,12 @@ async function patchBranch(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Singular api: should not accept arrays
   if (Array.isArray(req.body)) {
     const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // If an ID was provided in the body, ensure it matches the ID in params
@@ -4554,7 +4706,7 @@ async function patchBranch(req, res) {
     const error = new M.DataFormatError(
       'Branch ID in the body does not match ID in the params.', 'warn'
     );
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Attempt to parse query options
@@ -4564,7 +4716,7 @@ async function patchBranch(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Set the branch ID in the body equal req.params.branchid
@@ -4588,12 +4740,16 @@ async function patchBranch(req, res) {
     // Format JSON
     const json = formatJSON(branchPublicData[0], minified);
 
-    // Return 200: OK and the updated branch
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public branch data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -4605,10 +4761,11 @@ async function patchBranch(req, res) {
  *
  * @param {object} req - request express object
  * @param {object} res - response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with deleted branch ID.
  */
-async function deleteBranch(req, res) {
+async function deleteBranch(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -4620,11 +4777,7 @@ async function deleteBranch(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -4633,7 +4786,7 @@ async function deleteBranch(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -4652,12 +4805,16 @@ async function deleteBranch(req, res) {
     // Format JSON
     const json = formatJSON(parsedIDs, minified);
 
-    // Return 200: OK and the deleted branch ID
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the deleted branch id and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -4669,10 +4826,11 @@ async function deleteBranch(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with public data of found artifacts
  */
-async function getArtifacts(req, res) {
+async function getArtifacts(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let artIDs;
@@ -4699,11 +4857,7 @@ async function getArtifacts(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -4712,7 +4866,7 @@ async function getArtifacts(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check query for artifact IDs
@@ -4736,7 +4890,7 @@ async function getArtifacts(req, res) {
     if (!validFormats.includes(options.format)) {
       const error = new M.DataFormatError(`The format ${options.format} is not a `
         + 'valid format.', 'warn');
-      return returnResponse(req, res, error.message, errors.getStatusCode(error));
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
     format = options.format;
     delete options.format;
@@ -4781,8 +4935,12 @@ async function getArtifacts(req, res) {
         // Format JSON
         const json = formatJSON(jmiData, minified);
 
-        // Return a 200: OK and public JMI artifact data
-        return returnResponse(req, res, json, 200);
+        // Sets the message to the public JMI artifact data and the status code to 200
+        res.locals = {
+          message: json,
+          statusCode: 200
+        };
+        next();
       }
       catch (err) {
         throw err;
@@ -4792,12 +4950,16 @@ async function getArtifacts(req, res) {
     // Format JSON
     const json = formatJSON(retData, minified);
 
-    // Return 200: OK and public artifact data
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public artifact data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -4808,10 +4970,11 @@ async function getArtifacts(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with created artifacts
  */
-async function postArtifacts(req, res) {
+async function postArtifacts(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -4826,11 +4989,7 @@ async function postArtifacts(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -4839,7 +4998,7 @@ async function postArtifacts(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -4857,7 +5016,7 @@ async function postArtifacts(req, res) {
     }
     catch (error) {
       // Error occurred, report it
-      return returnResponse(req, res, error.message, errors.getStatusCode(error));
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   }
   else {
@@ -4876,10 +5035,16 @@ async function postArtifacts(req, res) {
 
     // Format JSON
     const json = formatJSON(artifactsPublicData, minified);
-    return returnResponse(req, res, json, 200);
+
+    // Sets the message to the public artifact data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -4890,10 +5055,11 @@ async function postArtifacts(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with updated artifacts
  */
-async function patchArtifacts(req, res) {
+async function patchArtifacts(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -4907,11 +5073,7 @@ async function patchArtifacts(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -4920,7 +5082,7 @@ async function patchArtifacts(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -4938,7 +5100,7 @@ async function patchArtifacts(req, res) {
     }
     catch (error) {
       // Error occurred with options, report it
-      return returnResponse(req, res, error.message, errors.getStatusCode(error));
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   }
   else {
@@ -4958,11 +5120,17 @@ async function patchArtifacts(req, res) {
 
     // Format JSON
     const json = formatJSON(artifactsPublicData, minified);
-    return returnResponse(req, res, json, 200);
+
+    // Sets the message to the public artifact data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -4974,26 +5142,26 @@ async function patchArtifacts(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with artifact ids.
  */
-async function deleteArtifacts(req, res) {
+async function deleteArtifacts(req, res, next) {
   // Define options
   // Note: Undefined if not set
+  let artIDs;
   let options;
   let minified = false;
 
   // Define valid option and its parsed type
   const validOptions = {
-    minified: 'boolean'
+    minified: 'boolean',
+    deleteBlob: 'boolean',
+    ids: 'array'
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -5002,7 +5170,21 @@ async function deleteArtifacts(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+
+  // Check query for artifact IDs
+  if (options.ids) {
+    artIDs = options.ids;
+    delete options.ids;
+  }
+  else if (Array.isArray(req.body) && req.body.every(s => typeof s === 'string')) {
+    // No IDs included in options, check body
+    artIDs = req.body;
+  }
+  // Check artifact object in body
+  else if (Array.isArray(req.body) && req.body.every(s => typeof s === 'object')) {
+    artIDs = req.body.map(a => a.id);
   }
 
   // Check options for minified
@@ -5013,18 +5195,23 @@ async function deleteArtifacts(req, res) {
   try {
     // Remove the specified artifacts
     // NOTE: remove() sanitizes input params
-    const artIDs = await ArtifactController.remove(req.user, req.params.orgid,
-      req.params.projectid, req.params.branchid, req.body, options);
-    const parsedIDs = artIDs.map(a => utils.parseID(a).pop());
+    const removedArtIDs = await ArtifactController.remove(req.user, req.params.orgid,
+      req.params.projectid, req.params.branchid, artIDs, options);
+    const parsedIDs = removedArtIDs.map(a => utils.parseID(a).pop());
 
     // Format JSON
     const json = formatJSON(parsedIDs, minified);
 
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the deleted artifact ids and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -5035,10 +5222,11 @@ async function deleteArtifacts(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with found artifact
  */
-async function getArtifact(req, res) {
+async function getArtifact(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -5053,11 +5241,7 @@ async function getArtifact(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -5066,7 +5250,7 @@ async function getArtifact(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -5095,12 +5279,16 @@ async function getArtifact(req, res) {
     // Format JSON
     const json = formatJSON(publicArtifactData[0], minified);
 
-    // Return 200: OK and public artifact data
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the public artifact data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -5111,10 +5299,11 @@ async function getArtifact(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with created artifact
  */
-async function postArtifact(req, res) {
+async function postArtifact(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -5128,11 +5317,7 @@ async function postArtifact(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -5141,7 +5326,7 @@ async function postArtifact(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -5153,7 +5338,7 @@ async function postArtifact(req, res) {
   // Singular api: should not accept arrays
   if (Array.isArray(req.body)) {
     const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // If artifact ID was provided in the body, ensure it matches artifact ID in params
@@ -5161,7 +5346,7 @@ async function postArtifact(req, res) {
     const error = new M.DataFormatError(
       'Artifact ID in the body does not match ID in the params.', 'warn'
     );
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Set the artifact ID in the body equal req.params.artifactid
@@ -5178,10 +5363,16 @@ async function postArtifact(req, res) {
     );
     // Format JSON
     const json = formatJSON(artifactsPublicData[0], minified);
-    return returnResponse(req, res, json, 200);
+
+    // Sets the message to the public artifact data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -5192,10 +5383,11 @@ async function postArtifact(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with updated artifact
  */
-async function patchArtifact(req, res) {
+async function patchArtifact(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -5209,11 +5401,7 @@ async function patchArtifact(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -5222,7 +5410,7 @@ async function patchArtifact(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -5234,7 +5422,7 @@ async function patchArtifact(req, res) {
   // Singular api: should not accept arrays
   if (Array.isArray(req.body)) {
     const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Sanitize body
@@ -5245,7 +5433,7 @@ async function patchArtifact(req, res) {
     const error = new M.DataFormatError(
       'Artifact ID in the body does not match ID in the params.', 'warn'
     );
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Set the artifact ID in the body equal req.params.artifactid
@@ -5263,11 +5451,17 @@ async function patchArtifact(req, res) {
 
     // Format JSON
     const json = formatJSON(artifactsPublicData[0], minified);
-    return returnResponse(req, res, json, 200);
+
+    // Sets the message to the public artifact data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -5278,10 +5472,11 @@ async function patchArtifact(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response object with artifact id.
  */
-async function deleteArtifact(req, res) {
+async function deleteArtifact(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -5289,15 +5484,12 @@ async function deleteArtifact(req, res) {
 
   // Define valid option and its parsed type
   const validOptions = {
-    minified: 'boolean'
+    minified: 'boolean',
+    deleteBlob: 'boolean'
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -5306,7 +5498,7 @@ async function deleteArtifact(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   // Check options for minified
@@ -5324,32 +5516,33 @@ async function deleteArtifact(req, res) {
     // Format JSON
     const json = formatJSON(parsedIDs[0], minified);
 
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the deleted artifact id and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
 /**
  * GET /api/orgs/:orgid/projects/:projectid/artifacts/blob
  *
- * @description Gets an artifact blob by org.id, project.id,
- * location, filename.
+ * @description Gets an artifact blob by org.id, project.id, location, filename.
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {Buffer} Artifact blob.
  */
-async function getBlob(req, res) {
+async function getBlob(req, res, next) {
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   try {
     const artifactBlob = await ArtifactController.getBlob(req.user, req.params.orgid,
@@ -5358,13 +5551,18 @@ async function getBlob(req, res) {
     // Set filename
     res.header('Content-Disposition', `attachment; filename=${req.query.filename}`);
 
-    // Return 200: OK and public artifact data
-    return returnResponse(req, res, artifactBlob, 200,
-      utils.getContentType(req.query.filename));
+    // Sets the message to the public artifact data and the status code to 200
+    // Also sends the Content-Type of the blob
+    res.locals = {
+      message: artifactBlob,
+      statusCode: 200,
+      contentType: utils.getContentType(req.query.filename)
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -5376,29 +5574,26 @@ async function getBlob(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Posted Artifact object.
  */
-async function postBlob(req, res) {
+async function postBlob(req, res, next) {
   await upload(req, res, async function(err) {
     // Sanity Check: there should always be a user in the request
-    if (!req.user) {
-      M.log.critical('No requesting user available.');
-      const error = new M.ServerError('Request Failed');
-      return returnResponse(req, res, error.message, errors.getStatusCode(error));
-    }
+    if (!req.user) return noUserError(req, res, next);
 
     if (err instanceof multer.MulterError) {
       // A Multer error occurred when uploading.
       M.log.error(err);
       const error = new M.ServerError('Artifact upload failed.', 'warn');
-      return returnResponse(req, res, error.message, errors.getStatusCode(error));
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
 
     // Sanity Check: file is required
     if (!req.file) {
       const error = new M.DataFormatError('Artifact Blob file must be defined.', 'warn');
-      return returnResponse(req, res, error.message, errors.getStatusCode(error));
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
 
     try {
@@ -5410,10 +5605,16 @@ async function postBlob(req, res) {
 
       // Format JSON
       const json = formatJSON(artifact, minified);
-      return returnResponse(req, res, json, 200);
+
+      // Sets the message to the blob data and the status code to 200
+      res.locals = {
+        message: json,
+        statusCode: 200
+      };
+      next();
     }
     catch (error) {
-      return returnResponse(req, res, error.message, errors.getStatusCode(error));
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   });
 }
@@ -5426,16 +5627,13 @@ async function postBlob(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Deleted Artifact object.
  */
-async function deleteBlob(req, res) {
+async function deleteBlob(req, res, next) {
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   try {
     const artifact = await ArtifactController.deleteBlob(req.user, req.params.orgid,
@@ -5447,12 +5645,16 @@ async function deleteBlob(req, res) {
     // Format JSON
     const json = formatJSON(artifact, minified);
 
-    // Return 200: OK and public artifact data
-    return returnResponse(req, res, json, 200);
+    // Sets the message to the deleted blob data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -5464,10 +5666,11 @@ async function deleteBlob(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {Buffer} Artifact blob.
  */
-async function getBlobById(req, res) {
+async function getBlobById(req, res, next) {
   // Define options
   // Note: Undefined if not set
   let options;
@@ -5478,11 +5681,7 @@ async function getBlobById(req, res) {
   };
 
   // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
-  }
+  if (!req.user) return noUserError(req, res, next);
 
   // Attempt to parse query options
   try {
@@ -5491,7 +5690,7 @@ async function getBlobById(req, res) {
   }
   catch (error) {
     // Error occurred with options, report it
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
   try {
@@ -5515,13 +5714,651 @@ async function getBlobById(req, res) {
     // Set filename
     res.header('Content-Disposition', `attachment; filename=${artMetadata[0].filename}`);
 
-    // Return 200: OK and public artifact data
-    return returnResponse(req, res, artifactBlob, 200,
-      utils.getContentType(artMetadata[0].filename));
+    // Sets the message to the public artifact data and the status code to 200
+    // Also sends the Content-Type of the blob
+    res.locals = {
+      message: artifactBlob,
+      statusCode: 200,
+      contentType: utils.getContentType(artMetadata[0].filename)
+    };
+    next();
   }
   catch (error) {
     // If an error was thrown, return it and its status
-    return returnResponse(req, res, error.message, errors.getStatusCode(error));
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+}
+
+/* -----------------------( Webhooks API Endpoints )------------------------- */
+/**
+ * GET /api/webhooks
+ *
+ * @description Gets all webhooks a user has access to at the server, org, project, or branch
+ * level, or gets all webhooks specified by id
+ *
+ * @param {object} req - Request express object
+ * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
+ *
+ * @returns {object} Response object with webhooks' public data.
+ */
+async function getWebhooks(req, res, next) {
+  // Define options
+  let webhookIDs;
+  let options;
+  let minified = false;
+
+  // Define valid options and their parsed types
+  const validOptions = {
+    populate: 'array',
+    archived: 'boolean',
+    includeArchived: 'boolean',
+    fields: 'array',
+    limit: 'number',
+    skip: 'number',
+    lean: 'boolean',
+    sort: 'string',
+    org: 'string',
+    project: 'string',
+    branch: 'string',
+    ids: 'array',
+    minified: 'boolean',
+    type: 'string',
+    name: 'string',
+    triggers: 'array',
+    createdBy: 'string',
+    lastModifiedBy: 'string',
+    archivedBy: 'string'
+  };
+
+  // Loop through req.query
+  if (req.query) {
+    Object.keys(req.query).forEach((k) => {
+      // If the key starts with custom., add it to the validOptions object
+      if (k.startsWith('custom.')) {
+        validOptions[k] = 'string';
+      }
+    });
+  }
+
+  // Sanity Check: there should always be a user in the request
+  if (!req.user) {
+    M.log.critical('No requesting user available.');
+    const error = new M.ServerError('Request Failed');
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+
+  // Attempt to parse query options
+  try {
+    // Extract options from request query
+    options = utils.parseOptions(req.query, validOptions);
+  }
+  catch (error) {
+    // Error occurred with options, report it
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+
+  // Check query for webhook IDs
+  if (options.ids) {
+    webhookIDs = options.ids;
+    delete options.ids;
+  }
+  else if (Array.isArray(req.body) && req.body.every(s => typeof s === 'string')) {
+    // No IDs include in options, check body
+    webhookIDs = req.body;
+  }
+  // Check for webhook objects in body
+  else if (Array.isArray(req.body) && req.body.every(s => typeof s === 'object')) {
+    webhookIDs = req.body.map(w => w.id);
+  }
+
+  // Check options for minified
+  if (options.hasOwnProperty('minified')) {
+    minified = options.minified;
+    delete options.minified;
+  }
+
+  try {
+    // Find webhooks
+    const webhooks = await WebhookController.find(req.user, webhookIDs, options);
+
+    // Get public data of webhooks
+    const webhooksPublicData = sani.html(
+      webhooks.map((w) => publicData.getPublicData(w, 'webhook', options))
+    );
+
+    // Verify the webhooks public data array is not empty
+    if (webhooksPublicData.length === 0) {
+      throw new M.NotFoundError('No webhooks found.', 'warn');
+    }
+
+    // Format JSON
+    const json = formatJSON(webhooksPublicData, minified);
+
+    // Sets the message to the public webhook data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
+  }
+  catch (error) {
+    // If an error was thrown, return it and its status
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+}
+
+/**
+ * POST /api/webhooks
+ *
+ * @description Creates multiple webhooks.
+ *
+ * @param {object} req - Request express object
+ * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
+ *
+ * @returns {object} Response object with the created webhook.
+ */
+async function postWebhooks(req, res, next) {
+  // Define options
+  let options;
+  let minified = false;
+
+  // Define valid option and its parsed type
+  const validOptions = {
+    populate: 'string',
+    fields: 'string',
+    minified: 'boolean'
+  };
+
+  // Sanity Check: there should always be a user in the request
+  if (!req.user) {
+    M.log.critical('No requesting user available.');
+    const error = new M.ServerError('Request Failed');
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+
+  // Attempt to parse query options
+  try {
+    // Extract options from request query
+    options = utils.parseOptions(req.query, validOptions);
+  }
+  catch (error) {
+    // Error occurred with options, report it
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+
+  // Check options for minified
+  if (options.hasOwnProperty('minified')) {
+    minified = options.minified;
+    delete options.minified;
+  }
+
+  try {
+    // Create the webhook with provided parameters
+    const webhooks = await WebhookController.create(req.user, req.body, options);
+
+    // Get the webhooks' public data
+    const webhookPublicData = sani.html(
+      webhooks.map((w) => publicData.getPublicData(w, 'webhook', options))
+    );
+
+    // Format JSON
+    const json = formatJSON(webhookPublicData, minified);
+
+    // Sets the message to the public webhook data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
+  }
+  catch (error) {
+    // If an error was thrown, return it and its status
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+}
+
+/**
+ * PATCH /api/webhooks
+ *
+ * @description Updates the specified webhooks.
+ *
+ * @param {object} req - Request express object
+ * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
+ *
+ * @returns {object} Response object with the updated webhooks.
+ */
+async function patchWebhooks(req, res, next) {
+  // Define options
+  let options;
+  let minified = false;
+
+  // Define valid option type
+  const validOptions = {
+    populate: 'array',
+    fields: 'array',
+    minified: 'boolean'
+  };
+
+  // Sanity Check: there should always be a user in the request
+  if (!req.user) {
+    M.log.critical('No requesting user available.');
+    const error = new M.ServerError('Request Failed');
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+
+  // Attempt to parse query options
+  try {
+    // Extract options from request query
+    options = utils.parseOptions(req.query, validOptions);
+  }
+  catch (error) {
+    // Error occurred with options, report it
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+
+  // Check options for minified
+  if (options.hasOwnProperty('minified')) {
+    minified = options.minified;
+    delete options.minified;
+  }
+
+  try {
+    // Updates the specified webhooks
+    const webhooks = await WebhookController.update(req.user, req.body, options);
+
+    // Get the webhooks' public data
+    const webhookPublicData = sani.html(
+      webhooks.map((w) => publicData.getPublicData(w, 'webhook', options))
+    );
+
+    // Format JSON
+    const json = formatJSON(webhookPublicData, minified);
+
+    // Sets the message to the public webhook data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
+  }
+  catch (error) {
+    // If an error was thrown, return it and its status
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+}
+
+/**
+ * DELETE /api/webhooks
+ *
+ * @description Deletes the specified webhooks
+ *
+ * @param {object} req - Request express object
+ * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
+ *
+ * @returns {object} Response object with the deleted webhook ids.
+ */
+async function deleteWebhooks(req, res, next) {
+  // Define options
+  let options = {};
+  let minified = false;
+
+  // Define valid option and its parsed type
+  const validOptions = {
+    minified: 'boolean'
+  };
+
+  // Sanity Check: there should always be a user in the request
+  if (!req.user) {
+    M.log.critical('No requesting user available.');
+    const error = new M.ServerError('Request Failed');
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+
+  // Attempt to parse query options
+  try {
+    // Extract options from request query
+    options = utils.parseOptions(req.query, validOptions);
+  }
+  catch (error) {
+    // Error occurred with options, report it
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+
+  // Check options for minified
+  if (options.hasOwnProperty('minified')) {
+    minified = options.minified;
+    delete options.minified;
+  }
+
+  try {
+    // Remove the specified webhooks
+    const webhooks = await WebhookController.remove(req.user, req.body, options);
+
+    // Format JSON
+    const json = formatJSON(webhooks, minified);
+
+    // Sets the message to the deleted webhook ids and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
+  }
+  catch (error) {
+    // If an error was thrown, return it and its status
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+}
+
+/**
+ * GET /api/webhooks/:webhookid
+ *
+ * @description Gets a single webhook by id
+ *
+ * @param {object} req - Request express object
+ * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
+ *
+ * @returns {object} Response object with the webhook's public data.
+ */
+async function getWebhook(req, res, next) {
+  // Define options
+  let options;
+  let minified = false;
+
+  // Define valid option type
+  const validOptions = {
+    populate: 'array',
+    includeArchived: 'boolean',
+    fields: 'array',
+    minified: 'boolean'
+  };
+
+  // Sanity Check: there should always be a user in the request
+  if (!req.user) {
+    M.log.critical('No requesting user available.');
+    const error = new M.ServerError('Request Failed');
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+
+  // Attempt to parse query options
+  try {
+    // Extract options from request query
+    options = utils.parseOptions(req.query, validOptions);
+  }
+  catch (error) {
+    // Error occurred with options, report it
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+
+  // Check options for minified
+  if (options.hasOwnProperty('minified')) {
+    minified = options.minified;
+    delete options.minified;
+  }
+
+  try {
+    // Find the webhook
+    const webhooks = await WebhookController.find(req.user, req.params.webhookid, options);
+
+    // If no webhook was found, return 404
+    if (webhooks.length === 0) {
+      throw new M.NotFoundError(
+        `Webhook [${req.params.webhookid}] not found.`, 'warn'
+      );
+    }
+    const webhook = webhooks[0];
+
+    // Get the public data for the webhook
+    const webhookPublicData = sani.html(
+      publicData.getPublicData(webhook, 'webhook', options)
+    );
+
+    // Format JSON
+    const json = formatJSON(webhookPublicData, minified);
+
+    // Sets the message to the public webhook data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
+  }
+  catch (error) {
+    // If an error was thrown, return it and its status
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+}
+
+/**
+ * PATCH /api/webhooks/:webhookid
+ *
+ * @description Updates the specified webhook.
+ *
+ * @param {object} req - Request express object
+ * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
+ *
+ * @returns {object} Response object with the updated webhook.
+ */
+async function patchWebhook(req, res, next) {
+  // Define options
+  let options;
+  let minified = false;
+
+  // Define valid option type
+  const validOptions = {
+    populate: 'array',
+    fields: 'array',
+    minified: 'boolean'
+  };
+
+  // Sanity Check: there should always be a user in the request
+  if (!req.user) {
+    M.log.critical('No requesting user available.');
+    const error = new M.ServerError('Request Failed');
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+
+  // Singular api: should not accept arrays
+  if (Array.isArray(req.body)) {
+    const error = new M.DataFormatError('Input cannot be an array', 'warn');
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+
+  // If there's a webhookid in the body, check that it matches the params
+  if (req.body.hasOwnProperty('id') && (req.body.id !== req.params.webhookid)) {
+    const error = new M.DataFormatError(
+      'Webhook ID in body does not match webhook ID in params.', 'warn'
+    );
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+  // Set body id to params id
+  req.body.id = req.params.webhookid;
+
+  // Attempt to parse query options
+  try {
+    // Extract options from request query
+    options = utils.parseOptions(req.query, validOptions);
+  }
+  catch (error) {
+    // Error occurred with options, report it
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+
+  // Check options for minified
+  if (options.hasOwnProperty('minified')) {
+    minified = options.minified;
+    delete options.minified;
+  }
+
+  try {
+    // Updates the specified webhook
+    const webhooks = await WebhookController.update(req.user, req.body, options);
+    const webhook = webhooks[0];
+
+    // Get the webhook public data
+    const webhookPublicData = sani.html(
+      publicData.getPublicData(webhook, 'webhook', options)
+    );
+
+    // Format JSON
+    const json = formatJSON(webhookPublicData, minified);
+
+    // Sets the message to the public webhook data and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
+  }
+  catch (error) {
+    // If an error was thrown, return it and its status
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+}
+
+/**
+ * DELETE /api/webhooks/:webhookid
+ *
+ * @description Deletes the specified webhook
+ *
+ * @param {object} req - Request express object
+ * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
+ *
+ * @returns {object} Response object with the deleted webhook id.
+ */
+async function deleteWebhook(req, res, next) {
+  // Define options
+  let options;
+  let minified = false;
+
+  // Define valid option and its parsed type
+  const validOptions = {
+    minified: 'boolean'
+  };
+
+  // Sanity Check: there should always be a user in the request
+  if (!req.user) {
+    M.log.critical('No requesting user available.');
+    const error = new M.ServerError('Request Failed');
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+
+  // Attempt to parse query options
+  try {
+    // Extract options from request query
+    options = utils.parseOptions(req.query, validOptions);
+  }
+  catch (error) {
+    // Error occurred with options, report it
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+
+  // Check options for minified
+  if (options.hasOwnProperty('minified')) {
+    minified = options.minified;
+    delete options.minified;
+  }
+
+  try {
+    // Remove the specified webhook
+    const webhooks = await WebhookController.remove(req.user, req.params.webhookid, options);
+
+    // Format JSON
+    const json = formatJSON(webhooks, minified);
+
+    // Sets the message to the deleted webhook id and the status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
+    next();
+  }
+  catch (error) {
+    // If an error was thrown, return it and its status
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+}
+
+/**
+ * POST /api/webhooks/trigger/:encodedid
+ *
+ * @description Triggers the specified webhook
+ *
+ * @param {object} req - Request express object
+ * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
+ *
+ * @returns {object} Notification that the trigger succeeded or failed.
+ */
+async function triggerWebhook(req, res, next) {
+  // Parse the webhook id from the base64 encoded url
+  const webhookID = Buffer.from(req.params.encodedid, 'base64').toString('ascii');
+
+  try {
+    const webhooks = await WebhookController.find(req.user, webhookID);
+
+    if (webhooks.length < 1) {
+      throw new M.NotFoundError('No webhooks found', 'warn');
+    }
+
+    const webhook = webhooks[0];
+
+    // Sanity check: ensure the webhook is incoming and has a token and tokenLocation field
+    if (webhook.type !== 'Incoming') {
+      throw new M.ServerError(`Webhook [${webhook._id}] is not listening for external calls`, 'warn');
+    }
+    if (typeof webhook.tokenLocation !== 'string') {
+      throw new M.ServerError(`Webhook [${webhook._id}] does not have a tokenLocation`, 'warn');
+    }
+    if (typeof webhook.token !== 'string') {
+      throw new M.ServerError(`Webhook [${webhook._id}] does not have a token`, 'warn');
+    }
+
+    // Get the token from an arbitrary depth of key nesting
+    let token = req;
+    try {
+      const tokenPath = webhook.tokenLocation.split('.');
+      for (let i = 0; i < tokenPath.length; i++) {
+        const key = tokenPath[i];
+        token = token[key];
+      }
+    }
+    catch (error) {
+      M.log.warn(error);
+      throw new M.DataFormatError('Token could not be found in the request.', 'warn');
+    }
+
+    if (typeof token !== 'string') {
+      throw new M.DataFormatError('Token is not a string', 'warn');
+    }
+
+    // Parse data from request
+    const data = req.body.data ? req.body.data : null;
+
+    Webhook.verifyAuthority(webhook, token);
+
+    webhook.triggers.forEach((trigger) => {
+      if (Array.isArray(data)) EventEmitter.emit(trigger, ...data);
+      else EventEmitter.emit(trigger, data);
+    });
+
+    // Sets the message to "success" and the status code to 200
+    res.locals = {
+      message: 'success',
+      statusCode: 200
+    };
+    next();
+  }
+  catch (error) {
+    // If an error was thrown, return it and its status
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 }
 
@@ -5533,10 +6370,27 @@ async function getBlobById(req, res) {
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
  *
  * @returns {object} Response error message
  */
-function invalidRoute(req, res) {
+function invalidRoute(req, res, next) {
   const json = 'Invalid Route or Method.';
-  return returnResponse(req, res, json, 404);
+  return utils.formatResponse(req, res, json, 404, next);
+}
+
+/**
+ * @description A helper function that logs a critical error and returns a new Server Error for
+ * cases where an incoming request has no requesting user.
+ *
+ * @param {object} req - Request express object
+ * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
+ *
+ * @returns {object} Response error message
+ */
+function noUserError(req, res, next) {
+  M.log.critical('No requesting user available.');
+  const error = new M.ServerError('Request Failed');
+  return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
 }

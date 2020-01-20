@@ -620,7 +620,8 @@ async function update(requestingUser, organizationID, projectID, branchID,
  * @param {(string|string[])} artifacts - The artifacts to remove. Can either be
  * an array of artifact ids or a single artifact id.
  * @param {object} [options] - A parameter that provides supported options.
- * Currently there are no supported options.
+ * @param {boolean} [options.deleteBlob] - A parameter that if true, will delete
+ * blobs that are no longer referenced by an artifact document within a project.
  *
  * @returns {Promise<string[]>} Array of deleted artifact ids.
  *
@@ -646,6 +647,10 @@ async function remove(requestingUser, organizationID, projectID, branchID,
     const projID = sani.db(projectID);
     const branID = sani.db(branchID);
     const saniArtifacts = sani.db(JSON.parse(JSON.stringify(artifacts)));
+
+    // Initialize and ensure options are valid
+    const validatedOptions = utils.validateOptions(options, ['deleteBlob'], Artifact);
+
     let artifactsToFind = [];
 
     // Check the type of the artifacts parameter
@@ -684,9 +689,16 @@ async function remove(requestingUser, organizationID, projectID, branchID,
 
     const searchQuery = { _id: { $in: artifactsToFind } };
 
+    // Object to store location and filename
+    const foundArtifactFullPath = [];
+
     // Find the artifacts to delete
     const foundArtifacts = await Artifact.find(searchQuery, null);
-    const foundArtifactIDs = foundArtifacts.map(a => a._id);
+    const foundArtifactIDs = [];
+    foundArtifacts.forEach(a => {
+      foundArtifactIDs.push(a._id);
+      foundArtifactFullPath.push({ location: a.location, filename: a.filename });
+    });
 
     // Check if all artifacts were found
     const notFoundIDs = artifactsToFind.filter(a => !foundArtifactIDs.includes(a));
@@ -697,6 +709,38 @@ async function remove(requestingUser, organizationID, projectID, branchID,
     }
     // Delete the artifacts
     await Artifact.deleteMany(searchQuery);
+
+    const promises = [];
+    // Check for delete blob option
+    if (validatedOptions.deleteBlob) {
+      // Loop through each artifact obj
+      foundArtifactFullPath.forEach((a) => {
+        // Create query for location and filename
+        const query = { project: projID, location: a.location, filename: a.filename };
+
+        // Push promise to array
+        promises.push(
+          Artifact.find(query)
+          .then((foundArtifact) => {
+            // If no blob is found, delete that blob
+            if (foundArtifact.length === 0) {
+              const blobToDelete = {
+                project: projID,
+                org: orgID,
+                location: a.location,
+                filename: a.filename
+              };
+
+              // Delete the artifact blob
+              return ArtifactStrategy.deleteBlob(blobToDelete);
+            }
+          })
+        );
+      });
+    }
+
+    // Wait for all blobs to be deleted
+    await Promise.all(promises);
 
     // Emit the event artifacts-deleted
     EventEmitter.emit('artifacts-deleted', foundArtifacts);

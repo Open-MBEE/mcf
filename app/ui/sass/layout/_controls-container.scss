@@ -23,14 +23,14 @@
   justify-content: flex-end;
   padding-right: 5px;
 
-  .add-btn {
+  .add-btn, .download-btn {
     color: $color-secondary;
     padding-right: 20px;
-  }
 
-  .add-btn:hover {
-    color: darken($color-secondary, 20);
-    cursor: pointer;
+    &:hover {
+      color: darken($color-secondary, 20);
+      cursor: pointer;
+    }
   }
 
   .delete-btn {

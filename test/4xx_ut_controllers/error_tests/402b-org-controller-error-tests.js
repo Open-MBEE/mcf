@@ -25,15 +25,12 @@ const should = chai.should(); // eslint-disable-line no-unused-vars
 
 // MBEE modules
 const OrgController = M.require('controllers.organization-controller');
-const db = M.require('db');
 
 /* --------------------( Test Data )-------------------- */
 // Variables used across test functions
 const testUtils = M.require('lib.test-utils');
 const testData = testUtils.importTestData('test_data.json');
 let adminUser = null;
-let testOrg0 = null;
-let testOrg1 = null;
 
 /* --------------------( Main )-------------------- */
 /**
@@ -46,33 +43,21 @@ describe(M.getModuleName(module.filename), () => {
   /**
    * Before: Create admin user. Creates two test orgs.
    */
-  before((done) => {
-    // Connect to the database
-    db.connect()
-    // Create test admin
-    .then(() => testUtils.createTestAdmin())
-    .then((user) => {
-      // Set global admin user
-      adminUser = user;
-
+  before(async () => {
+    try {
+      // Create test admin
+      adminUser = await testUtils.createTestAdmin();
       // Create the orgs
-      return OrgController.create(adminUser,
+      const createdOrgs = await OrgController.create(adminUser,
         [testData.orgs[0], testData.orgs[1]]);
-    })
-    .then((createdOrgs) => {
-      testOrg0 = createdOrgs[0];
-      testOrg1 = createdOrgs[1];
-
       // Expect createdOrgs array to contain 2 orgs
       chai.expect(createdOrgs.length).to.equal(2);
-      done();
-    })
-    .catch((error) => {
+    }
+    catch (error) {
       M.log.error(error);
       // Expect no error
       chai.expect(error).to.equal(null);
-      done();
-    });
+    }
   });
 
   /**
@@ -83,8 +68,7 @@ describe(M.getModuleName(module.filename), () => {
       // Removing admin user
       await testUtils.removeTestAdmin();
       // Remove the test orgs
-      await OrgController.remove(adminUser, [testOrg0._id, testOrg1._id]);
-      await db.disconnect();
+      await OrgController.remove(adminUser, [testData.orgs[0].id, testData.orgs[1].id]);
     }
     catch (error) {
       M.log.error(error);
@@ -98,45 +82,44 @@ describe(M.getModuleName(module.filename), () => {
   // ------------- Create -------------
   // ------------- Update -------------
   // ------------- Replace ------------
-  it('should reject put org with invalid id', putInvalidId);
-  it('should reject put org without id', putWithoutId);
+  it('should reject an attempt to replace an org with an invalid id', replaceInvalidId);
+  it('should reject an attempt to replace an org without an id', replaceWithoutId);
   // ------------- Remove -------------
 });
 
 /* --------------------( Tests )-------------------- */
 /**
- * @description Verifies invalid Id PUT call does not delete existing orgs.
+ * @description Verifies createOrReplace() call with an invalid id does not delete existing orgs.
  */
-async function putInvalidId() {
-  // Create the test org objects
-  const testOrgObj0 = testData.orgs[0];
-  const testOrgObj1 = testData.orgs[1];
-  const invalidOrgObj = { id: '!!', name: 'org name' };
-
-  await OrgController.createOrReplace(adminUser, [testOrgObj0, testOrgObj1, invalidOrgObj])
-  .should.eventually.be.rejectedWith(
-    `Organization validation failed: _id: Invalid org ID [${invalidOrgObj.id}].`
-  );
-
-  let foundOrgs;
+async function replaceInvalidId() {
   try {
+    // Create the test org objects
+    const testOrgObj0 = testData.orgs[0];
+    const testOrgObj1 = testData.orgs[1];
+    const invalidOrgObj = { id: '!!', name: 'org name' };
+
+    await OrgController.createOrReplace(adminUser, [testOrgObj0, testOrgObj1, invalidOrgObj])
+    .should.eventually.be.rejectedWith(
+      `Organization validation failed: _id: Invalid org ID [${invalidOrgObj.id}].`
+    );
+
     // Expected error, find valid orgs
-    foundOrgs = await OrgController.find(adminUser, [testOrgObj0.id, testOrgObj1.id]);
+    const foundOrgs = await OrgController.find(adminUser, [testOrgObj0.id, testOrgObj1.id]);
+    // Expect to find 2 orgs
+    foundOrgs.length.should.equal(2);
   }
   catch (error) {
     M.log.error(error);
     // There should be no error
     should.not.exist(error);
   }
-  // Expect to find 2 orgs
-  foundOrgs.length.should.equal(2);
 }
 
 /**
- * @description Verifies PUT call without Id does not delete existing orgs.
+ * @description Verifies createOrReplace() call without an id does not delete existing orgs.
  * Note: This test should fail prior to deletion of existing orgs.
  */
-async function putWithoutId() {
+async function replaceWithoutId() {
   // Create the test org objects
   const testOrgObj0 = testData.orgs[0];
   const testOrgObj1 = testData.orgs[1];

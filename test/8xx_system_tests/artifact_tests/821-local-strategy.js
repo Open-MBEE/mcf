@@ -1,7 +1,7 @@
 /**
  * @classification UNCLASSIFIED
  *
- * @module test.artifact_tests.821-local-strategy
+ * @module test.821-artifact-local-strategy
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
@@ -24,10 +24,11 @@ const fs = require('fs');
 const chai = require('chai');
 
 // MBEE modules
-const testData = require(path.join(M.root, 'test', 'test_data.json'));
+const testUtils = M.require('lib.test-utils');
 const localStrategy = M.require('artifact.local-strategy');
 
 /* --------------------( Test Data )-------------------- */
+const testData = testUtils.importTestData('test_data.json');
 let artifactBlob0 = null;
 let artifactBlob1 = null;
 let project = null;

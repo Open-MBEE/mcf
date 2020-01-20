@@ -7,14 +7,14 @@
  *
  * @license MIT
  *
- * @owner Austin Bieber
+ * @owner Phillip Lee
  *
  * @author Austin Bieber
  *
  * @description Defines the custom error class.
  */
 
-const CustomError = class CustomError extends Error {
+class CustomError extends Error {
 
   /**
    * @description The CustomError constructor. It requires a description
@@ -53,27 +53,27 @@ const CustomError = class CustomError extends Error {
     }
   }
 
-};
+}
 
 // 400
-const DataFormatError = class DataFormatError extends CustomError {};
+class DataFormatError extends CustomError {}
 
 // 401
-const AuthorizationError = class AuthorizationError extends CustomError {};
+class AuthorizationError extends CustomError {}
 
 // 403
-const PermissionError = class PermissionError extends CustomError {};
-const OperationError = class OperationError extends CustomError {};
+class PermissionError extends CustomError {}
+class OperationError extends CustomError {}
 
 // 404
-const NotFoundError = class NotFoundError extends CustomError {};
+class NotFoundError extends CustomError {}
 
 // 500
-const ServerError = class ServerError extends CustomError {};
-const DatabaseError = class DatabaseError extends CustomError {};
+class ServerError extends CustomError {}
+class DatabaseError extends CustomError {}
 
 // 501
-const NotImplementedError = class NotImplementedError extends CustomError {};
+class NotImplementedError extends CustomError {}
 
 /**
  * @description Returns an HTTP status code depending on what error is passed in.

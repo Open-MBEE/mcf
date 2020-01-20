@@ -20,7 +20,6 @@ const chai = require('chai');
 
 // MBEE modules
 const ElementController = M.require('controllers.element-controller');
-const db = M.require('db');
 const utils = M.require('lib.utils');
 const jmi = M.require('lib.jmi-conversions');
 
@@ -42,59 +41,41 @@ let branchID = null;
  */
 describe(M.getModuleName(module.filename), () => {
   /**
-   * After: Connect to database. Create an admin user, organization, and project.
+   * Before: Create an admin user, organization, and project.
    */
-  before((done) => {
-    // Open the database connection
-    db.connect()
-    // Create test admin
-    .then(() => testUtils.createTestAdmin())
-    .then((_adminUser) => {
-      // Set global admin user
-      adminUser = _adminUser;
-
-      // Create organization
-      return testUtils.createTestOrg(adminUser);
-    })
-    .then((retOrg) => {
+  before(async () => {
+    try {
+      // Create test admin
+      adminUser = await testUtils.createTestAdmin();
       // Set global organization
-      org = retOrg;
-
-      // Create project
-      return testUtils.createTestProject(adminUser, org._id);
-    })
-    .then((retProj) => {
+      org = await testUtils.createTestOrg(adminUser);
       // Set global project
-      proj = retProj;
+      proj = await testUtils.createTestProject(adminUser, org._id);
       projID = utils.parseID(proj._id).pop();
       branchID = testData.branches[0].id;
-      done();
-    })
-    .catch((error) => {
+    }
+    catch (error) {
       M.log.error(error);
       // Expect no error
       chai.expect(error).to.equal(null);
-      done();
-    });
+    }
   });
 
   /**
    * After: Remove Organization and project.
-   * Close database connection.
    */
-  after((done) => {
-    // Remove organization
-    // Note: Projects under organization will also be removed
-    testUtils.removeTestOrg()
-    .then(() => testUtils.removeTestAdmin())
-    .then(() => db.disconnect())
-    .then(() => done())
-    .catch((error) => {
+  after(async () => {
+    try {
+      // Remove organization
+      // Note: Projects under organization will also be removed
+      await testUtils.removeTestOrg();
+      await testUtils.removeTestAdmin();
+    }
+    catch (error) {
       M.log.error(error);
       // Expect no error
       chai.expect(error).to.equal(null);
-      done();
-    });
+    }
   });
 
   /* Execute the tests */

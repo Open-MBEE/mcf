@@ -26,15 +26,14 @@ const chai = require('chai');
 // MBEE modules
 const ArtifactController = M.require('controllers.artifact-controller');
 const ProjectController = M.require('controllers.project-controller');
-const apiController = M.require('controllers.api-controller');
-const db = M.require('db');
+const APIController = M.require('controllers.api-controller');
 const utils = M.require('lib.utils');
 const jmi = M.require('lib.jmi-conversions');
-
 
 /* --------------------( Test Data )-------------------- */
 const testUtils = M.require('lib.test-utils');
 const testData = testUtils.importTestData('test_data.json');
+const next = testUtils.next;
 const filepath = path.join(M.root, '/test/testzip.json');
 let adminUser = null;
 let org = null;
@@ -51,12 +50,10 @@ const branchID = 'master';
  */
 describe(M.getModuleName(module.filename), () => {
   /**
-   * After: Connect to database. Create an admin user, organization, and project.
+   * After: Create an admin user, organization, and project.
    */
   before(async () => {
     try {
-      // Open the database connection
-      await db.connect();
       // Create test admin
       adminUser = await testUtils.createTestAdmin();
       // Create organization
@@ -75,8 +72,7 @@ describe(M.getModuleName(module.filename), () => {
   });
 
   /**
-   * After: Remove Organization and project.
-   * Close database connection.
+   * After: Remove test admin and organization.
    */
   after(async () => {
     try {
@@ -85,7 +81,6 @@ describe(M.getModuleName(module.filename), () => {
       await testUtils.removeTestOrg();
       await testUtils.removeTestAdmin();
       await fs.unlinkSync(filepath);
-      await db.disconnect();
     }
     catch (error) {
       M.log.error(error);
@@ -161,12 +156,11 @@ function postGzip(done) {
     // Clear the data used for testing
     fs.truncateSync(filepath);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
-  // POSTs an artifact
-  apiController.postArtifacts(req, res);
+  // POST an artifact
+  APIController.postArtifacts(req, res, next(req, res));
 }
 
 /**
@@ -231,11 +225,10 @@ function patchGzip(done) {
       // Clear the data used for testing
       fs.truncateSync(filepath);
 
-      // Ensure the response was logged correctly
-      setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+      done();
     };
 
     // PATCH artifacts
-    apiController.patchArtifacts(req, res);
+    APIController.patchArtifacts(req, res, next(req, res));
   });
 }

@@ -25,7 +25,6 @@ const should = chai.should(); // eslint-disable-line no-unused-vars
 
 // MBEE modules
 const UserController = M.require('controllers.user-controller');
-const db = M.require('db');
 
 /* --------------------( Test Data )-------------------- */
 // Variables used across test functions
@@ -45,48 +44,34 @@ describe(M.getModuleName(module.filename), () => {
   /**
    * Before: Create admin user. Creates two test users.
    */
-  before((done) => {
-    // Connect to the database
-    db.connect()
-    // Create test admin
-    .then(() => testUtils.createTestAdmin())
-    .then((user) => {
-      // Set global admin user
-      adminUser = user;
-
+  before(async () => {
+    try {
+      // Create test admin
+      adminUser = await testUtils.createTestAdmin();
       // Create the users
-      return UserController.create(adminUser,
-        [testData.users[1], testData.users[2]]);
-    })
-    .then((createdUsers) => {
-      // Expect array to contain 2 users
-      chai.expect(createdUsers.length).to.equal(2);
-      done();
-    })
-    .catch((error) => {
+      await UserController.create(adminUser, [testData.users[1], testData.users[2]]);
+    }
+    catch (error) {
       M.log.error(error);
       // Expect no error
       chai.expect(error).to.equal(null);
-      done();
-    });
+    }
   });
 
   /**
    * After: Delete admin user. Deletes the two test users.
    */
-  after((done) => {
-    UserController.remove(adminUser,
-      [testData.users[1].username, testData.users[2].username])
-    // Removing admin user
-    .then(() => testUtils.removeTestAdmin())
-    .then(() => db.disconnect())
-    .then(() => done())
-    .catch((error) => {
+  after(async () => {
+    try {
+      await UserController.remove(adminUser,
+        [testData.users[1].username, testData.users[2].username]);
+      await testUtils.removeTestAdmin();
+    }
+    catch (error) {
       M.log.error(error);
       // Expect no error
       chai.expect(error).to.equal(null);
-      done();
-    });
+    }
   });
 
   /* Execute the tests */
@@ -111,33 +96,33 @@ async function putInvalidUsername() {
       + ' validator.');
     this.skip();
   }
-  // Create the test user objects
-  const testUserObj0 = testData.users[1];
-  const testUserObj1 = testData.users[2];
-  const invalidUserObj = {
-    username: 'INVALID_NAME',
-    fname: 'user name',
-    password: 'Password12345!'
-  };
-
-  await UserController.createOrReplace(adminUser, [testUserObj0, testUserObj1, invalidUserObj])
-  .should.eventually.be.rejectedWith(
-    'User validation failed: _id: Invalid username [INVALID_NAME].'
-  );
-
-  let foundUsers;
   try {
+    // Create the test user objects
+    const testUserObj0 = testData.users[1];
+    const testUserObj1 = testData.users[2];
+    const invalidUserObj = {
+      username: 'INVALID_NAME',
+      fname: 'user name',
+      password: 'Password12345!'
+    };
+
+    await UserController.createOrReplace(adminUser, [testUserObj0, testUserObj1, invalidUserObj])
+    .should.eventually.be.rejectedWith(
+      'User validation failed: _id: Invalid username [INVALID_NAME].'
+    );
+
     // Expected error, find valid users
-    foundUsers = await UserController.find(adminUser,
+    const foundUsers = await UserController.find(adminUser,
       [testUserObj0.username, testUserObj1.username]);
+
+    // Expect to find 2 users
+    foundUsers.length.should.equal(2);
   }
   catch (error) {
     M.log.error(error);
     // There should be no error
     should.not.exist(error);
   }
-  // Expect to find 2 users
-  foundUsers.length.should.equal(2);
 }
 
 /**
@@ -145,25 +130,25 @@ async function putInvalidUsername() {
  * Note: This test should fail prior to deletion of existing users.
  */
 async function putWithoutUsername() {
-  // Create the test users
-  const testUserObj0 = testData.users[1];
-  const testUserObj1 = testData.users[2];
-  const invalidUserObj = { fname: 'missing username' };
-
-  await UserController.createOrReplace(adminUser, [testUserObj0, testUserObj1, invalidUserObj])
-  .should.eventually.be.rejectedWith('User #3 does not have a username.');
-
-  let foundUsers;
   try {
+    // Create the test users
+    const testUserObj0 = testData.users[1];
+    const testUserObj1 = testData.users[2];
+    const invalidUserObj = { fname: 'missing username' };
+
+    await UserController.createOrReplace(adminUser, [testUserObj0, testUserObj1, invalidUserObj])
+    .should.eventually.be.rejectedWith('User #3 does not have a username.');
+
     // Expected error, find valid users
-    foundUsers = await UserController.find(adminUser,
+    const foundUsers = await UserController.find(adminUser,
       [testUserObj0.username, testUserObj1.username]);
+
+    // Expect to find 2 users
+    foundUsers.length.should.equal(2);
   }
   catch (error) {
     M.log.error(error);
     // There should be no error
     should.not.exist(error);
   }
-  // Expect to find 2 users
-  foundUsers.length.should.equal(2);
 }

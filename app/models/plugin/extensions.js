@@ -7,7 +7,7 @@
  *
  * @license MIT
  *
- * @owner Austin Bieber
+ * @owner Phillip Lee
  *
  * @author Phillip Lee
  * @author Austin Bieber
@@ -27,7 +27,8 @@ module.exports = function extensionPlugin(schema) {
     createdBy: {
       type: 'String',
       ref: 'User',
-      default: null
+      default: null,
+      immutable: true
     },
     lastModifiedBy: {
       type: 'String',
@@ -36,7 +37,8 @@ module.exports = function extensionPlugin(schema) {
     },
     createdOn: {
       type: 'Date',
-      default: Date.now
+      default: Date.now,
+      immutable: true
     },
     archivedOn: {
       type: 'Date',

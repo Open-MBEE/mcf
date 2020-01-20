@@ -118,7 +118,7 @@ const formatter = printf((msg) => {
   if (msg.level.includes('debug')) {
     // Get heap usage
     const heap = process.memoryUsage();
-    const heapTotal = (heap.heapTotal / 1024 / 1024).toFixed(2);
+    const heapTotal = M.memoryLimit;
     const heapUsed = (heap.heapUsed / 1024 / 1024).toFixed(2);
     extra = `[heap ${(heapUsed / heapTotal * 100).toFixed(2)}% ${heapUsed}/${heapTotal}]`;
   }
@@ -208,18 +208,49 @@ function makeLogger(subcommand, opts) {
   return winston.createLogger(loggerConfig);
 }
 
-
 // Add defined colors to winston logger
 winston.addColors(colors);
 
+
 /**
- * @description Log the response to an HTTP request.
+ * @description Logs the response to an HTTP request.
  *
- * @param {number} responseLength - The length of the response in bytes.
  * @param {object} req - Request object from express.
  * @param {object} res - Response object from express.
  */
-function logResponse(responseLength, req, res) {
+function logResponse(req, res) {
+  const message = formatResponseLog(req, res);
+  // Log the info at 'info' level
+  M.log.info(message);
+}
+
+/**
+ * @description Logs the response to an HTTP request to a separate security log file for
+ * security-sensitive API endpoints.
+ *
+ * @param {object} req - Request object from express.
+ * @param {object} res - Response object from express.
+ */
+function logSecurityResponse(req, res) {
+  const message = formatResponseLog(req, res);
+  // Log the info to the security log
+  fs.appendFileSync(path.join('logs', M.config.log.security_file), `${message}\n`);
+}
+
+/**
+ * @description A helper function to format messages that log responses to API calls.
+ *
+ * @param {object} req - Request object from express.
+ * @param {object} res - Response object from express.
+ *
+ * @returns {string} A formatted message containing information about the response to
+ * an HTTP request.
+ */
+function formatResponseLog(req, res) {
+  const responseMessage = (res.locals && res.locals.message) ? res.locals.message : '';
+  const responseLength = responseMessage.length;
+  const statusCode = res.locals.statusCode ? res.locals.statusCode : res.statusCode;
+
   // Set username to anonymous if req.user is not defined
   const username = (req.user) ? (req.user._id || req.user.username) : 'anonymous';
   const date = JSON.stringify(new Date()).replace(/"/g, '');
@@ -233,12 +264,12 @@ function logResponse(responseLength, req, res) {
     ip = ip.replace('::ffff:', '');
   }
 
-  // Log the info at 'info' level
-  M.log.info(`RESPONSE: ${ip} ${username} [${date}] "${req.method} `
-    + `${req.originalUrl}" ${res.statusCode} ${responseLength.toString()}`);
+  return `RESPONSE: ${ip} ${username} [${date}] "${req.method} `
+    + `${req.originalUrl}" ${statusCode} ${responseLength.toString()}`;
 }
 
 module.exports = {
   makeLogger,
-  logResponse
+  logResponse,
+  logSecurityResponse
 };

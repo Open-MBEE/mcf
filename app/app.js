@@ -7,7 +7,7 @@
  *
  * @license MIT
  *
- * @owner Austin Bieber
+ * @owner Phillip Lee
  *
  * @author Josh Kaplan
  * @author Austin Bieber
@@ -39,6 +39,7 @@ const Organization = M.require('models.organization');
 const Project = M.require('models.project');
 const ServerData = M.require('models.server-data');
 const User = M.require('models.user');
+const Webhook = M.require('models.webhook');
 
 // Initialize express app and export the object
 const app = express();
@@ -118,7 +119,7 @@ function initApp() {
     // Load the plugin routes
     if (M.config.server.plugins.enabled) {
       M.log.verbose('Initializing plugins ...');
-      const PluginRoutesPath = path.join(__dirname, '..', 'plugins', 'routes.js');
+      const PluginRoutesPath = path.join(M.root, 'plugins', 'routes.js');
       const PluginRouter = require(PluginRoutesPath).router; // eslint-disable-line global-require
       app.use('/plugins', PluginRouter);
       M.log.verbose('Plugins initialized.');
@@ -240,11 +241,7 @@ async function createDefaultAdmin() {
  * @returns {Promise} Returns an empty promise upon completion.
  */
 async function initModels() {
-  await Artifact.init();
-  await Branch.init();
-  await Element.init();
-  await Organization.init();
-  await Project.init();
-  await ServerData.init();
-  await User.init();
+  await Promise.all([Artifact.init(), Branch.init(), Element.init(),
+    Organization.init(), Project.init(), ServerData.init(), User.init(),
+    Webhook.init()]);
 }

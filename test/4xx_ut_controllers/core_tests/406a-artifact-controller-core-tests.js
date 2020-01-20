@@ -25,7 +25,6 @@ const jmi = M.require('lib.jmi-conversions');
 
 // MBEE modules
 const ArtifactController = M.require('controllers.artifact-controller');
-const db = M.require('db');
 const utils = M.require('lib.utils');
 
 /* --------------------( Test Data )-------------------- */
@@ -52,9 +51,6 @@ describe(M.getModuleName(module.filename), () => {
    */
   before(async () => {
     try {
-      // Connect to the database
-      await db.connect();
-
       adminUser = await testUtils.createTestAdmin();
       // Create the organization model object
       org = await testUtils.createTestOrg(adminUser);
@@ -87,7 +83,6 @@ describe(M.getModuleName(module.filename), () => {
     try {
       // Remove the org created in before()
       await testUtils.removeTestOrg();
-      await db.disconnect();
     }
     catch (error) {
       M.log.error(error);
@@ -498,13 +493,13 @@ async function postBlob() {
   };
 
   try {
-    const createdArtifact = await ArtifactController.postBlob(adminUser, orgID,
+    const createdBlob = await ArtifactController.postBlob(adminUser, orgID,
       projectID, artData, artifactBlob1);
 
     // Verify response
-    chai.expect(createdArtifact.filename).to.equal(testData.artifacts[0].filename);
-    chai.expect(createdArtifact.project).to.equal(projectID);
-    chai.expect(createdArtifact.location).to.equal(testData.artifacts[0].location);
+    chai.expect(createdBlob.filename).to.equal(testData.artifacts[0].filename);
+    chai.expect(createdBlob.project).to.equal(projectID);
+    chai.expect(createdBlob.location).to.equal(testData.artifacts[0].location);
   }
   catch (error) {
     M.log.error(error);

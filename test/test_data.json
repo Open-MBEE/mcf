@@ -366,5 +366,29 @@
       "tag": true,
       "source": "master"
     }
+  ],
+  "webhooks": [
+    {
+      "name": "test_webhook00",
+      "type": "Outgoing",
+      "description": "test webhook description 0",
+      "triggers": ["test-event"],
+      "response": { "url": "testurl0" }
+    },
+    {
+      "name": "test_webhook01",
+      "type": "Incoming",
+      "description": "test webhook description 1",
+      "triggers": ["test-event"],
+      "token": "test token",
+      "tokenLocation": "body.test.token"
+    },
+    {
+      "name": "test_webhook02",
+      "type": "Outgoing",
+      "description": "test webhook description 2",
+      "triggers": ["test-event"],
+      "response": { "url": "testurl2" }
+    }
   ]
 }

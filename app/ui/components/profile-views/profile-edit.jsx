@@ -232,7 +232,6 @@ class ProfileEdit extends Component {
                        placeholder="User's preferred name"
                        value={this.state.preferred || ''}
                        invalid={preferredInvalid}
-                       invalid={preferredInvalid}
                        onChange={this.handleChange}/>
                 {/* Verify fields are valid, or display feedback */}
                 <FormFeedback >

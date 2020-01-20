@@ -29,7 +29,7 @@
   color: #c0c0c0 !important;
 }
 
-#branch-list-items {
+#branch-list-items, #artifact-list-items {
   margin: 0.5em;
   display: grid;
   grid-template-columns: 1fr 1fr 1fr 1fr;

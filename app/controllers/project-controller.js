@@ -7,7 +7,7 @@
  *
  * @license MIT
  *
- * @owner Austin Bieber
+ * @owner Connor Doyle
  *
  * @author Josh Kaplan
  * @author Jake Ursetta
@@ -41,6 +41,7 @@ const Branch = M.require('models.branch');
 const Organization = M.require('models.organization');
 const Project = M.require('models.project');
 const User = M.require('models.user');
+const Webhook = M.require('models.webhook');
 const EventEmitter = M.require('lib.events');
 const sani = M.require('lib.sanitization');
 const utils = M.require('lib.utils');
@@ -58,7 +59,7 @@ const ArtifactStrategy = M.require(`artifact.${M.config.artifact.strategy}`);
  * projects a user has read access to.
  *
  * @param {User} requestingUser - The object containing the requesting user.
- * @param {string} organizationID - The ID of the owning organization.
+ * @param {(string|null)} organizationID - The ID of the owning organization.
  * @param {(string|string[])} [projects] - The projects to find. Can either be
  * an array of project ids, a single project id, or not provided, which defaults
  * to every project being found.
@@ -312,7 +313,6 @@ async function create(requestingUser, organizationID, projects, options) {
     const orgID = sani.db(organizationID);
     const saniProjects = sani.db(JSON.parse(JSON.stringify(projects)));
     const reqUser = JSON.parse(JSON.stringify(requestingUser));
-    let projObjects = [];
 
     // Initialize and ensure options are valid
     const validatedOptions = utils.validateOptions(options, ['populate', 'fields'], Project);
@@ -348,7 +348,7 @@ async function create(requestingUser, organizationID, projects, options) {
           assert.ok(validProjKeys.includes(k), `Invalid key [${k}].`);
         });
 
-        // Ensure each project has an id and that its a string
+        // Ensure each project has an id and that it's a string
         assert.ok(proj.hasOwnProperty('id'), `Project #${index} does not have an id.`);
         assert.ok(typeof proj.id === 'string', `Project #${index}'s id is not a string.`);
         proj.id = utils.createID(orgID, proj.id);
@@ -361,6 +361,7 @@ async function create(requestingUser, organizationID, projects, options) {
       }
       arrIDs.push(proj.id);
       proj._id = proj.id;
+      delete proj.id;
 
       // If user not setting permissions, add the field
       if (!proj.hasOwnProperty('permissions')) {
@@ -373,13 +374,13 @@ async function create(requestingUser, organizationID, projects, options) {
       index++;
     });
 
-    // Create searchQuery to search for any existing, conflicting projects
-    const searchQuery = { _id: { $in: arrIDs } };
-
     // Find the organization, validate that it exists and is not archived
     const foundOrg = await helper.findAndValidate(Organization, orgID);
     // Permissions check
     permissions.createProject(reqUser, foundOrg);
+
+    // Create searchQuery to search for any existing, conflicting projects
+    const searchQuery = { _id: { $in: arrIDs } };
 
     // Search for projects with the same id
     const foundProjects = await Project.find(searchQuery, '_id');
@@ -393,6 +394,21 @@ async function create(requestingUser, organizationID, projects, options) {
         + ` [${foundProjectIDs.toString()}].`, 'warn');
     }
 
+    // Enforce that project ids are unique across orgs if configured
+    if (M.config.server.uniqueProjects) {
+      const allProjects = await Project.find({}, '_id');
+      const projectIDs = allProjects.map((p) => utils.parseID(p._id).pop());
+
+      // Check that this project id hasn't been used yet
+      projectsToCreate.forEach((p) => {
+        if (projectIDs.includes(utils.parseID(p._id).pop())) {
+          throw new M.OperationError(
+            `Project id [${utils.parseID(p._id).pop()}] is already in use.`, 'warn'
+          );
+        }
+      });
+    }
+
     // Get all existing users for permissions
     const foundUsers = await User.find({}, '_id');
 
@@ -400,7 +416,7 @@ async function create(requestingUser, organizationID, projects, options) {
     const foundUsernames = foundUsers.map(u => u._id);
     const promises = [];
     // For each object of project data, create the project object
-    projObjects = projectsToCreate.map((p) => {
+    const projObjects = projectsToCreate.map((p) => {
       // Set org
       p.org = orgID;
       // Set permissions
@@ -430,8 +446,8 @@ async function create(requestingUser, organizationID, projects, options) {
         // Check if they have been added to the org
         if (!foundOrg.permissions.hasOwnProperty(u)) {
           // Add user to org with read permissions
-          const updateQuery = {};
-          updateQuery[`permissions.${u}`] = ['read'];
+          foundOrg.permissions[u] = ['read'];
+          const updateQuery = { permissions: foundOrg.permissions };
           promises.push(Organization.updateOne({ _id: orgID }, updateQuery));
         }
       });
@@ -719,8 +735,8 @@ async function update(requestingUser, organizationID, projects, options) {
             + 'be changed.', 'warn');
         }
 
-        // Get validator for field if one exists
-        if (validators.project.hasOwnProperty(key)) {
+        // Get validator for field if one exists; permissions is handled separately
+        if (validators.project.hasOwnProperty(key) && key !== 'permissions') {
           // If the validator is a regex string
           if (typeof validators.project[key] === 'string') {
             // If validation fails, throw error
@@ -802,8 +818,8 @@ async function update(requestingUser, organizationID, projects, options) {
             // If not removing a user, check if they have been added to the org
             if (permValue !== 'remove_all' && !foundOrg.permissions.hasOwnProperty(user)) {
               // Add user to org with read permissions
-              const updateQuery = {};
-              updateQuery[`permissions.${user}`] = ['read'];
+              foundOrg.permissions[user] = ['read'];
+              const updateQuery = { permissions: foundOrg.permissions };
               promises.push(Organization.updateOne({ _id: orgID }, updateQuery));
             }
           });
@@ -1245,6 +1261,9 @@ async function remove(requestingUser, organizationID, projects, options) {
 
     // Delete any branches in the projects
     await Branch.deleteMany(ownedQuery);
+
+    // Delete any webhooks on the projects
+    await Webhook.deleteMany({ reference: ownedQuery.project });
 
     // Delete the projects
     const retQuery = await Project.deleteMany(searchQuery);
