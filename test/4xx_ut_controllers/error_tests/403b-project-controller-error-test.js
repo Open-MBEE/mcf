@@ -25,7 +25,6 @@ const should = chai.should(); // eslint-disable-line no-unused-vars
 
 // MBEE modules
 const ProjectController = M.require('controllers.project-controller');
-const db = M.require('db');
 
 /* --------------------( Test Data )-------------------- */
 // Variables used across test functions
@@ -45,55 +44,40 @@ describe(M.getModuleName(module.filename), () => {
   /**
    * Before: Create admin user. Creates two test projects.
    */
-  before((done) => {
-    // Connect to the database
-    db.connect()
-    // Create test admin
-    .then(() => testUtils.createTestAdmin())
-    .then((user) => {
-      // Set global admin user
-      adminUser = user;
+  before(async () => {
+    try {
+      // Create test admin
+      adminUser = await testUtils.createTestAdmin();
       // Create the test org
-      return testUtils.createTestOrg(adminUser);
-    })
-    .then((retOrg) => {
-      org = retOrg;
-
+      org = await testUtils.createTestOrg(adminUser);
       // Create the projects
-      return ProjectController.create(adminUser, org._id,
+      const createdProjects = await ProjectController.create(adminUser, org._id,
         [testData.projects[0], testData.projects[1]]);
-    })
-    .then((createdProj) => {
       // Expect array to contain 2 projects
-      chai.expect(createdProj.length).to.equal(2);
-      done();
-    })
-    .catch((error) => {
+      chai.expect(createdProjects.length).to.equal(2);
+    }
+    catch (error) {
       M.log.error(error);
       // Expect no error
       chai.expect(error).to.equal(null);
-      done();
-    });
+    }
   });
 
   /**
    * After: Delete admin user. Deletes the two test projects.
    */
-  after((done) => {
-    ProjectController.remove(adminUser, org._id,
-      [testData.projects[0].id, testData.projects[1].id])
-    // Removing the organization created
-    .then(() => testUtils.removeTestOrg())
-    // Removing admin user
-    .then(() => testUtils.removeTestAdmin())
-    .then(() => db.disconnect())
-    .then(() => done())
-    .catch((error) => {
+  after(async () => {
+    try {
+      // Removing the organization created
+      await testUtils.removeTestOrg();
+      // Removing admin user
+      await testUtils.removeTestAdmin();
+    }
+    catch (error) {
       M.log.error(error);
       // Expect no error
       chai.expect(error).to.equal(null);
-      done();
-    });
+    }
   });
 
   /* Execute the tests */
@@ -101,16 +85,17 @@ describe(M.getModuleName(module.filename), () => {
   // ------------- Create -------------
   // ------------- Update -------------
   // ------------- Replace ------------
-  it('should reject put proj with invalid id', putInvalidId);
-  it('should reject put proj without id', putWithoutId);
+  it('should reject an attempt to replace a project with an invalid id', replaceInvalidId);
+  it('should reject an attempt to replace a project without an id', replaceWithoutId);
   // ------------- Remove -------------
 });
 
 /* --------------------( Tests )-------------------- */
 /**
- * @description Verifies invalid Id PUT call does not delete existing projects.
+ * @description Verifies createOrReplace() call with an invalid id does not delete existing
+ * projects.
  */
-async function putInvalidId() {
+async function replaceInvalidId() {
   // Create the test project objects
   const testProjObj0 = testData.projects[0];
   const testProjObj1 = testData.projects[1];
@@ -138,10 +123,10 @@ async function putInvalidId() {
 }
 
 /**
- * @description Verifies PUT call without Id does not delete existing projects.
+ * @description Verifies createOrReplace() call without an id does not delete existing projects.
  * Note: This test should fail prior to deletion of existing projects.
  */
-async function putWithoutId() {
+async function replaceWithoutId() {
   // Create the test projects
   const testProjObj0 = testData.projects[0];
   const testProjObj1 = testData.projects[1];

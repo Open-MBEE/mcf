@@ -7,7 +7,7 @@
  *
  * @license MIT
  *
- * @owner Austin Bieber
+ * @owner Connor Doyle
  *
  * @author Josh Kaplan
  * @author Jake Ursetta
@@ -51,6 +51,9 @@ if (!AuthModule.hasOwnProperty('doLogin')) {
 async function authenticate(req, res, next) {
   // Extract authorization metadata
   const authorization = req.headers.authorization;
+  // Delete the authorization field from the request object to protect security-sensitive data
+  // from subsequent middleware
+  delete req.headers.authorization;
   let username = null;
   let password = null;
   let error = {};
@@ -150,7 +153,7 @@ async function authenticate(req, res, next) {
      **********************************************************************
      * This section authenticates a user via a bearer token.
      * This is primarily used when the API is being called via a script
-     * or some other external method such as a microservice.
+     * or some other external method such as a micro-service.
      */
     // Check for token authentication
     else if (RegExp('Bearer').test(scheme)) {

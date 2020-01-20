@@ -23,7 +23,6 @@ const chai = require('chai');
 const OrgController = M.require('controllers.organization-controller');
 const ProjectController = M.require('controllers.project-controller');
 const Project = M.require('models.project');
-const db = M.require('db');
 const utils = M.require('lib.utils');
 
 /* --------------------( Test Data )-------------------- */
@@ -47,8 +46,6 @@ describe(M.getModuleName(module.filename), () => {
    */
   before(async () => {
     try {
-      // Connect db
-      await db.connect();
       // Create test admin
       adminUser = await testUtils.createTestAdmin();
       // Create a global organization
@@ -78,7 +75,6 @@ describe(M.getModuleName(module.filename), () => {
       await testUtils.removeTestOrg();
       // Remove the admin user
       await testUtils.removeTestAdmin();
-      await db.disconnect();
     }
     catch (error) {
       M.log.error(error);
@@ -129,8 +125,10 @@ async function findInternalProject() {
     const user = await testUtils.createNonAdminUser();
     const updateObj = { id: org._id, permissions: {} };
     updateObj.permissions[user._id] = 'read';
+
     // Add user to organization
     await OrgController.update(adminUser, updateObj);
+
     // Update project visibility to internal
     const projUpdate = { id: utils.parseID(projects[1]._id).pop(), visibility: 'internal' };
     await ProjectController.update(adminUser, org._id, projUpdate);

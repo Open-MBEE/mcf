@@ -9,7 +9,7 @@
  *
  * @license MIT
  *
- * @owner Austin Bieber
+ * @owner Phillip Lee
  *
  * @author Jake Ursetta
  * @author Austin Bieber
@@ -68,37 +68,20 @@ const OrganizationSchema = new db.Schema({
     type: 'String',
     required: true,
     validate: [{
-      validator: function(v) {
-        // If the ID is a reserved keyword, reject
-        return !validators.reserved.includes(v);
-      },
-      message: 'Organization ID cannot include the following words: '
+      validator: validators.org._id.reserved,
+      message: props => 'Organization ID cannot include the following words: '
         + `[${validators.reserved}].`
     }, {
-      validator: function(v) {
-        // If the ID is longer than max length, reject
-        return v.length <= validators.org.idLength;
-      },
+      validator: validators.org._id.match,
+      message: props => `Invalid org ID [${props.value}].`
+    }, {
+      validator: validators.org._id.maxLength,
       message: props => `Org ID length [${props.value.length}] must not be more`
         + ` than ${validators.org.idLength} characters.`
     }, {
-      validator: function(v) {
-        // If the ID is shorter than min length, reject
-        return v.length > 1;
-      },
+      validator: validators.org._id.minLength,
       message: props => `Org ID length [${props.value.length}] must not be less`
         + ' than 2 characters.'
-    }, {
-      validator: function(v) {
-        if (typeof validators.org.id === 'string') {
-          // If the ID is invalid, reject
-          return RegExp(validators.org.id).test(v);
-        }
-        else {
-          return validators.org.id(v);
-        }
-      },
-      message: props => `Invalid org ID [${props.value}].`
     }]
   },
   name: {
@@ -110,23 +93,9 @@ const OrganizationSchema = new db.Schema({
     type: 'Object',
     default: {},
     validate: [{
-      validator: function(v) {
-        let bool = true;
-        // If the permissions object is not a JSON object, reject
-        if (typeof v !== 'object' || Array.isArray(v) || v === null) {
-          bool = false;
-        }
-
-        // Check that each every key/value pair's value is an array of strings
-        Object.values(v).forEach((val) => {
-          if (!Array.isArray(val) || !val.every(s => typeof s === 'string')) {
-            bool = false;
-          }
-        });
-
-        return bool;
-      },
-      message: props => 'The organization permissions object is not properly formatted.'
+      validator: validators.org.permissions,
+      message: props => 'The organization permissions object is not properly '
+        + 'formatted.'
     }]
   }
 });

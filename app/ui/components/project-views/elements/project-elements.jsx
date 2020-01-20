@@ -20,7 +20,7 @@
 
 // React modules
 import React, { Component } from 'react';
-import { Button } from 'reactstrap';
+import { Button, Modal, ModalBody } from 'reactstrap';
 
 // MBEE modules
 import ElementTree from './element-tree.jsx';
@@ -29,6 +29,7 @@ import ElementEdit from './element-edit.jsx';
 import ElementNew from './element-new.jsx';
 import SidePanel from '../../general/side-panel.jsx';
 import BranchBar from '../branches/branch-bar.jsx';
+import ElementEditForm from './element-edit-form.jsx';
 
 /* eslint-enable no-unused-vars */
 
@@ -48,7 +49,8 @@ class ProjectElements extends Component {
       displayIds: true,
       expand: false,
       collapse: false,
-      error: null
+      error: null,
+      modalOpen: false
     };
 
     this.setRefreshFunctions = this.setRefreshFunctions.bind(this);
@@ -58,6 +60,7 @@ class ProjectElements extends Component {
     this.createNewElement = this.createNewElement.bind(this);
     this.handleCheck = this.handleCheck.bind(this);
     this.unsetCheckbox = this.unsetCheckbox.bind(this);
+    this.toggleModal = this.toggleModal.bind(this);
   }
 
   setRefreshFunctions(id, refreshFunction) {
@@ -145,6 +148,12 @@ class ProjectElements extends Component {
     });
   }
 
+  toggleModal() {
+    this.setState((prevState) => ({
+      modalOpen: !prevState.modalOpen
+    }));
+  }
+
   componentDidMount() {
     if (this.props.location.hash) {
       const elementid = this.props.location.hash.replace('#', '');
@@ -172,10 +181,11 @@ class ProjectElements extends Component {
                                  url={url}
                                  permissions={this.props.permissions}
                                  editElementInfo={this.editElementInfo}
-                                 closeSidePanel={this.closeSidePanel}/>;
+                                 closeSidePanel={this.closeSidePanel}
+                                 toggle={this.toggleModal}/>;
 
     if (this.state.sidePanel === 'elementEdit') {
-      sidePanelView = <ElementEdit id={this.state.id}
+      sidePanelView = <ElementEditForm id={this.state.id}
                                    url={url}
                                    project={this.props.project}
                                    branch={this.state.branch}
@@ -195,6 +205,20 @@ class ProjectElements extends Component {
     // Return element list
     return (
       <div id='workspace'>
+        <Modal isOpen={this.state.modalOpen}>
+          <ModalBody>
+            <ElementEditForm id={this.state.id}
+                             toggle={this.toggleModal}
+                             modal={this.state.modalOpen}
+                             customData={this.props.project.custom}
+                             archived={this.props.project.archived}
+                             url={url}
+                             project={this.props.project}
+                             branch={this.state.branch}
+                             closeSidePanel={this.closeSidePanel}>
+            </ElementEditForm>
+          </ModalBody>
+        </Modal>
         <div className='workspace-header header-box-depth'>
           <h2 className={btnDisClassName}>{this.props.project.name} Model</h2>
           {(!isButtonDisplayed)
@@ -213,6 +237,7 @@ class ProjectElements extends Component {
             <BranchBar project={this.props.project}
                        branchid={this.state.branch}
                        archived={this.state.archived}
+                       endpoint='/elements'
                        permissions={this.props.permissions}
                        displayIds={this.state.displayIds}
                        expand={this.state.expand}

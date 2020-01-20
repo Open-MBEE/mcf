@@ -22,7 +22,6 @@ const chai = require('chai');
 // MBEE modules
 const OrgController = M.require('controllers.organization-controller');
 const Organization = M.require('models.organization');
-const db = M.require('db');
 const utils = M.require('lib.utils');
 
 /* --------------------( Test Data )-------------------- */
@@ -45,8 +44,6 @@ describe(M.getModuleName(module.filename), () => {
    */
   before(async () => {
     try {
-      // Connect to the database
-      await db.connect();
       // Create test admin
       adminUser = await testUtils.createTestAdmin();
 
@@ -72,7 +69,6 @@ describe(M.getModuleName(module.filename), () => {
     try {
       await Organization.deleteMany({ _id: { $in: orgs.map((o) => o._id) } });
       await testUtils.removeTestAdmin();
-      await db.disconnect();
     }
     catch (error) {
       M.log.error(error);

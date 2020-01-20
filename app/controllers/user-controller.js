@@ -1004,13 +1004,17 @@ async function updatePassword(requestingUser, oldPassword, newPassword, confirmP
       throw new M.AuthorizationError('Old password is incorrect.', 'warn');
     }
 
+    // Verify that the new password has not been used in the previous stored passwords
+    const oldPasswords = await User.checkOldPasswords(foundUser, newPassword);
+
     // Update password on requesting user
     foundUser.password = newPassword;
     // Hash the user password
     User.hashPassword(foundUser);
 
     // Save the user with the updated password
-    await User.updateOne(userQuery, { password: foundUser.password });
+    await User.updateOne(userQuery, { password: foundUser.password,
+      oldPasswords: oldPasswords });
 
     // Find and return the updated user
     return await User.findOne(userQuery);

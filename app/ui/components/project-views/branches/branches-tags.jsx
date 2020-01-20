@@ -46,7 +46,8 @@ class BranchesTags extends Component {
       modalCreate: false,
       modalDelete: false,
       modalEdit: false,
-      pages: { branch: 1, tag: 1 }
+      pages: { branch: 1, tag: 1 },
+      error: null
     };
 
     this.toggleCreateModal = this.toggleCreateModal.bind(this);

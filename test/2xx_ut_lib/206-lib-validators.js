@@ -161,11 +161,11 @@ async function verifyUserFName() {
   if (customValidators.user_fname) this.skip();
 
   // Valid names
-  chai.expect(RegExp(validators.user.fname).test('First Last')).to.equal(true);
+  chai.expect(validators.user.fname('First Last')).to.equal(true);
 
   // Invalid names
-  chai.expect(RegExp(validators.user.fname).test('9first')).to.equal(false);
-  chai.expect(RegExp(validators.user.fname).test('-first')).to.equal(false);
+  chai.expect(validators.user.fname('9first')).to.equal(false);
+  chai.expect(validators.user.fname('-first')).to.equal(false);
 }
 
 /**
@@ -176,10 +176,10 @@ async function verifyUserLName() {
   if (customValidators.user_lname) this.skip();
 
   // Valid names
-  chai.expect(RegExp(validators.user.lname).test('First-Middle Last')).to.equal(true);
+  chai.expect(validators.user.lname('First-Middle Last')).to.equal(true);
 
   // Invalid names
-  chai.expect(RegExp(validators.user.lname).test(' space first')).to.equal(false);
+  chai.expect(validators.user.lname(' space first')).to.equal(false);
 }
 
 /**

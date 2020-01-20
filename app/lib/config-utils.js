@@ -127,6 +127,7 @@ module.exports.validate = function(config) {
   test(config, 'auth.session', 'object');
   test(config, 'auth.session.expires', 'number');
   test(config, 'auth.session.units', 'string');
+  if (config.auth.oldPasswords) test(config, 'auth.oldPasswords', 'number');
 
 
   // ----------------------------- Verify db ----------------------------- //
@@ -167,6 +168,24 @@ module.exports.validate = function(config) {
       if (caFile.length === 0) {
         throw new Error(`Configuration file: CA file ${config.db.ca} not found in certs directory.`);
       }
+    }
+  }
+  // Test DynamoDB strategy
+  else if (config.db.strategy === 'dynamodb-strategy') {
+    test(config, 'db.url', 'string');
+    test(config, 'db.port', 'number');
+    test(config, 'db.accessKeyId', 'string');
+    test(config, 'db.secretAccessKey', 'string');
+    test(config, 'db.region', 'string');
+    test(config, 'db.ssl', 'boolean');
+    test(config, 'db.billingMode', 'string');
+    // Ensure billing mode is either PAY_PER_REQUEST or PROVISIONED
+    if (config.db.billingMode !== 'PAY_PER_REQUEST' && config.db.billingMode !== 'PROVISIONED') {
+      throw new Error('DynamoDB Billing Mode must either be "PAY_PER_REQUEST" or "PROVISIONED".');
+    }
+    // Test the optional proxy field
+    if (config.db.proxy) {
+      test(config, 'db.proxy', 'string');
     }
   }
 
@@ -213,8 +232,8 @@ module.exports.validate = function(config) {
   test(config, 'log.file', 'string');
   test(config, 'log.error_file', 'string');
   test(config, 'log.debug_file', 'string');
+  test(config, 'log.security_file', 'string');
   test(config, 'log.colorize', 'boolean');
-
 
   // ----------------------------- Verify server ----------------------------- //
   test(config, 'server', 'object');
@@ -241,6 +260,7 @@ module.exports.validate = function(config) {
     if (config.server.api.userAPI.patchPassword) test(config, 'server.api.userAPI.patchPassword', 'boolean');
     if (config.server.api.userAPI.delete) test(config, 'server.api.userAPI.delete', 'boolean');
   }
+  if (config.server.hasOwnProperty('uniqueProjects')) test(config, 'server.uniqueProjects', 'boolean');
   test(config, 'server.plugins', 'object');
   test(config, 'server.plugins.enabled', 'boolean');
   if (config.server.plugins.enabled) {
@@ -249,6 +269,9 @@ module.exports.validate = function(config) {
       test(config, `server.plugins.plugins.${pluginName}`, 'object');
       test(config, `server.plugins.plugins.${pluginName}.title`, 'string');
       test(config, `server.plugins.plugins.${pluginName}.source`, 'string');
+      if (config.server.plugins.plugins[pluginName].testOnStartup) {
+        test(config, `server.plugins.plugins.${pluginName}.testOnStartup`, 'boolean');
+      }
     });
   }
   test(config, 'server.ui', 'object');

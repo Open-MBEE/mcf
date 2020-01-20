@@ -64,16 +64,28 @@ function loadPlugins() {
   const files = fs.readdirSync(__dirname);
 
   // Get a list of plugin names in the config
-  const pluginName = Object.keys(plugins);
+  const pluginNames = Object.keys(plugins);
 
-  files.forEach((f) => {
+  // Initialize object to store plugin middleware functions
+  const pluginFunctions = {};
+  const apiFunctions = M.require('controllers.api-controller');
+  Object.keys(apiFunctions).forEach((apiFun) => {
+    pluginFunctions[apiFun] = { pre: [], post: [] };
+  });
+  // Remove reserved functions
+  const reservedFunctions = ['swaggerJSON', 'login', 'test', 'version', 'patchPassword'];
+  reservedFunctions.forEach((reserved) => {
+    delete pluginFunctions[reserved];
+  });
+
+  files.forEach(async (f) => {
     // Skip routes.js
     if (protectedFileNames.includes(f)) {
       return;
     }
 
     // Removes old plugins
-    if (!pluginName.includes(f)) {
+    if (!pluginNames.includes(f)) {
       M.log.info(`Removing plugin '${f}' ...`);
       const c = `${rmd} ${path.join(__dirname, f)}`;
       const stdout = execSync(c);
@@ -124,6 +136,43 @@ function loadPlugins() {
       M.log.error(err);
       return;
     }
+
+    // Load the plugin middleware functions
+    if (fs.existsSync(path.join(pluginPath, 'middleware.js'))) {
+      // eslint-disable-next-line global-require
+      const middleware = require(path.join(pluginPath, 'middleware'));
+      M.log.info('Loading plugin middleware...');
+      // Iterate through each middleware object corresponding to an APIController function
+      Object.keys(middleware).forEach((m) => {
+        // Check that each middleware object only has the keys "pre" and/or "post"
+        const keys = Object.keys(middleware[m]);
+        const allowedKeys = ['pre', 'post'];
+        if (keys.every((k) => allowedKeys.includes(k))) {
+          if (Object.keys(pluginFunctions).includes(m)) {
+            if (middleware[m].pre) pluginFunctions[m].pre.push(middleware[m].pre);
+            if (middleware[m].post) pluginFunctions[m].post.push(middleware[m].post);
+          }
+          else {
+            M.log.warn(`Plugin middleware for api function [${m}] not supported`);
+          }
+        }
+        else {
+          M.log.warn(`Skipping plugin middleware for api function [${m}] due to invalid format`);
+        }
+      });
+    }
+
+
+    // Run the plugin tests if specified
+    if (plugins[f].testOnStartup) {
+      M.log.info(`Running tests for plugin ${namespace}`);
+      const opts = ['--no-header', '--plugin', namespace];
+      // eslint-disable-next-line global-require
+      const task = require(path.join(M.root, 'scripts', 'test'));
+      await task(opts);
+      M.log.info(`Tests completed for plugin ${namespace}`);
+    }
+
     M.log.info(`Plugin ${namespace} installed.`);
 
     // Add plugin name/title to array of loaded plugins
@@ -135,6 +184,7 @@ function loadPlugins() {
 
   // Export list of loaded plugins
   module.exports.loadedPlugins = loadedPlugins;
+  module.exports.pluginFunctions = pluginFunctions;
 }
 
 /**

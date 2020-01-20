@@ -2,7 +2,7 @@
 
 ## Overview
 MBEE is designed to be deployed in a number of different architectural 
-configurations. At its simplest, it can be deployed as a single instance of
+configurations. It can be deployed as a single instance of
 an application or it can be run in more complex configurations, such as
 clustered behind a load balancer. This document will primarily focus on the 
 first case: a single running instance of the MBEE Core Framework.
@@ -30,7 +30,7 @@ Enter the newly created directory containing the source code.
 
 ## Building MBEE
 Before running MBEE, the software must be built. The build process compiles 
-Sass into CSS, transpiles React JSX into vanilla Javascript, builds 
+Sass into CSS, transpiles React JSX into vanilla JavaScript, builds 
 documentation, prepares other static files, and more.
 
 The build process will output these runtime files to the `build` directory.
@@ -84,7 +84,7 @@ are executed. The following options are supported:
 - **`--jsdoc`** - Builds the JSDoc documentation.
 - **`--fm`** - Builds the flight-manual.
 - **`--sass`** - Builds the Sass into CSS.
-- **`--react`** - Transpiles the React JSX into client-side Javascript 
+- **`--react`** - Transpiles the React JSX into client-side JavaScript 
 
 Additionally, a **`--all`** option tells the build script to run all sections of
 the build. This is the default behavior when no options are provided.

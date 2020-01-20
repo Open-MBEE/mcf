@@ -26,12 +26,12 @@ const should = chai.should(); // eslint-disable-line no-unused-vars
 
 // MBEE modules
 const APIController = M.require('controllers.api-controller');
-const db = M.require('db');
 
 /* --------------------( Test Data )-------------------- */
 // Variables used across test functions
 const testUtils = M.require('lib.test-utils');
 const testData = testUtils.importTestData('test_data.json');
+const next = testUtils.next;
 let adminUser = null;
 
 /* --------------------( Main )-------------------- */
@@ -43,16 +43,11 @@ let adminUser = null;
  */
 describe(M.getModuleName(module.filename), () => {
   /**
-   * Before: Run before all tests. Connects to the database, creates test admin user,
-   * and creates test non admin user.
+   * Before: Runs before all tests. Creates test admin user.
    */
   before(async () => {
     try {
-      // Connect to the database
-      await db.connect();
-      // Create test admin
       adminUser = await testUtils.createTestAdmin();
-      await testUtils.createNonAdminUser();
     }
     catch (error) {
       M.log.error(error);
@@ -62,14 +57,11 @@ describe(M.getModuleName(module.filename), () => {
   });
 
   /**
-   * After: Runs after all tests. Remove test admin user, test non admin user,
-   * and disconnect from the database.
+   * After: Runs after all tests. Removes test admin user.
    */
   after(async () => {
     try {
       await testUtils.removeTestAdmin();
-      await testUtils.removeNonAdminUser();
-      await db.disconnect();
     }
     catch (error) {
       M.log.error(error);
@@ -149,12 +141,11 @@ function noReqUser(endpoint) {
       // Expect the statusCode to be 500
       res.statusCode.should.equal(500);
 
-      // Ensure the response was logged correctly
-      setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+      done();
     };
 
     // Sends the mock request
-    APIController[endpoint](req, res);
+    APIController[endpoint](req, res, next(req, res));
   };
 }
 
@@ -189,12 +180,11 @@ function invalidOptions(endpoint) {
       // Expect the statusCode to be 400
       res.statusCode.should.equal(400);
 
-      // Ensure the response was logged correctly
-      setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+      done();
     };
 
     // Sends the mock request
-    APIController[endpoint](req, res);
+    APIController[endpoint](req, res, next(req, res));
   };
 }
 
@@ -229,12 +219,11 @@ function conflictingIDs(endpoint) {
       // Expect the statusCode to be 400
       res.statusCode.should.equal(400);
 
-      // Ensure the response was logged correctly
-      setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+      done();
     };
 
     // Sends the mock request
-    APIController[endpoint](req, res);
+    APIController[endpoint](req, res, next(req, res));
   };
 }
 
@@ -272,12 +261,11 @@ function notFound(endpoint) {
       // Expect the statusCode to be 404
       res.statusCode.should.equal(404);
 
-      // Ensure the response was logged correctly
-      setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+      done();
     };
 
     // Sends the mock request
-    APIController[endpoint](req, res);
+    APIController[endpoint](req, res, next(req, res));
   };
 }
 
@@ -310,11 +298,10 @@ function noArrays(endpoint) {
       // Expect the statusCode to be 400
       res.statusCode.should.equal(400);
 
-      // Ensure the response was logged correctly
-      setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+      done();
     };
 
     // Sends the mock request
-    APIController[endpoint](req, res);
+    APIController[endpoint](req, res, next(req, res));
   };
 }

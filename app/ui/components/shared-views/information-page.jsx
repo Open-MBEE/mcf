@@ -37,7 +37,8 @@ class InformationPage extends Component {
     // Initialize state props
     this.state = {
       data: null,
-      modal: false
+      modal: false,
+      error: null
     };
 
     // Bind component functions

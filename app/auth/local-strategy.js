@@ -7,10 +7,11 @@
  *
  * @license MIT
  *
- * @owner Austin Bieber
+ * @owner Connor Doyle
  *
  * @author Jake Ursetta
  * @author Josh Kaplan
+ * @author Connor Doyle
  *
  * @description This implements an authentication strategy for local
  * authentication. This should be the default authentication strategy for MBEE.
@@ -209,15 +210,13 @@ function doLogin(req, res, next) {
   const timeDelta = M.config.auth.token.expires
                   * utils.timeConversions[M.config.auth.token.units];
 
-  // Generate the token
-  const token = mbeeCrypto.generateToken({
+  // Generate and set the token
+  req.session.token = mbeeCrypto.generateToken({
     type: 'user',
     username: (req.user.username || req.user._id),
     created: (new Date(Date.now())),
     expires: (new Date(Date.now() + timeDelta))
   });
-  // Set the session token
-  req.session.token = token;
   M.log.info(`${req.originalUrl} Logged in ${(req.user.username || req.user._id)}`);
   // Callback
   next();

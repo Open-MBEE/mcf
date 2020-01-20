@@ -1,7 +1,7 @@
 /**
  * @classification UNCLASSIFIED
  *
- * @module test.7xx_ui_tests.set-up
+ * @module test.700-setup
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *

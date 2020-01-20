@@ -331,7 +331,7 @@ class Search extends Component {
           <div id='search-branch-bar'>
             <BranchBar project={this.props.project}
                        branchid={this.props.match.params.branchid}
-                       searchForm={true}/>
+                       endpoint='/search'/>
           </div>
           { /* Search Form */ }
           <Form id={'search-form'} className={'search-form'} inline>

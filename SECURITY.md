@@ -1,7 +1,7 @@
 # MBEE Security
 
 **Contents**
-- [Reporting Vulnerabilities and Bugs](#reporting-vulnerabilities-and-bugs)
+- [Reporting Security Vulnerabilities](#reporting-security-vulnerabilities)
 - [Disclosure and Security Update Policy](#disclosure-and-security-update-policy)
 - [Known Gaps and Issues](#known-gaps-and-issues)
 - [Security Related Configuration](#security-related-configuration)
@@ -13,8 +13,9 @@
   - [Authentication](#authentication)
 
 
-## Reporting Vulnerabilities and Bugs
-If an issue is identified in the open source version MBEE, please email
+## Reporting Security Vulnerabilities
+If a security related  issue is identified in the open source version MBEE,
+please email
 [mbee-software.fc-space@lmco.com](mailto:mbee-software.fc-space@lmco.com).
 This will notify the Lockheed Martin MBEE Software Engineering team of the
 issue. Your email will be acknowledged within 1 business day and a more detailed
@@ -81,7 +82,6 @@ Then encrypt your message by running:
 gpg -e -r mbee-software file_to_encrypt.txt
 ```
 
-
 ## Disclosure and Security Update Policy
 If and when security-related updates are made to MBEE, refer to `CHANGELOG.md`
 for instructions on how to mitigate the issue.
@@ -93,6 +93,12 @@ The MBEE tests should not be run in production because the tests will create
 an arbitrary admin user in the database.
 
 It's important to ensure that all test users are deleted from the database.
+
+Additionally, when using custom id validators in the config, the testing script
+will attempt to generate new ids for test data that match the custom validators.
+However, if an invalid RegEx is supplied for a custom validator, or a RegEx that
+otherwise conflicts with the maximum or minimum id length, a critical error will
+be logged and the process will exit due to not being able to generate test data.
 
 #### Element Search UI
 A known issue exists in the advanced element search in the UI. If the same field
@@ -110,7 +116,7 @@ it is not in the plans to officially support MBEE for Internet Explorer.
 #### Plugin Loading
 Due to the nature of how plugins are loaded, the API and UI are not accessible
 until a plugin has been succesfully loaded. This can cause issues if plugins
-hang while loading, and can result in the UI and API from being accessible.
+hang while loading, and can prevent the UI and API from being accessible.
 
 ## Security Related Configuration
 

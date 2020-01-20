@@ -47,7 +47,8 @@ class MbeeNav extends Component {
       isOpen: false,
       user: null,
       width: 0,
-      height: 0
+      height: 0,
+      error: null
     };
 
     // Bind component functions

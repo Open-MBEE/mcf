@@ -24,7 +24,6 @@ const chai = require('chai');
 const User = M.require('models.user');
 const UserController = M.require('controllers.user-controller');
 const Organization = M.require('models.organization');
-const db = M.require('db');
 const jmi = M.require('lib.jmi-conversions');
 
 /* --------------------( Test Data )-------------------- */
@@ -46,8 +45,6 @@ describe(M.getModuleName(module.filename), () => {
    */
   before(async () => {
     try {
-      // Connect to the database
-      await db.connect();
       // Create test admin
       adminUser = await testUtils.createTestAdmin();
     }
@@ -61,17 +58,16 @@ describe(M.getModuleName(module.filename), () => {
   /**
    * After: Delete admin user.
    */
-  after((done) => {
-    // Removing admin user
-    testUtils.removeTestAdmin()
-    .then(() => db.disconnect())
-    .then(() => done())
-    .catch((error) => {
+  after(async () => {
+    try {
+      // Removing admin user
+      await testUtils.removeTestAdmin();
+    }
+    catch (error) {
       M.log.error(error);
       // Expect no error
       chai.expect(error).to.equal(null);
-      done();
-    });
+    }
   });
 
   /* Execute the tests */

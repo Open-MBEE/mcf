@@ -7,7 +7,7 @@
  *
  * @license MIT
  *
- * @owner Austin Bieber
+ * @owner Connor Doyle
  *
  * @author Austin Bieber
  * @author Connor Doyle
@@ -502,7 +502,6 @@ async function create(requestingUser, organizationID, projectID, branchID, eleme
         if (foundElements.length > 0) {
           // Get array of the foundElements's ids
           const foundElementIDs = foundElements.map(e => utils.parseID(e._id).pop());
-
           // There are one or more elements with conflicting IDs
           throw new M.OperationError('Elements with the following IDs already exist'
             + ` [${foundElementIDs.toString()}].`, 'warn');
@@ -603,37 +602,40 @@ async function create(requestingUser, organizationID, projectID, branchID, eleme
     remainingElements.forEach((element) => {
       // If the element has a parent
       if (element.$parent) {
-        if (extraElementsJMI2[element.$parent]._id) {
+        if (extraElementsJMI2[element.$parent] && extraElementsJMI2[element.$parent]._id) {
           element.parent = extraElementsJMI2[element.$parent]._id;
           delete element.$parent;
         }
         else {
           // Parent not found in db, throw an error
-          throw new M.NotFoundError(`Parent element ${element.parent} not found.`, 'warn');
+          throw new M.NotFoundError(`Parent element [${utils.parseID(element.parent).pop()}] `
+            + 'not found.', 'warn');
         }
       }
 
       // If the element is a relationship and has a source
       if (element.$source) {
-        if (extraElementsJMI2[element.$source]._id) {
+        if (extraElementsJMI2[element.$source] && extraElementsJMI2[element.$source]._id) {
           element.source = extraElementsJMI2[element.$source]._id;
           delete element.$source;
         }
         else {
           // Source not found in db, throw an error
-          throw new M.NotFoundError(`Source element ${element.source} not found.`, 'warn');
+          throw new M.NotFoundError(`Source element [${utils.parseID(element.source).pop()}] `
+            + 'not found.', 'warn');
         }
       }
 
       // If the element is a relationship and has a target
       if (element.$target) {
-        if (extraElementsJMI2[element.$target]._id) {
+        if (extraElementsJMI2[element.$target] && extraElementsJMI2[element.$target]._id) {
           element.target = extraElementsJMI2[element.$target]._id;
           delete element.$target;
         }
         else {
           // Target not found in db, throw an error
-          throw new M.NotFoundError(`Target element ${element.target} not found.`, 'warn');
+          throw new M.NotFoundError(`Target element [${utils.parseID(element.target).pop()}] `
+            + 'not found.', 'warn');
         }
       }
     });
@@ -643,7 +645,7 @@ async function create(requestingUser, organizationID, projectID, branchID, eleme
     M.log.debug('create(): After insertMany()');
 
     promises = [];
-    const createdIDs = await createdElements.map(e => e._id);
+    const createdIDs = createdElements.map(e => e._id);
     // Find elements in batches
     for (let i = 0; i < createdIDs.length / 50000; i++) {
       // Split elementIDs list into batches of 50000
@@ -936,8 +938,8 @@ async function update(requestingUser, organizationID, projectID, branchID, eleme
       // Error Check: if element is currently archived, it must first be unarchived
       if (element.archived && (updateElement.archived === undefined
         || JSON.parse(updateElement.archived) !== false)) {
-        throw new M.OperationError(`Element [${utils.parseID(element._id).pop()}]`
-          + ' is archived. Archived objects cannot be modified.', 'warn');
+        throw new M.OperationError(`The Element [${utils.parseID(element._id).pop()}]`
+          + ' is archived. It must first be unarchived before performing this operation.', 'warn');
       }
 
       // For each key in the updated object
@@ -966,6 +968,17 @@ async function update(requestingUser, organizationID, projectID, branchID, eleme
                 `Invalid ${key}: [${updateElement[key]}]`, 'warn'
               );
             }
+          }
+          else if (Object.keys(validators.element[key])
+          .every(subkey => typeof validators.element[key][subkey] === 'function')) {
+            const subkeys = Object.keys(validators.element[key]);
+            subkeys.forEach((subkey) => {
+              if (!validators.element[key][subkey](updateElement[key])) {
+                throw new M.DataFormatError(
+                  `Invalid ${key}: [${updateElement[key]}]`, 'warn'
+                );
+              }
+            });
           }
           // Improperly formatted validator
           else {
@@ -1572,7 +1585,7 @@ function findElementTree(organizationID, projectID, branchID, elementIDs) {
       // Recursively find the sub-children of the found elements in batches of 50000 or less
       for (let i = 0; i < foundIDs.length / 50000; i++) {
         const tmpIDs = foundIDs.slice(i * 50000, i * 50000 + 50000);
-        return findElementTreeHelper(tmpIDs);
+        await findElementTreeHelper(tmpIDs); // eslint-disable-line no-await-in-loop
       }
     }
     catch (error) {

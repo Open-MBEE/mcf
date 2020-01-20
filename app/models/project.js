@@ -9,7 +9,7 @@
  *
  * @license MIT
  *
- * @owner Austin Bieber
+ * @owner Phillip Lee
  *
  * @author Jake Ursetta
  * @author Austin Bieber
@@ -85,41 +85,23 @@ const ProjectSchema = new db.Schema({
     type: 'String',
     required: true,
     validate: [{
-      validator: function(v) {
-        const projID = utils.parseID(v).pop();
-        // If the ID is a reserved keyword, reject
-        return !validators.reserved.includes(projID);
-      },
-      message: 'Project ID cannot include the following words: '
+      validator: validators.project._id.reserved,
+      message: props => 'Project ID cannot include the following words: '
       + `[${validators.reserved}].`
     }, {
-      validator: function(v) {
-        // If the ID is longer than max length, reject
-        return v.length <= validators.project.idLength;
-      },
+      validator: validators.project._id.match,
+      message: props => `Invalid project ID [${utils.parseID(props.value).pop()}].`
+    }, {
+      validator: validators.project._id.maxLength,
       // Return a message, with calculated length of project ID (project.max - org.max - :)
       message: props => `Project ID length [${props.value.length - validators.org.idLength - 1}]`
         + ` must not be more than ${validators.project.idLength - validators.org.idLength - 1}`
         + ' characters.'
     }, {
-      validator: function(v) {
-        // If the ID is shorter than min length, reject
-        return v.length > 4;
-      },
+      validator: validators.project._id.minLength,
       // Return a message, with calculated length of project ID (project.min - org.min - :)
       message: props => `Project ID length [${props.value.length - 3}] must not`
         + ' be less than 2 characters.'
-    }, {
-      validator: function(v) {
-        if (typeof validators.project.id === 'string') {
-          // If the ID is invalid, reject
-          return RegExp(validators.project.id).test(v);
-        }
-        else {
-          return validators.project.id(v);
-        }
-      },
-      message: props => `Invalid project ID [${utils.parseID(props.value).pop()}].`
     }]
   },
   org: {
@@ -128,17 +110,10 @@ const ProjectSchema = new db.Schema({
     index: true,
     required: true,
     validate: [{
-      validator: function(v) {
-        if (typeof validators.org.id === 'string') {
-          // If the ID is invalid, reject
-          return RegExp(validators.org.id).test(v);
-        }
-        else {
-          return validators.org.id(v);
-        }
-      },
+      validator: validators.project.org,
       message: props => `${props.value} is not a valid org ID.`
-    }]
+    }],
+    immutable: true
   },
   name: {
     type: 'String',
@@ -148,22 +123,7 @@ const ProjectSchema = new db.Schema({
     type: 'Object',
     default: {},
     validate: [{
-      validator: function(v) {
-        let bool = true;
-        // If the permissions object is not a JSON object, reject
-        if (typeof v !== 'object' || Array.isArray(v) || v === null) {
-          bool = false;
-        }
-
-        // Check that each every key/value pair's value is an array of strings
-        Object.values(v).forEach((val) => {
-          if (!Array.isArray(val) || !val.every(s => typeof s === 'string')) {
-            bool = false;
-          }
-        });
-
-        return bool;
-      },
+      validator: validators.project.permissions,
       message: props => 'The project permissions object is not properly formatted.'
     }]
   },

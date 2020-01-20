@@ -198,7 +198,7 @@ class ProjectList extends Component {
             <h2 className='workspace-title'>Projects</h2>
             <div className='workspace-header-button'>
               <Button className='btn'
-                            outline color="secondary"
+                            outline color="primary"
                             onClick={this.handleCreateToggle}>
                 {(this.state.width > 600)
                   ? 'Create'

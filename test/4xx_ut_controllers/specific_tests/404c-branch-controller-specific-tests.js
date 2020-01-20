@@ -22,7 +22,6 @@ const chai = require('chai');
 // MBEE modules
 const BranchController = M.require('controllers.branch-controller');
 const Branch = M.require('models.branch');
-const db = M.require('db');
 const utils = M.require('lib.utils');
 
 /* --------------------( Test Data )-------------------- */
@@ -43,18 +42,13 @@ let branches = null;
  */
 describe(M.getModuleName(module.filename), () => {
   /**
-   * After: Connect to database. Create an admin user, organization, and project.
+   * Before: Create an admin user, organization, project, and branches.
    */
   before(async () => {
     try {
-      // Open the database connection
-      await db.connect();
-
-      // Create test admin, test org, test project
       adminUser = await testUtils.createTestAdmin();
       org = await testUtils.createTestOrg(adminUser);
       proj = await testUtils.createTestProject(adminUser, org._id);
-
       projID = utils.parseID(proj._id).pop();
 
       // Create additional branches for the tests to utilize
@@ -76,7 +70,6 @@ describe(M.getModuleName(module.filename), () => {
 
   /**
    * After: Remove Organization and project.
-   * Close database connection.
    */
   after(async () => {
     try {
@@ -84,7 +77,6 @@ describe(M.getModuleName(module.filename), () => {
       // Note: Projects under organization will also be removed
       await testUtils.removeTestOrg();
       await testUtils.removeTestAdmin();
-      await db.disconnect();
     }
     catch (error) {
       M.log.error(error);
@@ -470,7 +462,7 @@ async function optionCreatedByFind() {
  */
 async function optionLastModifiedByFind() {
   try {
-    // Create lastModifedBy option
+    // Create lastModifiedBy option
     const options = { lastModifiedBy: 'test_admin' };
 
     // Find the branch

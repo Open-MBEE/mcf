@@ -21,7 +21,6 @@ const chai = require('chai');
 const request = require('request');
 
 // MBEE modules
-const db = M.require('db');
 const jmi = M.require('lib.jmi-conversions');
 
 /* --------------------( Test Data )-------------------- */
@@ -45,8 +44,6 @@ describe(M.getModuleName(module.filename), () => {
    */
   before(async () => {
     try {
-      // Connect db
-      await db.connect();
       // Create test admin
       adminUser = await testUtils.createTestAdmin();
       // Create test org
@@ -66,7 +63,6 @@ describe(M.getModuleName(module.filename), () => {
     try {
       await testUtils.removeTestOrg();
       await testUtils.removeTestAdmin();
-      await db.disconnect();
     }
     catch (error) {
       M.log.error(error);
@@ -651,6 +647,7 @@ function deleteProject(done) {
 
     // Verify correct project deleted
     chai.expect(deletedID).to.equal(projData.id);
+
     done();
   });
 }
@@ -685,6 +682,7 @@ function deleteProjects(done) {
 
     // Verify correct project deleted
     chai.expect(deletedIDs).to.have.members(projData.map(p => p.id));
+
     done();
   });
 }

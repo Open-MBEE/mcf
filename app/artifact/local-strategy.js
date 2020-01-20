@@ -281,6 +281,7 @@ function createBlobPath(artMetadata) {
 
   // Remove os separator with periods
   const convertedLocation = location.replace(
+    // eslint-disable-next-line security/detect-non-literal-regexp
     new RegExp(`\\${path.sep}`, 'g'), '.'
   );
 

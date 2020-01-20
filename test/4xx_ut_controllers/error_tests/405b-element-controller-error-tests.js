@@ -9,6 +9,7 @@
  *
  * @owner Connor Doyle
  *
+ * @author Connor Doyle
  * @author Austin Bieber
  * @author Phillip Lee
  *
@@ -26,13 +27,17 @@ const should = chai.should(); // eslint-disable-line no-unused-vars
 
 // MBEE modules
 const ElementController = M.require('controllers.element-controller');
-const db = M.require('db');
+const Organization = M.require('models.organization');
+const Project = M.require('models.project');
+const Branch = M.require('models.branch');
+const Element = M.require('models.element');
 const utils = M.require('lib.utils');
 
 /* --------------------( Test Data )-------------------- */
 const testUtils = M.require('lib.test-utils');
 const testData = testUtils.importTestData('test_data.json');
 let adminUser = null;
+let nonAdminUser = null;
 let org = null;
 let proj = null;
 let projID = null;
@@ -48,37 +53,26 @@ let tagID = null;
  */
 describe(M.getModuleName(module.filename), () => {
   /**
-   * After: Connect to database. Create an admin user, organization, project,
-   * and elements.
+   * After: Create an admin user, organization, project, and elements.
    */
-  before((done) => {
-    // Open the database connection
-    db.connect()
-    // Create test admin
-    .then(() => testUtils.createTestAdmin())
-    .then((_adminUser) => {
-      // Set global admin user
-      adminUser = _adminUser;
+  before(async () => {
+    try {
+      // Create test admin
+      adminUser = await testUtils.createTestAdmin();
+
+      // Create test user
+      nonAdminUser = await testUtils.createNonAdminUser();
 
       // Create organization
-      return testUtils.createTestOrg(adminUser);
-    })
-    .then((retOrg) => {
-      // Set global organization
-      org = retOrg;
+      org = await testUtils.createTestOrg(adminUser);
 
       // Create project
-      return testUtils.createTestProject(adminUser, org._id);
-    })
-    .then((retProj) => {
-      // Set global project
-      proj = retProj;
+      proj = await testUtils.createTestProject(adminUser, org._id);
+
       projID = utils.parseID(proj._id).pop();
       branchID = testData.branches[0].id;
 
-      return testUtils.createTag(adminUser, org._id, projID);
-    })
-    .then((tag) => {
+      const tag = await testUtils.createTag(adminUser, org._id, projID);
       tagID = utils.parseID(tag._id).pop();
 
       const elemDataObjects = [
@@ -91,65 +85,279 @@ describe(M.getModuleName(module.filename), () => {
         testData.elements[7],
         testData.elements[8]
       ];
-      return ElementController.create(adminUser, org._id, projID, branchID, elemDataObjects);
-    })
-    .then(() => done())
-    .catch((error) => {
+      await ElementController.create(adminUser, org._id, projID, branchID, elemDataObjects);
+    }
+    catch (error) {
       M.log.error(error);
       // Expect no error
       chai.expect(error).to.equal(null);
-      done();
-    });
+    }
   });
 
   /**
    * After: Remove organization, project and elements.
-   * Close database connection.
    */
-  after((done) => {
-    // Remove organization
-    // Note: Projects and elements under organization will also be removed
-    testUtils.removeTestOrg()
-    .then(() => testUtils.removeTestAdmin())
-    .then(() => db.disconnect())
-    .then(() => done())
-    .catch((error) => {
+  after(async () => {
+    try {
+      // Remove organization
+      // Note: Projects and elements under organization will also be removed
+      await testUtils.removeTestOrg();
+      await testUtils.removeNonAdminUser();
+      await testUtils.removeTestAdmin();
+    }
+    catch (error) {
       M.log.error(error);
       // Expect no error
       chai.expect(error).to.equal(null);
-      done();
-    });
+    }
   });
 
   /* Execute the tests */
   // -------------- Find --------------
+  it('should reject an unauthorized attempt to find an element', unauthorizedTest('find'));
   // ------------- Create -------------
-  it('should reject creating elements to a tag '
-    + 'saying elements cannot be created.', createInTag);
+  it('should reject an unauthorized attempt to create an element', unauthorizedTest('create'));
+  it('should reject creating elements on a tag.', createOnTag);
+  it('should reject creating an element on an archived org', archivedTest(Organization, 'create'));
+  it('should reject creating an element on an archived project', archivedTest(Project, 'create'));
+  it('should reject creating an element on an archived branch', archivedTest(Branch, 'create'));
+  it('should reject creating an element that already exists', createExisting);
+  it('should reject creating an element with a nonexistent parent', notFoundTest('create', 'Parent'));
+  it('should reject creating an element with a nonexistent source', notFoundTest('create', 'Source'));
+  it('should reject creating an element with a nonexistent target', notFoundTest('create', 'Target'));
   // ------------- Update -------------
-  it('should reject an update saying a source cannot be set to self', updateSourceToSelf);
-  it('should reject an update saying a target cannot be set to self', updateTargetToSelf);
-  it('should reject an update saying a source cannot be found', updateNonExistentSource);
-  it('should reject an update saying a target cannot be found', updateNonExistentTarget);
-  it('should reject an update saying a target is required when'
-    + ' updating a source', updateSourceWithNoTarget);
-  it('should reject an update saying a source is required when'
-    + ' updating a target', updateTargetWithNoSource);
-  it('should reject updating elements to a tag '
-    + 'saying elements cannot be update.', updateInTag);
+  it('should reject an unauthorized attempt to update an element', unauthorizedTest('update'));
+  it('should reject an attempt to update an element on an archived org', archivedTest(Organization, 'update'));
+  it('should reject an attempt to update an element on an archived project', archivedTest(Project, 'update'));
+  it('should reject an attempt to update an element on an archived branch', archivedTest(Branch, 'update'));
+  it('should reject an attempt to update an archived element', archivedTest(Element, 'update'));
+  it('should reject an update setting the source of an element to itself', updateSourceToSelf);
+  it('should reject an update setting the target of an element to itself', updateTargetToSelf);
+  it('should reject an update if the parent cannot be found', notFoundTest('update', 'Parent'));
+  it('should reject an update if the source cannot be found', notFoundTest('update', 'Source'));
+  it('should reject an update if the target cannot be found', notFoundTest('update', 'Target'));
+  it('should reject an update setting a source without a target', updateSourceWithNoTarget);
+  it('should reject an update setting a target without a source', updateTargetWithNoSource);
+  it('should reject updating elements on a tag', updateOnTag);
   // ------------- Replace ------------
-  it('should reject put elements with invalid id', putInvalidId);
-  it('should reject put elements without id', putWithoutId);
+  it('should reject an unauthorized attempt to replace an element', unauthorizedTest('createOrReplace'));
+  it('should reject an attempt to replace an element on an archived org', archivedTest(Organization, 'createOrReplace'));
+  it('should reject an attempt to replace an element on an archived project', archivedTest(Project, 'createOrReplace'));
+  it('should reject an attempt to replace an element on an archived branch', archivedTest(Branch, 'createOrReplace'));
+  it('should reject an attempt to replace an element with an invalid id', putInvalidId);
+  it('should reject an attempt to replace an element without an id', putWithoutId);
   // ------------- Remove -------------
-  it('should reject deleting elements in a tag '
-    + 'saying elements cannot be deleted.', deleteInTag);
+  it('should reject an unauthorized attempt to delete an element', unauthorizedTest('remove'));
+  it('should reject an attempt to delete an element on an archived org', archivedTest(Organization, 'remove'));
+  it('should reject an attempt to delete an element on an archived project', archivedTest(Project, 'remove'));
+  it('should reject an attempt to delete an element on an archived branch', archivedTest(Branch, 'remove'));
+  it('should reject deleting elements on a tag', deleteOnTag);
   // ------------- Search -------------
+  it('should reject an unauthorized attempt to search an element', unauthorizedTest('search'));
+  it('should reject an attempt to search an element on an archived org', archivedTest(Organization, 'search'));
+  it('should reject an attempt to search an element on an archived project', archivedTest(Project, 'search'));
+  it('should reject an attempt to search an element on an archived branch', archivedTest(Branch, 'search'));
 });
 
 /* --------------------( Tests )-------------------- */
 /**
- * @description Verifies that an elements source cannot be updated to its own
- * id.
+ * @description A function that dynamically generates a test function for different unauthorized
+ * cases.
+ *
+ * @param {string} operation - The type of operation for the test: create, update, etc.
+ *
+ * @returns {Function} Returns a function to be used as a test.
+ */
+function unauthorizedTest(operation) {
+  return async function() {
+    let elemData = testData.elements[0];
+    let op = operation;
+    const id = org._id;
+    const level = 'org';
+
+    switch (operation) {
+      case 'find':
+        elemData = elemData.id;
+        break;
+      case 'create':
+        break;
+      case 'update':
+        elemData = {
+          id: elemData.id,
+          description: 'update'
+        };
+        break;
+      case 'createOrReplace':
+        op = 'update';
+        break;
+      case 'remove':
+        elemData = elemData.id;
+        op = 'delete'; // Changing this because permissions errors say "delete" instead of "remove"
+        break;
+      case 'search':
+        op = 'find';
+        break;
+      default:
+        throw new Error('Invalid input to unauthorizedTest function');
+    }
+
+    try {
+      // Attempt to perform the unauthorized operation
+      await ElementController[operation](nonAdminUser, org._id, projID, branchID, elemData)
+      .should.eventually.be.rejectedWith(`User does not have permission to ${op} items in the ${level} [${id}]`);
+    }
+    catch (error) {
+      M.log.error(error);
+      should.not.exist(error);
+    }
+  };
+}
+
+/**
+ * @description A function that dynamically generates a test function for different archived cases.
+ *
+ * @param {Model} model - The model to use for the test.
+ * @param {string} operation - The type of operation for the test: create, update, etc.
+ *
+ * @returns {Function} Returns a function to be used as a test.
+ */
+function archivedTest(model, operation) {
+  return async function() {
+    let elemData = testData.elements[1];
+    let id;
+    let name;
+
+    switch (model) {
+      case Organization:
+        // Set id to org id
+        id = org._id;
+        name = 'Organization';
+        break;
+      case Project:
+        // Set id to project id
+        id = utils.createID(org._id, projID);
+        name = 'Project';
+        break;
+      case Branch:
+        // Set id to branch id
+        id = utils.createID(org._id, projID, branchID);
+        name = 'Branch';
+        break;
+      case Element:
+        // Set id to element id
+        id = utils.createID(org._id, projID, branchID, elemData.id);
+        name = 'Element';
+        break;
+      default:
+        throw new Error('Invalid input to archivedTest function');
+    }
+
+    switch (operation) {
+      case 'update':
+        elemData = {
+          id: elemData.id,
+          documentation: 'update'
+        };
+        break;
+      case 'find':
+      case 'remove':
+        elemData = elemData.id;
+        break;
+      // No alteration needed for these endpoints
+      case 'create':
+        break;
+      case 'createOrReplace':
+        break;
+      case 'search':
+        break;
+      default:
+        throw new Error('Invalid input to archivedTest function');
+    }
+
+    try {
+      // Archive the object of interest
+      await model.updateOne({ _id: id }, { archived: true });
+
+      await ElementController[operation](adminUser, org._id, projID, branchID, elemData)
+      .should.eventually.be.rejectedWith(`The ${name} [${utils.parseID(id).pop()}] is archived. `
+        + 'It must first be unarchived before performing this operation.');
+    }
+    catch (error) {
+      M.log.error(error);
+      should.not.exist(error);
+    }
+    finally {
+      // un-archive the model
+      await model.updateOne({ _id: id }, { archived: false });
+    }
+  };
+}
+
+/**
+ * @description Verifies that an element cannot be created if an element already exists with the
+ * same id.
+ */
+async function createExisting() {
+  try {
+    const elemData = testData.elements[1];
+
+    // Attempt to create an element; this element was already created in the before() function
+    await ElementController.create(adminUser, org._id, projID, branchID, elemData)
+    .should.eventually.be.rejectedWith('Elements with the following IDs already exist '
+      + `[${elemData.id}].`);
+  }
+  catch (error) {
+    M.log.warn(error);
+    should.not.exist(error);
+  }
+}
+
+/**
+ * @description A factory function that generates test functions for mocha to check different
+ * points of failure for creating an element: parent element not found, source element not
+ * found, and target element not found.
+ *
+ * @param {string} operation - The controller operation to test: create, update, etc.
+ * @param {string} reference - Specifies whether to test element creation with a nonexistent
+ * parent, source, or target.
+ *
+ * @returns {Function} Returns a function to be used as a test.
+ */
+function notFoundTest(operation, reference) {
+  return async function() {
+    const elemData = {
+      id: (operation === 'create') ? testData.elements[0].id : testData.elements[1].id,
+      source: testData.elements[5].source,
+      target: testData.elements[5].target
+    };
+    const fakeID = 'thiselementshouldntexist';
+
+    elemData[reference.toLowerCase()] = fakeID;
+
+    try {
+      if (operation === 'create' || reference === 'Parent') {
+        await ElementController[operation](adminUser, org._id, projID, branchID, elemData)
+        .should.eventually.be.rejectedWith(`${reference} element [${fakeID}] not found.`);
+      }
+      else {
+        await ElementController[operation](adminUser, org._id, projID, branchID, elemData)
+        .should.eventually.be.rejectedWith(`The ${reference.toLowerCase()} element [${fakeID}] was `
+          + `not found in the project [${projID}].`);
+      }
+    }
+    catch (error) {
+      // Remove the element if it actually was created
+      if (operation === 'create' && error.message.includes('fulfilled')) {
+        ElementController.remove(adminUser, org._id, projID, branchID, elemData.id);
+      }
+      M.log.warn(error);
+      should.not.exist(error);
+    }
+  };
+}
+
+/**
+ * @description Verifies that an element's source cannot be updated to its own id.
  */
 async function updateSourceToSelf() {
   const elemDataObject = testData.elements[6];
@@ -167,8 +375,7 @@ async function updateSourceToSelf() {
 }
 
 /**
- * @description Verifies that an element's target cannot be updated to its own
- * id.
+ * @description Verifies that an element's target cannot be updated to its own id.
  */
 async function updateTargetToSelf() {
   const elemDataObject = testData.elements[6];
@@ -183,44 +390,6 @@ async function updateTargetToSelf() {
   await ElementController.update(adminUser, org._id, projID, branchID, update)
   .should.eventually.be.rejectedWith('Element\'s target cannot be self'
     + ` [${elemDataObject.id}].`);
-}
-
-/**
- * @description Verifies that an element's source cannot be updated when the
- * desired source does not exist.
- */
-async function updateNonExistentSource() {
-  const elemDataObject = testData.elements[6];
-
-  // Set source to self
-  const update = {
-    id: elemDataObject.id,
-    source: 'NonExistentElement'
-  };
-
-  // Attempt to update the element; should be rejected with specific error message
-  await ElementController.update(adminUser, org._id, projID, branchID, update)
-  .should.eventually.be.rejectedWith('The source element '
-    + `[NonExistentElement] was not found in the project [${projID}].`);
-}
-
-/**
- * @description Verifies that an element's target cannot be updated when the
- * desired target does not exist.
- */
-async function updateNonExistentTarget() {
-  const elemDataObject = testData.elements[6];
-
-  // Set source to self
-  const update = {
-    id: elemDataObject.id,
-    target: 'NonExistentElement'
-  };
-
-  // Attempt to update the element; should be rejected with specific error message
-  await ElementController.update(adminUser, org._id, projID, branchID, update)
-  .should.eventually.be.rejectedWith('The target element '
-    + `[NonExistentElement] was not found in the project [${projID}].`);
 }
 
 /**
@@ -264,7 +433,7 @@ async function updateTargetWithNoSource() {
 /**
  * @description Verifies that the tag can not create elements.
  */
-async function createInTag() {
+async function createOnTag() {
   const elementObj = testData.elements[0];
 
   // Attempt to create an element; should be rejected with specific error message
@@ -276,13 +445,12 @@ async function createInTag() {
 /**
  * @description Verifies that the tag can not update elements.
  */
-async function updateInTag() {
+async function updateOnTag() {
   // Create the object to update element
   const updateObj = {
     name: 'model_edit',
     id: 'model'
   };
-
 
   // Update element via controller; should be rejected with specific error message
   await ElementController.update(adminUser, org._id, projID, tagID, updateObj)
@@ -293,7 +461,7 @@ async function updateInTag() {
 /**
  * @description Verifies that the tag can not delete elements.
  */
-async function deleteInTag() {
+async function deleteOnTag() {
   // Attempt deleting an element via controller; should be rejected with specific error message
   await ElementController.remove(adminUser, org._id, projID, tagID, testData.elements[1].id)
   .should.eventually.be.rejectedWith(`[${tagID}] is a tag and`

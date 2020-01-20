@@ -190,7 +190,7 @@ class UserListItem extends Component {
                 className={minimizeClass}
                 label={this.props.label}
                 noToolTip={true}
-                key={`write-${user.username}`}s
+                key={`write-${user.username}`}
                 _key={`write-${user.username}`}/>,
           <Stat title=''
                 icon='fas fa-window-minimize'

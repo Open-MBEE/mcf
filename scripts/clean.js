@@ -18,6 +18,7 @@
 // Rule disabled to allow list in description
 
 // Node modules
+const fs = require('fs');
 const { execSync } = require('child_process');
 const path = require('path');
 
@@ -74,6 +75,25 @@ function clean(_args) {
   if (args.includes('--all') || args.includes('--node-modules')) {
     log('Cleaning node_modules...');
     execSync(`${rmd} ${path.join(root, 'node_modules')}`);
+  }
+
+  // Clean plugins
+  if (args.includes('--all') || args.includes('--plugins')) {
+    log('Cleaning plugins...');
+    // Read the plugins directory
+    const plugins = fs.readdirSync(path.join(root, 'plugins'));
+
+    // Remove routes.js from the list, we don't want to delete that file
+    for (let i = 0; i < plugins.length; i++) {
+      if (plugins[i] === 'routes.js') {
+        plugins.splice(i, 1);
+      }
+    }
+
+    // Format the string, concatenating full paths of all plugins
+    const deleteString = plugins.map(p => path.join(root, 'plugins', p)).join(' ');
+
+    execSync(`${rmd} ${deleteString}`);
   }
 
   log('MBEE Cleaned.');

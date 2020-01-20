@@ -53,6 +53,8 @@ module.exports.getPublicData = function(object, type, options) {
       return getOrgPublicData(object, options);
     case 'user':
       return getUserPublicData(object, options);
+    case 'webhook':
+      return getWebhookPublicData(object, options);
     default:
       throw new M.DataFormatError(`Invalid model type [${type}]`, 'warn');
   }
@@ -157,6 +159,22 @@ function getArtifactPublicData(artifact, options) {
     archivedBy: archivedBy
 
   };
+
+  // Handle the virtual referencedBy field
+  if (artifact.referencedBy) {
+    // If all contents are objects (they should be)
+    if (artifact.referencedBy.every(a => typeof a === 'object')) {
+      // If the includeArchived option is supplied
+      if (options.hasOwnProperty('includeArchived') && options.includeArchived === true) {
+        data.referencedBy = artifact.referencedBy.map(a => getElementPublicData(a, {}));
+      }
+      else {
+        // Remove all archived elements
+        const nonArchivedElements = artifact.referencedBy.filter(a => a.archived !== true);
+        data.referencedBy = nonArchivedElements.map(a => getElementPublicData(a, {}));
+      }
+    }
+  }
 
   // If the fields options is defined
   if (options.hasOwnProperty('fields')) {
@@ -924,6 +942,116 @@ function getUserPublicData(user, options) {
     // If only specific fields should be included
     else if (options.fields.every(f => !f.startsWith('-'))) {
       const returnObj = { username: data.username };
+      // Add specific field to returnObj
+      options.fields.forEach((f) => {
+        returnObj[f] = (data.hasOwnProperty(f)) ? data[f] : undefined;
+      });
+      return returnObj;
+    }
+  }
+
+  return data;
+}
+
+/**
+ * @description Returns a webhook's public data.
+ *
+ * @param {object} webhook - The raw JSON of the webhook.
+ * @param {object} options - A list of options passed in by the user to the API Controller.
+ *
+ * @returns {object} The public data of the webhook.
+ */
+function getWebhookPublicData(webhook, options) {
+  let reference = {};
+  let createdBy = null;
+  let lastModifiedBy = null;
+  let archivedBy;
+
+  // Parse webhook reference
+  if (!webhook.reference || webhook.reference === '') {
+    reference = '';
+  }
+  else {
+    const ids = utils.parseID(webhook.reference);
+    reference.org = ids.shift();
+    if (ids.length) reference.project = ids.shift();
+    if (ids.length) reference.branch = ids.shift();
+  }
+
+  // If webhook.createdBy is defined
+  if (webhook.createdBy) {
+    // If webhook.createdBy is populated
+    if (typeof webhook.createdBy === 'object') {
+      // Get the public data of createdBy
+      createdBy = getUserPublicData(webhook.createdBy, {});
+    }
+    else {
+      createdBy = webhook.createdBy;
+    }
+  }
+
+  // If webhook.lastModifiedBy is defined
+  if (webhook.lastModifiedBy) {
+    // If webhook.lastModifiedBy is populated
+    if (typeof webhook.lastModifiedBy === 'object') {
+      // Get the public data of lastModifiedBy
+      lastModifiedBy = getUserPublicData(webhook.lastModifiedBy, {});
+    }
+    else {
+      lastModifiedBy = webhook.lastModifiedBy;
+    }
+  }
+
+  // If webhook.archivedBy is defined
+  if (webhook.archivedBy && webhook.archived) {
+    // If webhook.archivedBy is populated
+    if (typeof webhook.archivedBy === 'object') {
+      // Get the public data of archivedBy
+      archivedBy = getUserPublicData(webhook.archivedBy, {});
+    }
+    else {
+      archivedBy = webhook.archivedBy;
+    }
+  }
+
+  // Return the webhook public fields
+  const data = {
+    id: webhook._id,
+    name: webhook.name,
+    type: webhook.type,
+    description: webhook.description,
+    triggers: webhook.triggers,
+    response: webhook.response ? webhook.response : undefined,
+    token: webhook.token ? webhook.token : undefined,
+    tokenLocation: webhook.tokenLocation ? webhook.tokenLocation : undefined,
+    reference: reference,
+    custom: webhook.custom || {},
+    createdOn: (webhook.createdOn) ? webhook.createdOn.toString() : undefined,
+    createdBy: createdBy,
+    updatedOn: (webhook.updatedOn) ? webhook.updatedOn.toString() : undefined,
+    lastModifiedBy: lastModifiedBy,
+    archived: webhook.archived,
+    archivedOn: (webhook.archivedOn) ? webhook.archivedOn.toString() : undefined,
+    archivedBy: archivedBy
+  };
+
+  // If the fields options is defined
+  if (options.hasOwnProperty('fields')) {
+    // If fields should be excluded
+    if (options.fields.every(f => f.startsWith('-'))) {
+      // For each of those fields
+      options.fields.forEach((f) => {
+        // If -id, ignore it
+        if (f === '-id') {
+          return;
+        }
+        // Remove the field from data
+        data[f.slice(1)] = undefined;
+      });
+    }
+    // If only specific fields should be included
+    else if (options.fields.every(f => !f.startsWith('-'))) {
+      const returnObj = { id: data.id };
       // Add specific field to returnObj
       options.fields.forEach((f) => {
         returnObj[f] = (data.hasOwnProperty(f)) ? data[f] : undefined;

@@ -82,7 +82,7 @@ module.exports.checkParamsDataType = function(dataTypes, data, dataName) {
       // Else if it's an array and only objects are allowed:
       else if (Array.isArray(data)) {
         // Ensure it's an array of objects
-        assert.ok(data.every(o => typeof o === 'object'), `Every item in ${dataName} is not`
+        assert.ok(data.every(o => typeof o === 'object'), `Not every item in ${dataName} is`
           + ' an object.');
         assert.ok(data.every(o => o !== null), `One or more items in ${dataName} is null.`);
       }

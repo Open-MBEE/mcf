@@ -173,6 +173,27 @@ if (installComplete) {
   });
 }
 
+let memoryLimit = 512;
+// Loop through the node flags
+process.execArgv.forEach((arg) => {
+  // If the memory limit was changed, set the new limit
+  if (arg.startsWith('--max-old-space-size=')) {
+    memoryLimit = Number(arg.split('--max-old-space-size=')[1]);
+  }
+});
+
+/**
+ * Defines the memory limit which the node process is running with. The default
+ * limit is 512 MB, although it can be changed by passing in the flag
+ * --max-old-space-size={new limit in MB} when starting the process.
+ */
+Object.defineProperty(M, 'memoryLimit', {
+  value: memoryLimit,
+  writable: false,
+  enumerable: true
+});
+
+
 // Validate the config file
 try {
   configUtils.validate(config);

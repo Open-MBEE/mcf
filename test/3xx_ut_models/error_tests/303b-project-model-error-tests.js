@@ -25,7 +25,6 @@ const should = chai.should(); // eslint-disable-line no-unused-vars
 
 // MBEE modules
 const Project = M.require('models.project');
-const db = M.require('db');
 const utils = M.require('lib.utils');
 const validators = M.require('lib.validators');
 
@@ -42,30 +41,6 @@ const customValidators = M.config.validators || {};
  * name of the current file.
  */
 describe(M.getModuleName(module.filename), () => {
-  /**
-   * Before: runs before all tests. Open database connection.
-   */
-  before(async () => {
-    try {
-      db.connect();
-    }
-    catch (error) {
-      chai.expect(error.message).to.equal(null);
-    }
-  });
-
-  /**
-   * After: runs after all tests. Close database connection.
-   */
-  after(async () => {
-    try {
-      db.disconnect();
-    }
-    catch (error) {
-      chai.expect(error.message).to.equal(null);
-    }
-  });
-
   /* Execute the tests */
   it('should reject when a project ID is too short', idTooShort);
   it('should reject when a project ID is too long', idTooLong);

@@ -29,7 +29,6 @@ const should = chai.should(); // eslint-disable-line no-unused-vars
 
 // MBEE modules
 const ArtifactController = M.require('controllers.artifact-controller');
-const db = M.require('db');
 const utils = M.require('lib.utils');
 
 /* --------------------( Test Data )-------------------- */
@@ -54,13 +53,9 @@ let artifactBlob = null;
  */
 describe(M.getModuleName(module.filename), () => {
   /**
-   * After: Connect to database. Create an admin user, organization, project,
-   * and artifacts.
+   * Before: Create an admin user, organization, project, and artifacts.
    */
   before(async () => {
-    // Connect to the database
-    await db.connect();
-
     adminUser = await testUtils.createTestAdmin();
     // Create the organization model object
     org = await testUtils.createTestOrg(adminUser);
@@ -99,14 +94,12 @@ describe(M.getModuleName(module.filename), () => {
 
   /**
    * After: Remove organization, project and artifacts.
-   * Close database connection.
    */
   after(async () => {
     try {
       // Remove organization
       // Note: Projects and artifacts under organization will also be removed
       await testUtils.removeTestOrg();
-      await db.disconnect();
     }
     catch (error) {
       M.log.error(error);
@@ -119,17 +112,14 @@ describe(M.getModuleName(module.filename), () => {
   // -------------- Find --------------
   it('should reject a find request for a blob that does not exist.', findNonexistingBlob);
   // ------------- Create -------------
-  it('should reject creating artifacts on a tag '
-    + 'saying artifacts cannot be created.', createInTag);
+  it('should reject creating artifacts on a tag', createInTag);
   it('should reject creating a blob that already exists.', createExistingBlob);
   it('should reject creating an artifact that already exists.', createExistingArtifact);
   // ------------- Update -------------
-  it('should reject updating artifact that does NOT exist.', updateNonexistingArtifact);
-  it('should reject updating artifacts on a tag '
-    + 'saying artifacts cannot be updated.', updateInTag);
+  it('should reject updating an artifact that does NOT exist.', updateNonexistingArtifact);
+  it('should reject updating artifacts on a tag', updateInTag);
   // ------------- Remove -------------
-  it('should reject deleting artifacts on a tag '
-    + 'saying artifacts cannot be deleted.', deleteInTag);
+  it('should reject deleting artifacts on a tag', deleteInTag);
   it('should reject deleting a nonexistent blob.', deleteNonexistingBlob);
 });
 

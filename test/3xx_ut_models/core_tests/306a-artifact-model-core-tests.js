@@ -29,7 +29,6 @@ const should = chai.should(); // eslint-disable-line no-unused-vars
 
 // MBEE modules
 const Artifact = M.require('models.artifact');
-const db = M.require('db');
 const utils = M.require('lib.utils');
 
 /* --------------------( Test Data )-------------------- */
@@ -47,34 +46,6 @@ const branch = testData.branches[0];
  * name of the current file.
  */
 describe(M.getModuleName(module.filename), () => {
-  /**
-   * Before: runs before all tests.
-   */
-  before(async () => {
-    try {
-      await db.connect();
-    }
-    catch (error) {
-      M.log.error(error);
-      // Expect no error
-      chai.expect(error).to.equal(null);
-    }
-  });
-
-  /**
-   * After: runs after all tests.
-   */
-  after(async () => {
-    try {
-      await db.disconnect();
-    }
-    catch (error) {
-      M.log.error(error);
-      // Expect no error
-      chai.expect(error).to.equal(null);
-    }
-  });
-
   /* Execute the tests */
   it('should create an artifact', createArtifact);
   it('should find an artifact', findArtifact);
@@ -219,7 +190,7 @@ async function deleteArtifact() {
 async function getStaticPopFields() {
   try {
     const validPopulatedFields = ['archivedBy', 'lastModifiedBy', 'createdBy', 'project',
-      'branch'];
+      'branch', 'referencedBy'];
     // Verify output
     chai.expect(validPopulatedFields).to.eql(Artifact.getValidPopulateFields());
   }

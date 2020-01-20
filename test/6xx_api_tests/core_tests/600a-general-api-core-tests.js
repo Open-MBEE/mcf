@@ -1,7 +1,7 @@
 /**
  * @classification UNCLASSIFIED
  *
- * @module test.600a-up-api-core-tests
+ * @module test.600a-general-api-core-tests
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *

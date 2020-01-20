@@ -25,7 +25,6 @@ const should = chai.should(); // eslint-disable-line no-unused-vars
 
 // MBEE modules
 const Branch = M.require('models.branch');
-const db = M.require('db');
 const utils = M.require('lib.utils');
 /* --------------------( Test Data )-------------------- */
 // Variables used across test functions
@@ -42,34 +41,6 @@ const project = testData.projects[0];
  * name of the current file.
  */
 describe(M.getModuleName(module.filename), () => {
-  /**
-   * Before: runs before all tests. Opens database connection.
-   */
-  before((done) => {
-    db.connect()
-    .then(() => done())
-    .catch((error) => {
-      M.log.error(error);
-      // Expect no error
-      chai.expect(error).to.equal(null);
-      done();
-    });
-  });
-
-  /**
-   * After: runs after all tests. Closes database connection.
-   */
-  after((done) => {
-    db.disconnect()
-    .then(() => done())
-    .catch((error) => {
-      M.log.error(error);
-      // Expect no error
-      chai.expect(error).to.equal(null);
-      done();
-    });
-  });
-
   /* Execute the tests */
   it('should create a branch', createBranch);
   it('should find a branch', findBranch);

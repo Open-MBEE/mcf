@@ -171,7 +171,7 @@ class EditPage extends Component {
 
   render() {
     // Initialize variables
-    let disableSubmit = !!(this.state.message.length > 0);
+    let disableSubmit = (this.state.message.length > 0);
     let title;
 
     if (this.props.org) {

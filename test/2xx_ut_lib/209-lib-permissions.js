@@ -84,6 +84,7 @@ describe(M.getModuleName(module.filename), () => {
   it('should handle user project permissions', verifyProjectPermissions);
   it('should handle user element permissions', verifyElementPermissions);
   it('should handle user branch permissions', verifyBranchPermissions);
+  it('should handle misc non-admin permissions', verifyNonAdminPermissions);
 });
 
 /* --------------------( Tests )-------------------- */
@@ -119,6 +120,9 @@ async function verifyAdminPermissions() {
   chai.expect(can.readUser.bind(can, user)).to.not.throw(M.PermissionError);
   chai.expect(can.updateUser.bind(can, user)).to.not.throw(M.PermissionError);
   chai.expect(can.deleteUser.bind(can, user)).to.not.throw(M.PermissionError);
+
+  // Misc Actions
+  chai.expect(can.getLogs.bind(can, user)).to.not.throw(M.PermissionError); // get server logs
 }
 
 /**
@@ -232,4 +236,16 @@ async function verifyBranchPermissions() {
   chai.expect(can.createBranch.bind(can, user2, org, project2)).to.throw(M.PermissionError);
   chai.expect(can.updateBranch.bind(can, user2, org, project2)).to.throw(M.PermissionError);
   chai.expect(can.deleteBranch.bind(can, user2, org, project2)).to.throw(M.PermissionError);
+}
+
+/**
+ * @description Checks that permissions are handled as expected with non-admin
+ * users.
+ */
+async function verifyNonAdminPermissions() {
+  // Test data
+  const user = users[2];
+
+  // Misc Actions
+  chai.expect(can.getLogs.bind(can, user)).to.throw(M.PermissionError); // get server logs
 }

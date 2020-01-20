@@ -20,9 +20,10 @@
 const chai = require('chai');
 
 // MBEE modules
+const fs = require('fs');
+const path = require('path');
 const ArtifactController = M.require('controllers.artifact-controller');
 const Artifact = M.require('models.artifact');
-const db = M.require('db');
 const utils = M.require('lib.utils');
 
 /* --------------------( Test Data )-------------------- */
@@ -32,7 +33,7 @@ let adminUser = null;
 let org = null;
 let projID = null;
 let branchID = null;
-let artifacts = [];
+let artifactBlob = null;
 
 /* --------------------( Main )-------------------- */
 /**
@@ -43,13 +44,10 @@ let artifacts = [];
  */
 describe(M.getModuleName(module.filename), () => {
   /**
-   * After: Connect to database. Create an admin user, organization, project,
-   * and artifacts.
+   * Before: Create an admin user, organization, project, and artifacts.
    */
   before(async () => {
     try {
-      // Open the database connection
-      await db.connect();
       // Create test admin
       adminUser = await testUtils.createTestAdmin();
 
@@ -65,7 +63,15 @@ describe(M.getModuleName(module.filename), () => {
 
       // Create test artifacts for the main project
       const arts = testData.artifacts;
-      artifacts = await ArtifactController.create(adminUser, org._id, projID, branchID, arts);
+      await ArtifactController.create(adminUser, org._id, projID, branchID, arts);
+
+      // Get png test file
+      const artifactPath = path.join(
+        M.root, testData.artifacts[0].location, testData.artifacts[0].filename
+      );
+
+      // Get the test file
+      artifactBlob = await fs.readFileSync(artifactPath);
     }
     catch (error) {
       M.log.error(error);
@@ -76,7 +82,6 @@ describe(M.getModuleName(module.filename), () => {
 
   /**
    * After: Remove organization, project and artifacts.
-   * Close database connection.
    */
   after(async () => {
     try {
@@ -84,7 +89,6 @@ describe(M.getModuleName(module.filename), () => {
       // Note: Projects and artifacts under organization will also be removed
       await testUtils.removeTestOrg();
       await testUtils.removeTestAdmin();
-      await db.disconnect();
     }
     catch (error) {
       M.log.error(error);
@@ -114,6 +118,8 @@ describe(M.getModuleName(module.filename), () => {
   it('should return an artifact with only the specific fields specified from'
     + ' update()', optionFieldsUpdate);
   it('should sort find results', optionSortFind);
+  // ------------- Delete -------------
+  it('should delete blob with artifact document', optionDeleteBlob);
 });
 
 /* --------------------( Tests )-------------------- */
@@ -156,7 +162,7 @@ async function createArchivedArtifact() {
 async function archiveArtifact() {
   try {
     // Get the ID of the artifact to archive
-    const artID = utils.parseID(artifacts[3]._id).pop();
+    const artID = testData.artifacts[3].id;
     // Create the update object
     const updateObj = {
       id: artID,
@@ -194,7 +200,7 @@ async function optionPopulateFind() {
   // Create the options object
   const options = { populate: pop };
   // Get the artifact ID
-  const artID = utils.parseID(artifacts[0]._id).pop();
+  const artID = testData.artifacts[0].id;
 
   try {
     // Find an artifact using the populate option
@@ -237,7 +243,7 @@ async function optionPopulateFind() {
  */
 async function optionArchivedFind() {
   try {
-    const artID = utils.parseID(artifacts[3]._id).pop();
+    const artID = testData.artifacts[3].id;
 
     // Create the options object
     const options = { archived: true };
@@ -276,7 +282,7 @@ async function optionArchivedFind() {
 async function optionFieldsFind() {
   try {
     // Get the ID of the artifact to find
-    const artID = utils.parseID(artifacts[0]._id);
+    const artID = testData.artifacts[0].id;
     // Create the options object with the list of fields specifically find
     const findOptions = { fields: ['description', 'createdBy'] };
     // Create the options object with the list of fields to specifically NOT find
@@ -295,7 +301,7 @@ async function optionFieldsFind() {
     // Create the list of fields that should be returned
     const expectedFields = findOptions.fields.concat(fieldsAlwaysProvided);
 
-    // Create a list of visible artifact fields. Object.keys(art) returns hidden fields as well
+    // Create a list of visible artifact fields
     const visibleFields = Object.keys(art);
 
     // Check that the only keys in the artifact are the expected ones
@@ -308,7 +314,7 @@ async function optionFieldsFind() {
     chai.expect(notFindArtifacts.length).to.equal(1);
     const art2 = foundArtifacts[0];
 
-    // Create a list of visible artifact fields. Object.keys(art) returns hidden fields as well
+    // Create a list of visible artifact fields
     const visibleFields2 = Object.keys(art2);
 
     // Check that the keys in the notFindOptions are not in art
@@ -349,8 +355,6 @@ async function optionLimitFind() {
  */
 async function optionSkipFind() {
   try {
-    // Create an array to store first batch of artifact ids
-    let firstBatchIDs = [];
     // Create the first options object with just a limit
     const firstOptions = { limit: 2 };
     // Create the second options object with a limit and skip
@@ -362,7 +366,7 @@ async function optionSkipFind() {
     // Verify that no more than 2 artifacts were found
     chai.expect(foundArtifacts).to.have.lengthOf.at.most(2);
     // Add artifact ids to the firstBatchIDs array
-    firstBatchIDs = foundArtifacts.map(e => e._id);
+    const firstBatchIDs = foundArtifacts.map(e => e._id);
 
     // Find the next batch of artifacts
     const secondArtifacts = await ArtifactController.find(adminUser, org._id, projID, branchID,
@@ -468,7 +472,7 @@ async function optionFieldsCreate() {
     // Create the list of fields that should be returned
     const expectedFields = findOptions.fields.concat(fieldsAlwaysProvided);
 
-    // Create a list of visible artifact fields. Object.keys(art) returns hidden fields as well
+    // Create a list of visible artifact fields
     const visibleFields = Object.keys(art);
 
     // Check that the only keys in the artifact are the expected ones
@@ -481,7 +485,7 @@ async function optionFieldsCreate() {
     chai.expect(notFindArtifacts.length).to.equal(1);
     const art2 = notFindArtifacts[0];
 
-    // Create a list of visible artifact fields. Object.keys(art) returns hidden fields as well
+    // Create a list of visible artifact fields
     const visibleFields2 = Object.keys(art2);
 
     // Check that the keys in the notFindOptions are not in art
@@ -576,7 +580,7 @@ async function optionFieldsUpdate() {
     // Create the list of fields that should be returned
     const expectedFields = findOptions.fields.concat(fieldsAlwaysProvided);
 
-    // Create a list of visible artifact fields. Object.keys(art) returns hidden fields as well
+    // Create a list of visible artifact fields
     const visibleFields = Object.keys(art);
 
     // Check that the only keys in the artifact are the expected ones
@@ -589,7 +593,7 @@ async function optionFieldsUpdate() {
     chai.expect(notFindArtifacts.length).to.equal(1);
     const art2 = notFindArtifacts[0];
 
-    // Create a list of visible artifact fields. Object.keys(art) returns hidden fields as well
+    // Create a list of visible artifact fields
     const visibleFields2 = Object.keys(art2);
 
     // Check that the keys in the notFindOptions are not in art
@@ -672,6 +676,50 @@ async function optionSortFind() {
   }
   catch (error) {
     M.log.error(error.message);
+    // Expect no error
+    chai.expect(error.message).to.equal(null);
+  }
+}
+
+/**
+ * @description Verifies that the option 'deleteBlob' deletes a no longer referenced
+ * blob when an artifact document is deleted.
+ */
+async function optionDeleteBlob() {
+  try {
+    const artData = {
+      project: projID,
+      org: org._id,
+      location: testData.artifacts[0].location,
+      filename: testData.artifacts[0].filename
+    };
+
+    // Create the options object
+    const options = { deleteBlob: true };
+
+    // Post blob
+    await ArtifactController.postBlob(adminUser, org._id,
+      projID, artData, artifactBlob);
+
+    const artID = testData.artifacts[0].id;
+
+    // Delete the artifact and its non referenced blob
+    const deleteArtIDs = await ArtifactController.remove(adminUser, org._id, projID,
+      branchID, artID, options);
+
+    // Verify response
+    chai.expect(deleteArtIDs[0]).to.equal(
+      utils.createID(org._id, projID, branchID, artID)
+    );
+
+    // Ensure blob not found
+    await ArtifactController.getBlob(adminUser,
+      org._id, projID, artData).should.eventually.be.rejectedWith(
+      'Artifact blob not found.'
+    );
+  }
+  catch (error) {
+    M.log.error(error);
     // Expect no error
     chai.expect(error.message).to.equal(null);
   }

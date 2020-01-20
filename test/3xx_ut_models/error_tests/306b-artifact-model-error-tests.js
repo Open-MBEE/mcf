@@ -25,7 +25,6 @@ const should = chai.should(); // eslint-disable-line no-unused-vars
 
 // MBEE modules
 const Artifact = M.require('models.artifact');
-const db = M.require('db');
 const utils = M.require('lib.utils');
 const validators = M.require('lib.validators');
 
@@ -42,32 +41,6 @@ const customValidators = M.config.validators || {};
  * name of the current file.
  */
 describe(M.getModuleName(module.filename), () => {
-  /**
-   * Before: runs before all tests. Open database connection and create test
-   * artifact.
-   */
-  before((done) => {
-    db.connect()
-    .then(() => done())
-    .catch((error) => {
-      chai.expect(error.message).to.equal(null);
-      done();
-    });
-  });
-
-  /**
-   * After: runs after all tests. Close database connection and delete test
-   * artifact.
-   */
-  after((done) => {
-    db.disconnect()
-    .then(() => done())
-    .catch((error) => {
-      chai.expect(error.message).to.equal(null);
-      done();
-    });
-  });
-
   /* Execute the tests */
   it('should reject when an artifact ID is too short', idTooShort);
   it('should reject when an artifact ID is too long', idTooLong);

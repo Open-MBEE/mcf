@@ -24,7 +24,6 @@ const fs = require('fs');     // Access the filesystem
 const path = require('path'); // Find directory paths
 
 // MBEE modules
-const db = M.require('db');
 const utils = M.require('lib.utils');
 const jmi = M.require('lib.jmi-conversions');
 
@@ -48,13 +47,10 @@ let branchID = null;
  */
 describe(M.getModuleName(module.filename), () => {
   /**
-   * After: Connect to database. Create an admin user, organization, and project.
+   * Before: Create an admin user, organization, and project.
    */
   before(async () => {
     try {
-      // Connect to the database
-      await db.connect();
-
       // Create test admin
       adminUser = await testUtils.createTestAdmin();
 
@@ -76,7 +72,6 @@ describe(M.getModuleName(module.filename), () => {
 
   /**
    * After: Remove Organization and project.
-   * Close database connection.
    */
   after(async () => {
     try {
@@ -84,7 +79,6 @@ describe(M.getModuleName(module.filename), () => {
       // Note: Projects under organization will also be removed
       await testUtils.removeTestOrg();
       await testUtils.removeTestAdmin();
-      await db.disconnect();
     }
     catch (error) {
       M.log.error(error);

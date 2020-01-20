@@ -25,12 +25,12 @@ const chai = require('chai');
 
 // MBEE modules
 const UserController = M.require('controllers.user-controller');
-const apiController = M.require('controllers.api-controller');
-const db = M.require('db');
+const APIController = M.require('controllers.api-controller');
 
 /* --------------------( Test Data )-------------------- */
 const testUtils = M.require('lib.test-utils');
 const testData = testUtils.importTestData('test_data.json');
+const next = testUtils.next;
 const filepath = path.join(M.root, '/test/testzip.json');
 let adminUser = null;
 let org = null;
@@ -45,12 +45,10 @@ let org = null;
  */
 describe(M.getModuleName(module.filename), () => {
   /**
-   * After: Connect to database. Create an admin user.
+   * Before: Creates an admin user and org.
    */
   before(async () => {
     try {
-      // Open the database connection
-      await db.connect();
       // Create test admin
       adminUser = await testUtils.createTestAdmin();
       // Create organization
@@ -64,16 +62,13 @@ describe(M.getModuleName(module.filename), () => {
   });
 
   /**
-   * After: Remove test admin.
-   * Close database connection.
+   * After: Remove test org, admin, and the test file.
    */
   after(async () => {
     try {
-      // Remove organization
       await testUtils.removeTestOrg();
       await testUtils.removeTestAdmin();
       await fs.unlinkSync(filepath);
-      await db.disconnect();
     }
     catch (error) {
       M.log.error(error);
@@ -140,13 +135,12 @@ function postGzip(done) {
     // Remove the test user
     UserController.remove(adminUser, userData.username)
     .then(() => {
-      // Ensure the response was logged correctly
-      setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+      done();
     });
   };
 
-  // POSTs a user
-  apiController.postUsers(req, res);
+  // POST a user
+  APIController.postUsers(req, res, next(req, res));
 }
 
 /**
@@ -200,13 +194,12 @@ function putGzip(done) {
     // Remove the test user
     UserController.remove(adminUser, userData.username)
     .then(() => {
-      // Ensure the response was logged correctly
-      setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+      done();
     });
   };
 
   // PUTs a user
-  apiController.putUsers(req, res);
+  APIController.putUsers(req, res, next(req, res));
 }
 
 /**
@@ -267,12 +260,11 @@ function patchGzip(done) {
       // Remove the test user
       UserController.remove(adminUser, userData.username)
       .then(() => {
-        // Ensure the response was logged correctly
-        setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+        done();
       });
     };
 
-    // PATCHes a user
-    apiController.patchUsers(req, res);
+    // PATCH a user
+    APIController.patchUsers(req, res, next(req, res));
   });
 }

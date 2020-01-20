@@ -30,7 +30,6 @@ const should = chai.should(); // eslint-disable-line no-unused-vars
 
 // MBEE modules
 const Org = M.require('models.organization');
-const db = M.require('db');
 
 /* --------------------( Test Data )-------------------- */
 const testUtils = M.require('lib.test-utils');
@@ -45,34 +44,6 @@ const adminUser = testData.adminUser;
  * name of the current file.
  */
 describe(M.getModuleName(module.filename), () => {
-  /**
-   * Before: runs before all tests. Opens database connection.
-   */
-  before(async () => {
-    try {
-      await db.connect();
-    }
-    catch (error) {
-      M.log.error(error);
-      // Expect no error
-      chai.expect(error).to.equal(null);
-    }
-  });
-
-  /**
-   * After: runs after all tests. Closes database connection.
-   */
-  after((done) => {
-    db.disconnect()
-    .then(() => done())
-    .catch((error) => {
-      M.log.error(error);
-      // Expect no error
-      chai.expect(error).to.equal(null);
-      done();
-    });
-  });
-
   /* Execute the tests */
   it('should create an organization', createOrg);
   it('should find an organization', findOrg);

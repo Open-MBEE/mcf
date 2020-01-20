@@ -7,7 +7,7 @@
  *
  * @license MIT
  *
- * @owner Austin Bieber
+ * @owner Phillip Lee
  *
  * @author Austin Bieber
  * @author Josh Kaplan
@@ -74,7 +74,10 @@ api.get(
  */
 api.get('/doc/swagger.json',
   Middleware.logRoute,
-  APIController.swaggerJSON);
+  APIController.swaggerJSON,
+  Middleware.logResponse,
+  Middleware.respond);
+
 
 /**
  * @swagger
@@ -100,10 +103,15 @@ api.get('/doc/swagger.json',
 api.route('/login')
 .post(
   AuthController.authenticate,
+  Middleware.logSecurityRoute,
   Middleware.logRoute,
   AuthController.doLogin,
-  APIController.login
+  APIController.login,
+  Middleware.logSecurityResponse,
+  Middleware.logResponse,
+  Middleware.respond
 );
+
 
 /**
  * @swagger
@@ -128,9 +136,70 @@ api.route('/version')
 .get(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.version
+  APIController.version,
+  Middleware.logResponse,
+  Middleware.respond
 );
 
+/**
+ * @swagger
+ * /api/logs:
+ *   get:
+ *     tags:
+ *       - general
+ *     description: Returns the contents of the main server log file. This
+ *                  endpoint is reserved for system-wide admins only.
+ *     produces:
+ *       - text/plain
+ *     parameters:
+ *       - name: skip
+ *         description: Allows for pagination of log content by skipping a
+ *                      certain number of lines. A skip value of less than 0
+ *                      will be treated as 0.
+ *         in: query
+ *         type: number
+ *         default: 0
+ *       - name: limit
+ *         description: Limits the number of lines returned. The default is 1000
+ *                      lines. A limit of less than 0 will return ALL log
+ *                      content. A limit of 0 is not allowed.
+ *         in: query
+ *         type: number
+ *         default: 1000
+ *       - name: removeColor
+ *         description: Removes any characters used to colorize the logs, if
+ *                      they exist.
+ *         in: query
+ *         type: boolean
+ *         default: false
+ *     responses:
+ *       200:
+ *         description: OK, Succeeded to GET the logs.
+ *       400:
+ *         description: Bad Request, Failed to GET logs due to improperly
+ *                      formatted query options.
+ *       401:
+ *         description: Unauthorized, Failed to GET the logs due to not being
+ *                      logged in.
+ *       403:
+ *         description: Forbidden, Failed to GET logs due to lack of correct
+ *                      permissions.
+ *       500:
+ *         description: Internal Server Error, Failed to GET logs due to a
+ *                      server side issue, or the log file not existing.
+ */
+api.route('/logs')
+.get(
+  AuthController.authenticate,
+  Middleware.logSecurityRoute,
+  Middleware.logRoute,
+  Middleware.pluginPre('getLogs'),
+  APIController.getLogs,
+  Middleware.pluginPost('getLogs'),
+  Middleware.logSecurityResponse,
+  Middleware.logResponse,
+  Middleware.respond
+);
 
 /**
  * @swagger
@@ -499,27 +568,53 @@ api.route('/orgs')
 .get(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.getOrgs
+  Middleware.pluginPre('getOrgs'),
+  APIController.getOrgs,
+  Middleware.pluginPost('getOrgs'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .post(
   AuthController.authenticate,
+  Middleware.logSecurityRoute,
   Middleware.logRoute,
-  APIController.postOrgs
+  Middleware.pluginPre('postOrgs'),
+  APIController.postOrgs,
+  Middleware.pluginPost('postOrgs'),
+  Middleware.logSecurityResponse,
+  Middleware.logResponse,
+  Middleware.respond
 )
 .put(
   AuthController.authenticate,
+  Middleware.logSecurityRoute,
   Middleware.logRoute,
-  APIController.putOrgs
+  Middleware.pluginPre('putOrgs'),
+  APIController.putOrgs,
+  Middleware.pluginPost('putOrgs'),
+  Middleware.logSecurityResponse,
+  Middleware.logResponse,
+  Middleware.respond
 )
 .patch(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.patchOrgs
+  Middleware.pluginPre('patchOrgs'),
+  APIController.patchOrgs,
+  Middleware.pluginPre('patchOrgs'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .delete(
   AuthController.authenticate,
+  Middleware.logSecurityRoute,
   Middleware.logRoute,
-  APIController.deleteOrgs
+  Middleware.pluginPre('deleteOrgs'),
+  APIController.deleteOrgs,
+  Middleware.pluginPost('deleteOrgs'),
+  Middleware.logSecurityResponse,
+  Middleware.logResponse,
+  Middleware.respond
 );
 
 
@@ -841,27 +936,53 @@ api.route('/orgs/:orgid')
 .get(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.getOrg
+  Middleware.pluginPre('getOrg'),
+  APIController.getOrg,
+  Middleware.pluginPost('getOrg'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .post(
   AuthController.authenticate,
+  Middleware.logSecurityRoute,
   Middleware.logRoute,
-  APIController.postOrg
+  Middleware.pluginPre('postOrg'),
+  APIController.postOrg,
+  Middleware.pluginPost('postOrg'),
+  Middleware.logSecurityResponse,
+  Middleware.logResponse,
+  Middleware.respond
 )
 .put(
   AuthController.authenticate,
+  Middleware.logSecurityRoute,
   Middleware.logRoute,
-  APIController.putOrg
+  Middleware.pluginPre('putOrg'),
+  APIController.putOrg,
+  Middleware.pluginPost('putOrg'),
+  Middleware.logSecurityResponse,
+  Middleware.logResponse,
+  Middleware.respond
 )
 .patch(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.patchOrg
+  Middleware.pluginPre('patchOrg'),
+  APIController.patchOrg,
+  Middleware.pluginPost('patchOrg'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .delete(
   AuthController.authenticate,
+  Middleware.logSecurityRoute,
   Middleware.logRoute,
-  APIController.deleteOrg
+  Middleware.pluginPre('deleteOrg'),
+  APIController.deleteOrg,
+  Middleware.pluginPost('deleteOrg'),
+  Middleware.logSecurityResponse,
+  Middleware.logResponse,
+  Middleware.respond
 );
 
 
@@ -971,7 +1092,11 @@ api.route('/projects')
 .get(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.getAllProjects
+  Middleware.pluginPre('getAllProjects'),
+  APIController.getAllProjects,
+  Middleware.pluginPost('getAllProjects'),
+  Middleware.logResponse,
+  Middleware.respond
 );
 
 
@@ -1400,27 +1525,49 @@ api.route('/orgs/:orgid/projects')
 .get(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.getProjects
+  Middleware.pluginPre('getProjects'),
+  APIController.getProjects,
+  Middleware.pluginPost('getProjects'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .post(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.postProjects
+  Middleware.pluginPre('postProjects'),
+  APIController.postProjects,
+  Middleware.pluginPost('postProjects'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .put(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.putProjects
+  Middleware.pluginPre('putProjects'),
+  APIController.putProjects,
+  Middleware.pluginPost('putProjects'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .patch(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.patchProjects
+  Middleware.pluginPre('patchProjects'),
+  APIController.patchProjects,
+  Middleware.pluginPost('patchProjects'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .delete(
   AuthController.authenticate,
+  Middleware.logSecurityRoute,
   Middleware.logRoute,
-  APIController.deleteProjects
+  Middleware.pluginPre('deleteProjects'),
+  APIController.deleteProjects,
+  Middleware.pluginPost('deleteProjects'),
+  Middleware.logSecurityResponse,
+  Middleware.logResponse,
+  Middleware.respond
 );
 
 
@@ -1795,28 +1942,51 @@ api.route('/orgs/:orgid/projects/:projectid')
 .get(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.getProject
+  Middleware.pluginPre('getProject'),
+  APIController.getProject,
+  Middleware.pluginPost('getProject'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .post(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.postProject
+  Middleware.pluginPre('postProject'),
+  APIController.postProject,
+  Middleware.pluginPost('postProject'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .put(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.putProject
+  Middleware.pluginPre('putProject'),
+  APIController.putProject,
+  Middleware.pluginPost('putProject'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .patch(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.patchProject
+  Middleware.pluginPre('patchProject'),
+  APIController.patchProject,
+  Middleware.pluginPost('patchProject'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .delete(
   AuthController.authenticate,
+  Middleware.logSecurityRoute,
   Middleware.logRoute,
-  APIController.deleteProject
+  Middleware.pluginPre('deleteProject'),
+  APIController.deleteProject,
+  Middleware.pluginPre('deleteProject'),
+  Middleware.logSecurityResponse,
+  Middleware.logResponse,
+  Middleware.respond
 );
+
 
 /**
  * @swagger
@@ -2190,23 +2360,40 @@ api.route('/orgs/:orgid/projects/:projectid/branches')
 .get(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.getBranches
+  Middleware.pluginPre('getBranches'),
+  APIController.getBranches,
+  Middleware.pluginPost('getBranches'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .post(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.postBranches
+  Middleware.pluginPre('postBranches'),
+  APIController.postBranches,
+  Middleware.pluginPost('postBranches'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .patch(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.patchBranches
+  Middleware.pluginPre('patchBranches'),
+  APIController.patchBranches,
+  Middleware.pluginPost('patchBranches'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .delete(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.deleteBranches
+  Middleware.pluginPre('deleteBranches'),
+  APIController.deleteBranches,
+  Middleware.pluginPre('deleteBranches'),
+  Middleware.logResponse,
+  Middleware.respond
 );
+
 
 /**
  * @swagger
@@ -2515,23 +2702,40 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid')
 .get(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.getBranch
+  Middleware.pluginPre('getBranch'),
+  APIController.getBranch,
+  Middleware.pluginPost('getBranch'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .post(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.postBranch
+  Middleware.pluginPre('postBranch'),
+  APIController.postBranch,
+  Middleware.pluginPost('postBranch'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .patch(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.patchBranch
+  Middleware.pluginPre('patchBranch'),
+  APIController.patchBranch,
+  Middleware.pluginPost('patchBranch'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .delete(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.deleteBranch
+  Middleware.pluginPre('deleteBranch'),
+  APIController.deleteBranch,
+  Middleware.pluginPost('deleteBranch'),
+  Middleware.logResponse,
+  Middleware.respond
 );
+
 
 /**
  * @swagger
@@ -2684,7 +2888,11 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements/search')
 .get(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.searchElements
+  Middleware.pluginPre('searchElements'),
+  APIController.searchElements,
+  Middleware.pluginPost('searchElements'),
+  Middleware.logResponse,
+  Middleware.respond
 );
 
 
@@ -2759,7 +2967,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements/search')
  *                      (-name). [archived, archivedBy, archivedOn, createdBy,
  *                      createdOn, custom, documentation, lastModifiedBy, name,
  *                      org, parent, project, source, target, type, updatedOn,
- *                      branch, aritfact]
+ *                      branch, artifact]
  *         in: query
  *         type: string
  *       - name: limit
@@ -3311,27 +3519,47 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements')
 .get(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.getElements
+  Middleware.pluginPre('getElements'),
+  APIController.getElements,
+  Middleware.pluginPost('getElements'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .post(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.postElements
+  Middleware.pluginPre('postElements'),
+  APIController.postElements,
+  Middleware.pluginPost('postElements'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .put(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.putElements
+  Middleware.pluginPre('putElements'),
+  APIController.putElements,
+  Middleware.pluginPost('putElements'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .patch(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.patchElements
+  Middleware.pluginPre('patchElements'),
+  APIController.patchElements,
+  Middleware.pluginPost('patchElements'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .delete(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.deleteElements
+  Middleware.pluginPre('deleteElements'),
+  APIController.deleteElements,
+  Middleware.pluginPost('deleteElements'),
+  Middleware.logResponse,
+  Middleware.respond
 );
 
 
@@ -3887,28 +4115,49 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements/:element
 .get(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.getElement
+  Middleware.pluginPre('getElement'),
+  APIController.getElement,
+  Middleware.pluginPost('getElement'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .post(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.postElement
+  Middleware.pluginPre('postElement'),
+  APIController.postElement,
+  Middleware.pluginPost('postElement'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .put(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.putElement
+  Middleware.pluginPost('putElement'),
+  APIController.putElement,
+  Middleware.pluginPost('putElement'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .patch(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.patchElement
+  Middleware.pluginPre('patchElement'),
+  APIController.patchElement,
+  Middleware.pluginPost('patchElement'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .delete(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.deleteElement
+  Middleware.pluginPre('deleteElement'),
+  APIController.deleteElement,
+  Middleware.pluginPost('deleteElement'),
+  Middleware.logResponse,
+  Middleware.respond
 );
+
 
 /**
  * @swagger
@@ -4081,16 +4330,29 @@ api.route('/orgs/:orgid/projects/:projectid/artifacts/blob')
 .get(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.getBlob
+  Middleware.pluginPre('getBlob'),
+  APIController.getBlob,
+  Middleware.pluginPost('getBlob'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .post(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.postBlob
-).delete(
+  Middleware.pluginPre('postBlob'),
+  APIController.postBlob,
+  Middleware.pluginPost('postBlob'),
+  Middleware.logResponse,
+  Middleware.respond
+)
+.delete(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.deleteBlob
+  Middleware.pluginPre('deleteBlob'),
+  APIController.deleteBlob,
+  Middleware.pluginPost('deleteBlob'),
+  Middleware.logResponse,
+  Middleware.respond
 );
 
 
@@ -4141,7 +4403,7 @@ api.route('/orgs/:orgid/projects/:projectid/artifacts/blob')
  *       - name: populate
  *         description: Comma separated list of values to be populated on return
  *                      of the object. [archivedBy, lastModifiedBy, createdBy,
- *                      project, branch]
+ *                      project, branch, referencedBy]
  *         in: query
  *         type: string
  *         required: false
@@ -4295,7 +4557,8 @@ api.route('/orgs/:orgid/projects/:projectid/artifacts/blob')
  *                 type: number
  *       - name: populate
  *         description: Comma separated list of values to be populated on return
- *                      of the object.
+ *                      of the object. [archivedBy, lastModifiedBy, createdBy,
+ *                      project, branch, referencedBy]
  *         in: query
  *         type: string
  *         required: false
@@ -4394,7 +4657,8 @@ api.route('/orgs/:orgid/projects/:projectid/artifacts/blob')
  *                 type: boolean
  *       - name: populate
  *         description: Comma separated list of values to be populated on return
- *                      of the object.
+ *                      of the object. [archivedBy, lastModifiedBy, createdBy,
+ *                      project, branch, referencedBy]
  *         in: query
  *         type: string
  *         required: false
@@ -4474,6 +4738,13 @@ api.route('/orgs/:orgid/projects/:projectid/artifacts/blob')
  *         in: query
  *         type: boolean
  *         default: false
+ *       - name: deleteBlob
+ *         description: If true, deletes the associated blob this artifact
+ *                      document is pointing to based on location and filename.
+ *                      This only applies to blobs that no longer have documents
+ *                      that reference them.
+ *         in: query
+ *         type: boolean
  *     responses:
  *       200:
  *         description: OK, Succeeded to DELETE artifacts, returns deleted
@@ -4498,23 +4769,40 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts')
 .get(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.getArtifacts
+  Middleware.pluginPre('getArtifacts'),
+  APIController.getArtifacts,
+  Middleware.pluginPost('getArtifacts'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .post(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.postArtifacts
+  Middleware.pluginPre('postArtifacts'),
+  APIController.postArtifacts,
+  Middleware.pluginPost('postArtifacts'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .patch(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.patchArtifacts
+  Middleware.pluginPre('patchArtifacts'),
+  APIController.patchArtifacts,
+  Middleware.pluginPost('patchArtifacts'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .delete(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.deleteArtifacts
+  Middleware.pluginPre('deleteArtifacts'),
+  APIController.deleteArtifacts,
+  Middleware.pluginPost('deleteArtifacts'),
+  Middleware.logResponse,
+  Middleware.respond
 );
+
 
 /**
  * @swagger
@@ -4552,7 +4840,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts')
  *       - name: populate
  *         description: Comma separated list of values to be populated on return
  *                      of the object. [archivedBy, lastModifiedBy, createdBy,
- *                      project, branch]
+ *                      project, branch, referencedBy]
  *         in: query
  *         type: string
  *         required: false
@@ -4651,7 +4939,8 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts')
  *               type: number
  *       - name: populate
  *         description: Comma separated list of values to be populated on return
- *                      of the object.
+ *                      of the object. [archivedBy, lastModifiedBy, createdBy,
+ *                      project, branch, referencedBy]
  *         in: query
  *         type: string
  *         required: false
@@ -4748,7 +5037,8 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts')
  *               type: boolean
  *       - name: populate
  *         description: Comma separated list of values to be populated on return
- *                      of the object.
+ *                      of the object. [archivedBy, lastModifiedBy, createdBy,
+ *                      project, branch, referencedBy]
  *         in: query
  *         type: string
  *         required: false
@@ -4824,6 +5114,13 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts')
  *         in: query
  *         type: boolean
  *         default: false
+ *       - name: deleteBlob
+ *         description: If true, deletes the associated blob this artifact
+ *                      document is pointing to based on location and filename.
+ *                      This only applies to blobs that no longer have documents
+ *                      that reference them.
+ *         in: query
+ *         type: boolean
  *     responses:
  *       200:
  *         description: OK, Succeeded to DELETE artifact, returns deleted
@@ -4848,23 +5145,40 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts/:artifa
 .get(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.getArtifact
+  Middleware.pluginPre('getArtifact'),
+  APIController.getArtifact,
+  Middleware.pluginPost('getArtifact'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .post(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.postArtifact
+  Middleware.pluginPre('postArtifact'),
+  APIController.postArtifact,
+  Middleware.pluginPost('postArtifact'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .patch(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.patchArtifact
+  Middleware.pluginPre('patchArtifact'),
+  APIController.patchArtifact,
+  Middleware.pluginPost('patchArtifact'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .delete(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.deleteArtifact
+  Middleware.pluginPre('deleteArtifact'),
+  APIController.deleteArtifact,
+  Middleware.pluginPost('deleteArtifact'),
+  Middleware.logResponse,
+  Middleware.respond
 );
+
 
 /**
  * @swagger
@@ -4925,8 +5239,13 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts/:artifa
 .get(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.getBlobById
+  Middleware.pluginPre('getBlobById'),
+  APIController.getBlobById,
+  Middleware.pluginPost('getBlobById'),
+  Middleware.logResponse,
+  Middleware.respond
 );
+
 
 /**
  * @swagger
@@ -5350,31 +5669,57 @@ api.route('/users')
   AuthController.authenticate,
   Middleware.logRoute,
   Middleware.disableUserAPI,
-  APIController.getUsers
+  Middleware.pluginPre('getUsers'),
+  APIController.getUsers,
+  Middleware.pluginPost('getUsers'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .post(
   AuthController.authenticate,
+  Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.disableUserAPI,
-  APIController.postUsers
+  Middleware.pluginPre('postUsers'),
+  APIController.postUsers,
+  Middleware.pluginPost('postUsers'),
+  Middleware.logSecurityResponse,
+  Middleware.logResponse,
+  Middleware.respond
 )
 .put(
   AuthController.authenticate,
+  Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.disableUserAPI,
-  APIController.putUsers
+  Middleware.pluginPre('putUsers'),
+  APIController.putUsers,
+  Middleware.pluginPost('putUsers'),
+  Middleware.logSecurityResponse,
+  Middleware.logResponse,
+  Middleware.respond
 )
 .patch(
   AuthController.authenticate,
   Middleware.logRoute,
   Middleware.disableUserAPI,
-  APIController.patchUsers
+  Middleware.pluginPre('patchUsers'),
+  APIController.patchUsers,
+  Middleware.pluginPost('patchUsers'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .delete(
   AuthController.authenticate,
+  Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.disableUserAPI,
-  APIController.deleteUsers
+  Middleware.pluginPre('deleteUsers'),
+  APIController.deleteUsers,
+  Middleware.pluginPost('deleteUsers'),
+  Middleware.logSecurityResponse,
+  Middleware.logResponse,
+  Middleware.respond
 );
 
 
@@ -5416,7 +5761,11 @@ api.route('/users/whoami')
 .get(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.whoami
+  Middleware.pluginPre('whoami'),
+  APIController.whoami,
+  Middleware.pluginPost('whoami'),
+  Middleware.logResponse,
+  Middleware.respond
 );
 
 
@@ -5494,7 +5843,12 @@ api.route('/users/search')
 .get(
   AuthController.authenticate,
   Middleware.logRoute,
-  APIController.searchUsers
+  Middleware.disableUserAPI,
+  Middleware.pluginPre('searchUsers'),
+  APIController.searchUsers,
+  Middleware.pluginPost('searchUsers'),
+  Middleware.logResponse,
+  Middleware.respond
 );
 
 
@@ -5847,31 +6201,57 @@ api.route('/users/:username')
   AuthController.authenticate,
   Middleware.logRoute,
   Middleware.disableUserAPI,
-  APIController.getUser
+  Middleware.pluginPre('getUser'),
+  APIController.getUser,
+  Middleware.pluginPost('getUser'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .post(
   AuthController.authenticate,
+  Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.disableUserAPI,
-  APIController.postUser
+  Middleware.pluginPre('postUser'),
+  APIController.postUser,
+  Middleware.pluginPost('postUser'),
+  Middleware.logSecurityResponse,
+  Middleware.logResponse,
+  Middleware.respond
 )
 .put(
   AuthController.authenticate,
+  Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.disableUserAPI,
-  APIController.putUser
+  Middleware.pluginPre('putUser'),
+  APIController.putUser,
+  Middleware.pluginPost('putUser'),
+  Middleware.logSecurityResponse,
+  Middleware.logResponse,
+  Middleware.respond
 )
 .patch(
   AuthController.authenticate,
   Middleware.logRoute,
   Middleware.disableUserAPI,
-  APIController.patchUser
+  Middleware.pluginPre('patchUser'),
+  APIController.patchUser,
+  Middleware.pluginPost('patchUser'),
+  Middleware.logResponse,
+  Middleware.respond
 )
 .delete(
   AuthController.authenticate,
+  Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.disableUserAPI,
-  APIController.deleteUser
+  Middleware.pluginPre('deleteUser'),
+  APIController.deleteUser,
+  Middleware.pluginPost('deleteUser'),
+  Middleware.logSecurityResponse,
+  Middleware.logResponse,
+  Middleware.respond
 );
 
 
@@ -5937,14 +6317,738 @@ api.route('/users/:username')
 api.route('/users/:username/password')
 .patch(
   AuthController.authenticate,
+  Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.disableUserPatchPassword,
-  APIController.patchPassword
+  APIController.patchPassword,
+  Middleware.logSecurityResponse,
+  Middleware.logResponse,
+  Middleware.respond
+);
+
+
+/**
+ * @swagger
+ * /api/webhooks:
+ *   get:
+ *     tags:
+ *       - webhooks
+ *     description: Finds and returns webhooks from an array of ids. If no array is
+ *                  provided, returns every webhook the requesting user has access
+ *                  to.
+ *     produces:
+ *       - application/json
+ *     parameters:
+ *       - in: body
+ *         schema:
+ *           type: array
+ *           items:
+ *             type: string
+ *         description: An array of webhook IDs to search for. If both query
+ *                      parameter and body are not provided, all webhooks the
+ *                      user has access to are found.
+ *       - name: ids
+ *         description: Comma separated list of IDs to search for. If both query
+ *                      parameter and body are not provided, all webhooks the
+ *                      user has access to are found.
+ *         in: query
+ *         type: string
+ *       - name: org
+ *         description: The ID of an org to query on. If provided, only returns
+ *                      webhooks registered to the org, unless project and/or
+ *                      branch are also provided.
+ *         in: query
+ *         type: string
+ *         required: false
+ *       - name: project
+ *         description: The ID of a project to query on. If provided, only returns
+ *                      webhooks registered to the project, unless a branch is
+ *                      also provided. An org must be provided with this option.
+ *         in: query
+ *         type: string
+ *         required: false
+ *       - name: branch
+ *         description: The ID of a branch to query on. If provided, only returns
+ *                      webhooks registered to the branch. Both an org and a project
+ *                      must be provided with this option.
+ *         in: query
+ *         type: string
+ *         required: false
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object. [archivedBy, lastModifiedBy, createdBy]
+ *         in: query
+ *         type: string
+ *         required: false
+ *       - name: includeArchived
+ *         description: If true, archived objects will be also be searched
+ *                      through. Overridden by the archived search option
+ *         in: query
+ *         type: boolean
+ *       - name: fields
+ *         description: Comma separated list of specific fields to return. By
+ *                      default the id field is returned. To specifically NOT
+ *                      include a field, include a '-' in front of the field
+ *                      (-name). [archived, archivedBy, archivedOn, createdBy,
+ *                      createdOn, updatedOn, custom, description, lastModifiedBy,
+ *                      name, reference, type, triggers, response, token,
+ *                      tokenLocation]
+ *         in: query
+ *         type: string
+ *       - name: limit
+ *         description: The maximum number of objects to return. A limit of 0 is
+ *                      equivalent to setting no limit.
+ *         in: query
+ *         type: number
+ *       - name: skip
+ *         description: The number of objects to skip returning. For example,
+ *                      if 10 objects are found and skip is 5, the first five
+ *                      objects will NOT be returned. NOTE, skip cannot be a
+ *                      negative number.
+ *         in: query
+ *         type: number
+ *       - name: sort
+ *         description: Provide a particular field to sort the results by.
+ *                      Adding a '-' in front of the field indicates sorting in
+ *                      reverse order.
+ *         in: query
+ *         type: string
+ *       - name: minified
+ *         description: If true, the returned JSON is minified. If false, the
+ *                      returned JSON is formatted based on the format specified
+ *                      in the config. The default value is false.
+ *         in: query
+ *         type: boolean
+ *         default: false
+ *       - name: type
+ *         description: Search for webhooks with a specific type.
+ *         in: query
+ *         type: string
+ *       - name: name
+ *         description: Search for webhooks with a specific name.
+ *         in: query
+ *         type: string
+ *       - name: createdBy
+ *         description: Search for webhooks created by a specific user.
+ *         in: query
+ *         type: string
+ *       - name: lastModifiedBy
+ *         description: Search for webhooks last modified by a specific user.
+ *         in: query
+ *         type: string
+ *       - name: archived
+ *         description: Search only for archived webhooks. If false, only returns
+ *                      unarchived webhooks. Overrides the includeArchived option.
+ *         in: query
+ *         type: boolean
+ *       - name: archivedBy
+ *         description: Search for webhooks archived by a specific user.
+ *         in: query
+ *         type: string
+ *       - name: custom
+ *         description: Search for a specific key/value pair in the custom data.
+ *                      To find a specific key, separate the keys using dot
+ *                      notation. For example, custom.hello
+ *         in: query
+ *         type: string
+ *     responses:
+ *       200:
+ *         description: OK, Succeeded to GET webhooks, returns webhook public
+ *                      data.
+ *       400:
+ *         description: Bad Request, Failed to GET webhooks due to invalid data.
+ *       401:
+ *         description: Unauthorized, Failed to GET webhooks due to not being
+ *                      logged in.
+ *       403:
+ *         description: Forbidden, Failed to GET webhooks due to not having
+ *                      permissions.
+ *       404:
+ *         description: Not Found, Failed to GET webhooks due to webhooks not
+ *                      existing.
+ *       500:
+ *         description: Internal Server Error, Failed to GET webhooks due to
+ *                      server side issue.
+ *   post:
+ *     tags:
+ *       - webhooks
+ *     description: Creates new webhooks from given data in the request body.
+ *                  The user must have admin permissions at the specified level.
+ *                  System-wide admin for system level webhooks, org admin for
+ *                  org level webhooks, and project admin for project and branch
+ *                  level webhooks.
+ *     produces:
+ *       - application/json
+ *     parameters:
+ *       - name: body
+ *         in: body
+ *         description: An array of objects containing new webhook data.
+ *         schema:
+ *           type: object
+ *           properties:
+ *             name:
+ *               type: string
+ *             type:
+ *               type: string
+ *               description: Must be either 'Outgoing' or 'Incoming'.
+ *             description:
+ *               type: string
+ *             triggers:
+ *               type: Array
+ *               description: An array of strings that refer to the events that
+ *                            trigger the webhook. All Outgoing webhooks must
+ *                            have at least one trigger.
+ *             response:
+ *               type: Object
+ *               description: An object that contain information for http requests.
+ *               properties:
+ *                 url:
+ *                   type: string
+ *                 method:
+ *                   type: string
+ *                   default: 'POST'
+ *                 headers:
+ *                   type: object
+ *                   default: { 'Content-Type': 'application/json' }
+ *                 token:
+ *                   type: string
+ *                 ca:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   description: An optional field to store data to send with the
+ *                                http requests upon webhook triggering.
+ *             token:
+ *               type: string
+ *               description: A secret token used to verify external requests to
+ *                            trigger the incoming webhook.
+ *             tokenLocation:
+ *               type: string
+ *               description: A dot-delimited string specifying where to find the
+ *                            token in the external request.
+ *             reference:
+ *               type: object
+ *               description: An object defining the namespace of the webhook.
+ *               properties:
+ *                 org:
+ *                   type: string
+ *                   description: An org ID.
+ *                 project:
+ *                   type: string
+ *                   description: A project ID.
+ *                 branch:
+ *                   type: string
+ *                   description: A branch ID.
+ *             custom:
+ *               type: object
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object. [archivedBy, lastModifiedBy, createdBy]
+ *         in: query
+ *         type: string
+ *         required: false
+ *       - name: fields
+ *         description: Comma separated list of specific fields to return. By
+ *                      default the id field is returned. To specifically NOT
+ *                      include a field, include a '-' in front of the field
+ *                      (-name). [archived, archivedBy, archivedOn, createdBy,
+ *                      createdOn, updatedOn, custom, description, lastModifiedBy,
+ *                      name, reference, type, triggers, response, token,
+ *                      tokenLocation]
+ *         in: query
+ *         type: string
+ *       - name: minified
+ *         description: If true, the returned JSON is minified. If false, the
+ *                      returned JSON is formatted based on the format specified
+ *                      in the config. The default value is false.
+ *         in: query
+ *         type: boolean
+ *         default: false
+ *     responses:
+ *       200:
+ *         description: OK, Succeeded to POST webhooks, return webhooks' public
+ *                      data.
+ *       400:
+ *         description: Bad Request, Failed to POST webhooks due to invalid
+ *                      webhook data.
+ *       401:
+ *         description: Unauthorized, Failed to POST webhooks due to not being
+ *                      logged in.
+ *       403:
+ *         description: Forbidden, Failed to POST webhooks due to not having
+ *                      permissions.
+ *       404:
+ *         description: Not Found, Failed to POST webhook due to org, project,
+ *                      or branch not existing.
+ *       500:
+ *         description: Internal Server Error, Failed to POST webhook due to a
+ *                      server side issue.
+ *   patch:
+ *     tags:
+ *       - webhooks
+ *     description: Updates multiple webhooks from the data provided in the request
+ *                  body. Webhooks that are currently archived must first
+ *                  be unarchived before making any other updates. The following
+ *                  fields can be updated [name, description, archived,
+ *                  triggers, requests, token, tokenLocation].
+ *     produces:
+ *       - application/json
+ *     parameters:
+ *       - name: update
+ *         description: An array of objects containing updates to webhooks.
+ *         in: body
+ *         required: true
+ *         schema:
+ *           type: object
+ *           properties:
+ *             name:
+ *               type: string
+ *             description:
+ *               type: string
+ *             triggers:
+ *               type: Array
+ *               description: An array of strings that refer to the events that
+ *                            trigger the webhook. All Outgoing webhooks must
+ *                            have at least one trigger.
+ *             response:
+ *               type: Object
+ *               description: An object that contain information for http requests.
+ *               properties:
+ *                 url:
+ *                   type: string
+ *                 method:
+ *                   type: string
+ *                   default: 'POST'
+ *                 headers:
+ *                   type: object
+ *                   default: { 'Content-Type': 'application/json' }
+ *                 token:
+ *                   type: string
+ *                 ca:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   description: An optional field to store data to send with the
+ *                                http requests upon webhook triggering.
+ *             token:
+ *                 type: string
+ *                 description: A secret token used to verify external requests to
+ *                              trigger the incoming webhook.
+ *             tokenLocation:
+ *                 type: string
+ *                 description: A dot-delimited string specifying where to find the
+ *                              token in the external request.
+ *             custom:
+ *               type: object
+ *             archived:
+ *               type: boolean
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object. [archivedBy, lastModifiedBy, createdBy]
+ *         in: query
+ *         type: string
+ *         required: false
+ *       - name: fields
+ *         description: Comma separated list of specific fields to return. By
+ *                      default the id field is returned. To specifically NOT
+ *                      include a field, include a '-' in front of the field
+ *                      (-name). [archived, archivedBy, archivedOn, createdBy,
+ *                      createdOn, updatedOn, custom, description, lastModifiedBy,
+ *                      name, reference, type, triggers, response, token,
+ *                      tokenLocation]
+ *         in: query
+ *         type: string
+ *       - name: minified
+ *         description: If true, the returned JSON is minified. If false, the
+ *                      returned JSON is formatted based on the format specified
+ *                      in the config. The default value is false.
+ *         in: query
+ *         type: boolean
+ *         default: false
+ *     responses:
+ *       200:
+ *         description: OK, Succeeded to PATCH webhooks, returns webhooks' public
+ *                      data.
+ *       400:
+ *         description: Bad Request, Failed to PATCH webhooks due to invalid
+ *                      data.
+ *       401:
+ *         description: Unauthorized, Failed to PATCH webhooks due to not being
+ *                      logged in.
+ *       403:
+ *         description: Forbidden, Failed to PATCH webhooks due to not having
+ *                      permissions.
+ *       500:
+ *         description: Internal Server Error, Failed to PATCH webhooks due to
+ *                      server side issue.
+ *   delete:
+ *     tags:
+ *       - webhooks
+ *     description: Deletes multiple webhooks and returns the deleted ids.
+ *     produces:
+ *       - application/json
+ *     parameters:
+ *       - name: webhookIDs
+ *         description: An array of webhook IDs to delete. Can optionally be an
+ *                      array of objects containing id key/value pairs.
+ *         in: body
+ *         required: true
+ *         schema:
+ *           type: array
+ *           items:
+ *             type: string
+ *       - name: minified
+ *         description: If true, the returned JSON is minified. If false, the
+ *                      returned JSON is formatted based on the format specified
+ *                      in the config. The default value is false.
+ *         in: query
+ *         type: boolean
+ *         default: false
+ *     responses:
+ *       200:
+ *         description: OK, Succeeded to DELETE webhooks, return deleted
+ *                      webhooks' ids.
+ *       400:
+ *         description: Bad Request, Failed to DELETE webhooks due to invalid
+ *                      data.
+ *       401:
+ *         description: Unauthorized, Failed to DELETE webhooks due to not being
+ *                      logged in.
+ *       403:
+ *         description: Forbidden, Failed to DELETE webhooks due to not having
+ *                      permissions.
+ *       500:
+ *         description: Internal Server Error, Failed to DELETE webhooks due to
+ *                      server side issue.
+ */
+api.route('/webhooks')
+.get(
+  AuthController.authenticate,
+  Middleware.logSecurityRoute,
+  Middleware.logRoute,
+  Middleware.pluginPre('getWebhooks'),
+  APIController.getWebhooks,
+  Middleware.pluginPost('getWebhooks'),
+  Middleware.logSecurityResponse,
+  Middleware.logResponse,
+  Middleware.respond
+)
+.post(
+  AuthController.authenticate,
+  Middleware.logSecurityRoute,
+  Middleware.logRoute,
+  Middleware.pluginPre('postWebhooks'),
+  APIController.postWebhooks,
+  Middleware.pluginPost('postWebhooks'),
+  Middleware.logSecurityResponse,
+  Middleware.logResponse,
+  Middleware.respond
+)
+.patch(
+  AuthController.authenticate,
+  Middleware.logSecurityRoute,
+  Middleware.logRoute,
+  Middleware.pluginPre('patchWebhooks'),
+  APIController.patchWebhooks,
+  Middleware.pluginPost('patchWebhooks'),
+  Middleware.logSecurityResponse,
+  Middleware.logResponse,
+  Middleware.respond
+)
+.delete(
+  AuthController.authenticate,
+  Middleware.logSecurityRoute,
+  Middleware.logRoute,
+  Middleware.pluginPre('deleteWebhooks'),
+  APIController.deleteWebhooks,
+  Middleware.pluginPost('deleteWebhooks'),
+  Middleware.logSecurityResponse,
+  Middleware.logResponse,
+  Middleware.respond
+);
+
+
+/**
+ * @swagger
+ * /api/webhooks/trigger/:encodedid:
+ *   post:
+ *     tags:
+ *       - webhooks
+ *     description: Triggers a webhook configured to listen for external api requests.
+ *     produces:
+ *       - application/json
+ *     parameters:
+ *       - name: body
+ *         in: body
+ *         description: A token used to validate the webhook trigger request
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: OK, Succeeded trigger webhook
+ *       400:
+ *         description: Bad Request, failed to trigger webhook due to invalid data
+ *       401:
+ *         description: Unauthorized, failed to trigger webhook due to invalid token
+ *       403:
+ *         description: Forbidden, Failed to trigger webhook due to not having
+ *                      permissions.
+ *       500:
+ *         description: Internal Server Error, trigger webhook due to server
+ *                      side issue.
+ */
+api.route('/webhooks/trigger/:encodedid')
+.post(
+  AuthController.authenticate,
+  Middleware.logRoute,
+  Middleware.pluginPre('triggerWebhook'),
+  APIController.triggerWebhook,
+  Middleware.pluginPost('triggerWebhook'),
+  Middleware.logResponse,
+  Middleware.respond
+);
+
+
+/**
+ * @swagger
+ * /api/webhooks/{webhookid}:
+ *   get:
+ *     tags:
+ *       - webhooks
+ *     description: Finds a single webhook. Requesting user must have permission to
+ *                  view the webhook.
+ *     produces:
+ *       - application/json
+ *     parameters:
+ *       - name: webhookid
+ *         description: The ID of the webhook to find.
+ *         in: path
+ *         required: true
+ *         type: string
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object. [archivedBy, lastModifiedBy, createdBy]
+ *         in: query
+ *         type: string
+ *         required: false
+ *       - name: includeArchived
+ *         description: If true, archived objects will be also be searched
+ *                      through. Overridden by the archived search option
+ *         in: query
+ *         type: boolean
+ *       - name: fields
+ *         description: Comma separated list of specific fields to return. By
+ *                      default the id field is returned. To specifically NOT
+ *                      include a field, include a '-' in front of the field
+ *                      (-name). [archived, archivedBy, archivedOn, createdBy,
+ *                      createdOn, updatedOn, custom, description, lastModifiedBy,
+ *                      name, reference, type, triggers, response, token,
+ *                      tokenLocation]
+ *         in: query
+ *         type: string
+ *       - name: minified
+ *         description: If true, the returned JSON is minified. If false, the
+ *                      returned JSON is formatted based on the format specified
+ *                      in the config. The default value is false.
+ *         in: query
+ *         type: boolean
+ *         default: false
+ *     responses:
+ *       200:
+ *         description: OK, Succeeded to GET webhook, returns webhook public
+ *                      data.
+ *       400:
+ *         description: Bad Request, Failed to GET webhook due to invalid data.
+ *       401:
+ *         description: Unauthorized, Failed to GET webhook due to not being
+ *                      logged in.
+ *       403:
+ *         description: Forbidden, Failed to GET webhook due to not having
+ *                      permissions.
+ *       404:
+ *         description: Not Found, Failed to GET webhook due to webhook not
+ *                      existing.
+ *       500:
+ *         description: Internal Server Error, Failed to GET webhook due to
+ *                      server side issue.
+ *   patch:
+ *     tags:
+ *       - webhooks
+ *     description: Updates a webhook from the data provided in the request
+ *                  body. Webhooks that are currently archived must first
+ *                  be unarchived before making any other updates. The following
+ *                  fields can be updated [name, description, archived,
+ *                  triggers, requests, token, tokenLocation].
+ *     produces:
+ *       - application/json
+ *     parameters:
+ *       - name: webhookid
+ *         description: The ID of the webhook to update.
+ *         in: path
+ *         required: true
+ *         type: string
+ *       - name: update
+ *         description: An object containing an update to a webhook.
+ *         in: body
+ *         required: true
+ *         schema:
+ *           type: object
+ *           properties:
+ *             name:
+ *               type: string
+ *             description:
+ *               type: string
+ *             triggers:
+ *               type: Array
+ *               description: An array of strings that refer to the events that
+ *                            trigger the webhook. All Outgoing webhooks must
+ *                            have at least one trigger.
+ *             response:
+ *               type: Object
+ *               description: An object that contain information for http requests.
+ *               properties:
+ *                 url:
+ *                   type: string
+ *                 method:
+ *                   type: string
+ *                   default: 'POST'
+ *                 headers:
+ *                   type: object
+ *                   default: { 'Content-Type': 'application/json' }
+ *                 token:
+ *                   type: string
+ *                 ca:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   description: An optional field to store data to send with the
+ *                                http requests upon webhook triggering.
+ *             token:
+ *                 type: string
+ *                 description: A secret token used to verify external requests to
+ *                              trigger the incoming webhook.
+ *             tokenLocation:
+ *                 type: string
+ *                 description: A dot-delimited string specifying where to find the
+ *                              token in the external request.
+ *             custom:
+ *               type: object
+ *             archived:
+ *               type: boolean
+ *       - name: populate
+ *         description: Comma separated list of values to be populated on return
+ *                      of the object. [archivedBy, lastModifiedBy, createdBy]
+ *         in: query
+ *         type: string
+ *         required: false
+ *       - name: fields
+ *         description: Comma separated list of specific fields to return. By
+ *                      default the id field is returned. To specifically NOT
+ *                      include a field, include a '-' in front of the field
+ *                      (-name). [archived, archivedBy, archivedOn, createdBy,
+ *                      createdOn, updatedOn, custom, description, lastModifiedBy,
+ *                      name, reference, type, triggers, response, token,
+ *                      tokenLocation]
+ *         in: query
+ *         type: string
+ *       - name: minified
+ *         description: If true, the returned JSON is minified. If false, the
+ *                      returned JSON is formatted based on the format specified
+ *                      in the config. The default value is false.
+ *         in: query
+ *         type: boolean
+ *         default: false
+ *     responses:
+ *       200:
+ *         description: OK, Succeeded to PATCH webhook, returns webhook's public
+ *                      data.
+ *       400:
+ *         description: Bad Request, Failed to PATCH webhook due to invalid
+ *                      data.
+ *       401:
+ *         description: Unauthorized, Failed to PATCH webhook due to not being
+ *                      logged in.
+ *       403:
+ *         description: Forbidden, Failed to PATCH webhook due to not having
+ *                      permissions.
+ *       500:
+ *         description: Internal Server Error, Failed to PATCH webhook due to
+ *                      server side issue.
+ *   delete:
+ *     tags:
+ *       - webhooks
+ *     description: Deletes the specified webhook and returns the id of the
+ *                  webhook.
+ *     produces:
+ *       - application/json
+ *     parameters:
+ *       - name: webhookid
+ *         description: The id of the webhook to delete.
+ *         in: path
+ *         required: true
+ *         type: string
+ *       - name: minified
+ *         description: If true, the returned JSON is minified. If false, the
+ *                      returned JSON is formatted based on the format specified
+ *                      in the config. The default value is false.
+ *         in: query
+ *         type: boolean
+ *         default: false
+ *     responses:
+ *       200:
+ *         description: OK, Succeeded to DELETE webhook, return deleted
+ *                      webhook's id.
+ *       400:
+ *         description: Bad Request, Failed to DELETE webhook due to invalid
+ *                      data.
+ *       401:
+ *         description: Unauthorized, Failed to DELETE webhook due to not being
+ *                      logged in.
+ *       403:
+ *         description: Forbidden, Failed to DELETE webhook due to not having
+ *                      permissions.
+ *       500:
+ *         description: Internal Server Error, Failed to DELETE webhook due to
+ *                      server side issue.
+ */
+api.route('/webhooks/:webhookid')
+.get(
+  AuthController.authenticate,
+  Middleware.logSecurityRoute,
+  Middleware.logRoute,
+  Middleware.pluginPre('getWebhook'),
+  APIController.getWebhook,
+  Middleware.pluginPost('getWebhook'),
+  Middleware.logSecurityResponse,
+  Middleware.logResponse,
+  Middleware.respond
+)
+.patch(
+  AuthController.authenticate,
+  Middleware.logSecurityRoute,
+  Middleware.logRoute,
+  Middleware.pluginPre('patchWebhook'),
+  APIController.patchWebhook,
+  Middleware.pluginPost('patchWebhook'),
+  Middleware.logSecurityResponse,
+  Middleware.logResponse,
+  Middleware.respond
+)
+.delete(
+  AuthController.authenticate,
+  Middleware.logSecurityRoute,
+  Middleware.logRoute,
+  Middleware.pluginPre('deleteWebhook'),
+  APIController.deleteWebhook,
+  Middleware.pluginPost('deleteWebhook'),
+  Middleware.logSecurityResponse,
+  Middleware.logResponse,
+  Middleware.respond
 );
 
 
 // Catches any invalid api route not defined above.
-api.use('*', APIController.invalidRoute);
+api.use('*', APIController.invalidRoute, Middleware.respond);
 
 // Export the API router
 module.exports = api;

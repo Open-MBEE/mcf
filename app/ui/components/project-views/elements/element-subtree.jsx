@@ -232,9 +232,7 @@ class ElementSubtree extends Component {
     const isOpen = this.state.isOpen;
 
     // If the element contains other elements, handle the subtree
-    if (this.state.data !== null
-      && Array.isArray(this.state.data.contains)
-      && this.state.data.contains.length >= 1) {
+    if (Array.isArray(this.state.data.contains) && this.state.data.contains.length >= 1) {
       // Icon should be caret to show subtree is collapsible
       expandIcon = (isOpen) ? 'fa-caret-down' : 'fa-caret-right';
 

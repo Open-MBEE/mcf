@@ -25,12 +25,12 @@ const chai = require('chai');
 
 // MBEE modules
 const ProjectController = M.require('controllers.project-controller');
-const apiController = M.require('controllers.api-controller');
-const db = M.require('db');
+const APIController = M.require('controllers.api-controller');
 
 /* --------------------( Test Data )-------------------- */
 const testUtils = M.require('lib.test-utils');
 const testData = testUtils.importTestData('test_data.json');
+const next = testUtils.next;
 const filepath = path.join(M.root, '/test/testzip.json');
 let adminUser = null;
 let org = null;
@@ -49,8 +49,6 @@ describe(M.getModuleName(module.filename), () => {
    */
   before(async () => {
     try {
-      // Open the database connection
-      await db.connect();
       // Create test admin
       adminUser = await testUtils.createTestAdmin();
       // Create organization
@@ -74,7 +72,6 @@ describe(M.getModuleName(module.filename), () => {
       await testUtils.removeTestOrg();
       await testUtils.removeTestAdmin();
       await fs.unlinkSync(filepath);
-      await db.disconnect();
     }
     catch (error) {
       M.log.error(error);
@@ -137,12 +134,11 @@ function postGzip(done) {
     // Clear the data used for testing
     fs.truncateSync(filepath);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
-  // POSTs a project
-  apiController.postProjects(req, res);
+  // POST a project
+  APIController.postProjects(req, res, next(req, res));
 }
 
 /**
@@ -192,12 +188,11 @@ function putGzip(done) {
     // Clear the data used for testing
     fs.truncateSync(filepath);
 
-    // Ensure the response was logged correctly
-    setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+    done();
   };
 
   // PUTs a project
-  apiController.putProjects(req, res);
+  APIController.putProjects(req, res, next(req, res));
 }
 
 /**
@@ -252,11 +247,10 @@ function patchGzip(done) {
       // Clear the data used for testing
       fs.truncateSync(filepath);
 
-      // Ensure the response was logged correctly
-      setTimeout(() => testUtils.testResponseLogging(_data.length, req, res, done), 50);
+      done();
     };
 
-    // PATCHes a project
-    apiController.patchProjects(req, res);
+    // PATCH a project
+    APIController.patchProjects(req, res, next(req, res));
   });
 }
