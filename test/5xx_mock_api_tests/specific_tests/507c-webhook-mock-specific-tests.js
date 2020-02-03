@@ -274,6 +274,7 @@ function postMany(reference) {
 
       webhookData.forEach((webhookDataObj) => {
         const createdWebhook = jmi2[webhookDataObj.name];
+        const token = Buffer.from(`${adminUser._id}:${webhookDataObj.token}`).toString('base64');
 
         chai.expect(createdWebhook.name).to.equal(webhookDataObj.name);
         chai.expect(createdWebhook.type).to.equal(webhookDataObj.type);
@@ -284,7 +285,7 @@ function postMany(reference) {
           chai.expect(createdWebhook.response.method).to.equal(webhookDataObj.response.method || 'POST');
         }
         else {
-          chai.expect(createdWebhook.token).to.equal(webhookDataObj.token);
+          chai.expect(createdWebhook.token).to.equal(token);
           chai.expect(createdWebhook.tokenLocation).to.equal(webhookDataObj.tokenLocation);
         }
         chai.expect(createdWebhook.reference).to.deep.equal(ref);

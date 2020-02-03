@@ -94,6 +94,7 @@ describe(M.getModuleName(module.filename), () => {
   it('should GET multiple artifacts', getArtifacts);
   it('should POST an artifact blob', postBlob);
   it('should GET an artifact blob', getBlob);
+  it('should GET a list of artifact blobs', listBlobs);
   it('should GET an artifact blob by ID', getBlobById);
   it('should DELETE an artifact', deleteBlob);
   it('should PATCH an artifact', patchArtifact);
@@ -428,6 +429,34 @@ function getBlob(done) {
 
     // Deep compare both binaries
     chai.expect(body).to.deep.equal(fileData);
+    done();
+  });
+}
+
+/**
+ * @description Verifies GET request
+ * /api/orgs/:orgid/projects/:projectid/artifacts/list
+ * to get a list of artifact blobs.
+ *
+ * @param {Function} done - The mocha callback.
+ */
+function listBlobs(done) {
+  const options = {
+    method: 'GET',
+    url: `${test.url}/api/orgs/${orgID}/projects/${projID}/artifacts/list`,
+    headers: testUtils.getHeaders()
+  };
+
+  request(options, (err, response, body) => {
+    // Expect no error
+    chai.expect(err).to.equal(null);
+    // Expect response status: 200 OK
+    chai.expect(response.statusCode).to.equal(200);
+
+    // Verify response body
+    const blobList = JSON.parse(body);
+    chai.expect(blobList[0].location).to.equal(testData.artifacts[0].location);
+    chai.expect(blobList[0].filename).to.equal(testData.artifacts[0].filename);
     done();
   });
 }

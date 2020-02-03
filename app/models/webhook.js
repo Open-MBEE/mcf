@@ -217,7 +217,9 @@ WebhookSchema.static('sendRequest', function(webhook, data) {
   if (webhook.response.ca) options.ca = webhook.response.ca;
   if (webhook.response.token) options.token = webhook.response.token;
   // Send an HTTP request to given URL
-  request(options);
+  request(options, (err) => {
+    if (err) M.log.warn(`Webhook ${webhook._id} request error: ${err.message}`);
+  });
 });
 
 /**

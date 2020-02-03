@@ -175,6 +175,7 @@ function postWebhooks(done) {
 
     webhookData.forEach((webhookDataObj) => {
       const createdWebhook = jmi2[webhookDataObj.name];
+      const token = Buffer.from(`${adminUser._id}:${webhookDataObj.token}`).toString('base64');
 
       // Verify webhook created properly
       chai.expect(createdWebhook.name).to.equal(webhookDataObj.name);
@@ -186,7 +187,7 @@ function postWebhooks(done) {
         chai.expect(createdWebhook.response.method).to.equal(webhookDataObj.response.method || 'POST');
       }
       else {
-        chai.expect(createdWebhook.token).to.equal(webhookDataObj.token);
+        chai.expect(createdWebhook.token).to.equal(token);
         chai.expect(createdWebhook.tokenLocation).to.equal(webhookDataObj.tokenLocation);
       }
       chai.expect(createdWebhook.reference).to.equal('');
@@ -298,6 +299,7 @@ function getWebhooks(done) {
 
     webhookData.forEach((webhookDataObj) => {
       const foundWebhook = jmi2[webhookDataObj.id];
+      const token = Buffer.from(`${adminUser._id}:${webhookDataObj.token}`).toString('base64');
 
       // Verify webhook
       chai.expect(foundWebhook.id).to.equal(webhookDataObj.id);
@@ -310,7 +312,7 @@ function getWebhooks(done) {
         chai.expect(foundWebhook.response.method).to.equal(webhookDataObj.response.method || 'POST');
       }
       else {
-        chai.expect(foundWebhook.token).to.equal(webhookDataObj.token);
+        chai.expect(foundWebhook.token).to.equal(token);
         chai.expect(foundWebhook.tokenLocation).to.equal(webhookDataObj.tokenLocation);
       }
       chai.expect(foundWebhook.reference).to.equal('');
@@ -367,6 +369,7 @@ function getAllWebhooks(done) {
 
     webhookData.forEach((webhookDataObj) => {
       const foundWebhook = jmi2[webhookDataObj.id];
+      const token = Buffer.from(`${adminUser._id}:${webhookDataObj.token}`).toString('base64');
 
       // Verify webhook
       chai.expect(foundWebhook.id).to.equal(webhookDataObj.id);
@@ -379,7 +382,7 @@ function getAllWebhooks(done) {
         chai.expect(foundWebhook.response.method).to.equal(webhookDataObj.response.method || 'POST');
       }
       else {
-        chai.expect(foundWebhook.token).to.equal(webhookDataObj.token);
+        chai.expect(foundWebhook.token).to.equal(token);
         chai.expect(foundWebhook.tokenLocation).to.equal(webhookDataObj.tokenLocation);
       }
       chai.expect(foundWebhook.reference).to.equal('');
@@ -495,6 +498,7 @@ function patchWebhooks(done) {
 
     webhookData.forEach((webhookDataObj) => {
       const updatedWebhook = jmi2[webhookDataObj.id];
+      const token = Buffer.from(`${adminUser._id}:${webhookDataObj.token}`).toString('base64');
 
       // Verify webhook
       chai.expect(updatedWebhook.id).to.equal(webhookDataObj.id);
@@ -507,7 +511,7 @@ function patchWebhooks(done) {
         chai.expect(updatedWebhook.response.method).to.equal(webhookDataObj.response.method || 'POST');
       }
       else {
-        chai.expect(updatedWebhook.token).to.equal(webhookDataObj.token);
+        chai.expect(updatedWebhook.token).to.equal(token);
         chai.expect(updatedWebhook.tokenLocation).to.equal(webhookDataObj.tokenLocation);
       }
       chai.expect(updatedWebhook.reference).to.equal('');
@@ -629,7 +633,7 @@ async function triggerWebhook() {
 
   // Create request object
   const body = {
-    test: { token: 'test token' },
+    test: { token: Buffer.from(incomingWebhooks[0].token).toString('base64') },
     data: 'test data'
   };
   const params = { encodedid: encodedID };
@@ -645,7 +649,7 @@ async function triggerWebhook() {
   promises.push(new Promise((resolve, reject) => {
     // Register a listener for the incoming webhook event
     events.on(webhookData.triggers[0], function(data) {
-      if (data[0] === body.data) resolve();
+      if (data[1] === body.data) resolve();
       else reject(new Error('Data not found in emitted webhook event'));
     });
   }));

@@ -324,6 +324,10 @@ async function create(requestingUser, webhooks, options) {
         webhookObj.reference = '';
       }
 
+      if (webhookObj.hasOwnProperty('token')) {
+        webhookObj.token = `${reqUser._id}:${webhookObj.token}`;
+      }
+
       webhookObj.lastModifiedBy = reqUser._id;
       webhookObj.createdBy = reqUser._id;
       webhookObj.updatedOn = Date.now();

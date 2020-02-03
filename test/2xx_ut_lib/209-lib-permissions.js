@@ -83,6 +83,7 @@ describe(M.getModuleName(module.filename), () => {
   it('should handle user org permissions', verifyOrgPermissions);
   it('should handle user project permissions', verifyProjectPermissions);
   it('should handle user element permissions', verifyElementPermissions);
+  it('should handle user artifact permissions', verifyArtifactPermissions);
   it('should handle user branch permissions', verifyBranchPermissions);
   it('should handle misc non-admin permissions', verifyNonAdminPermissions);
 });
@@ -207,6 +208,45 @@ async function verifyElementPermissions() {
   chai.expect(can.createElement.bind(can, user2, org, project2)).to.throw(M.PermissionError);
   chai.expect(can.updateElement.bind(can, user2, org, project2)).to.throw(M.PermissionError);
   chai.expect(can.deleteElement.bind(can, user2, org, project2)).to.throw(M.PermissionError);
+}
+
+/**
+ * @description Checks that artifact permissions are handled as expected.
+ */
+async function verifyArtifactPermissions() {
+  // Test data
+  const org = orgs[1];
+  const project0 = projects[0];
+  const project1 = projects[1];
+  const project2 = projects[2];
+  const user1 = users[1];
+  const user2 = users[2];
+
+  // Check users can't view project artifact they're not supposed to
+  chai.expect(can.readArtifact.bind(can, user1, org, project0)).to.throw(M.PermissionError);
+  chai.expect(can.updateArtifact.bind(can, user1, org, project0)).to.throw(M.PermissionError);
+  chai.expect(can.readBlob.bind(can, user1, org, project0)).to.throw(M.PermissionError);
+  chai.expect(can.listBlobs.bind(can, user1, org, project0)).to.throw(M.PermissionError);
+
+  // Checking users' permissions on project 1
+  chai.expect(can.readArtifact.bind(can, user1, org, project1)).to.not.throw(M.PermissionError);
+  chai.expect(can.createArtifact.bind(can, user1, org, project1)).to.not.throw(M.PermissionError);
+  chai.expect(can.updateArtifact.bind(can, user1, org, project1)).to.not.throw(M.PermissionError);
+  chai.expect(can.deleteArtifact.bind(can, user1, org, project1)).to.not.throw(M.PermissionError);
+  chai.expect(can.readBlob.bind(can, user1, org, project1)).to.not.throw(M.PermissionError);
+  chai.expect(can.createBlob.bind(can, user1, org, project1)).to.not.throw(M.PermissionError);
+  chai.expect(can.deleteBlob.bind(can, user1, org, project1)).to.not.throw(M.PermissionError);
+  chai.expect(can.listBlobs.bind(can, user1, org, project1)).to.not.throw(M.PermissionError);
+
+  // Checking users' permission on project 2
+  chai.expect(can.readArtifact.bind(can, user2, org, project2)).to.not.throw(M.PermissionError);
+  chai.expect(can.createArtifact.bind(can, user2, org, project2)).to.throw(M.PermissionError);
+  chai.expect(can.updateArtifact.bind(can, user2, org, project2)).to.throw(M.PermissionError);
+  chai.expect(can.deleteArtifact.bind(can, user2, org, project2)).to.throw(M.PermissionError);
+  chai.expect(can.readBlob.bind(can, user2, org, project2)).to.not.throw(M.PermissionError);
+  chai.expect(can.createBlob.bind(can, user2, org, project2)).to.throw(M.PermissionError);
+  chai.expect(can.deleteBlob.bind(can, user2, org, project2)).to.throw(M.PermissionError);
+  chai.expect(can.listBlobs.bind(can, user2, org, project2)).to.not.throw(M.PermissionError);
 }
 
 /**

@@ -208,7 +208,8 @@ async function createDefaultAdmin() {
         _id: M.config.server.defaultAdminUsername,
         password: M.config.server.defaultAdminPassword,
         provider: 'local',
-        admin: true
+        admin: true,
+        changePassword: false
       };
 
       User.hashPassword(adminUserData);

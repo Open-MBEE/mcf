@@ -151,50 +151,21 @@ class CreateUser extends Component {
 
   render() {
     // Initialize validators
-    let usernameInvalid;
-    let fnameInvalid;
-    let preferredInvalid;
-    let lnameInvalid;
-    let emailInvalid;
-    let disableSubmit;
-    let customInvalid;
+    let usernameInvalid = false;
+    const usernameLengthInvalid = (this.state.username.length > validators.user.usernameLength);
+    const fnameInvalid = (!RegExp(validators.user.firstName).test(this.state.fname));
+    const lnameInvalid = (!RegExp(validators.user.lastName).test(this.state.lname));
+    const preferredInvalid = (!RegExp(validators.user.firstName).test(this.state.preferredname));
+    let emailInvalid = false;
+    let customInvalid = false;
+
+    if (this.state.email.length !== 0) {
+      emailInvalid = (!RegExp(validators.user.email).test(this.state.email));
+    }
 
     if (this.state.username.length !== 0) {
-      // Verify if project name is valid
-      if (!RegExp(validators.user.username).test(this.state.username)) {
-        // Set invalid fields
-        usernameInvalid = true;
-        disableSubmit = true;
-      }
-    }
-
-    if (!RegExp(validators.user.fname).test(this.state.fname)) {
-      // Set invalid fields
-      fnameInvalid = true;
-      disableSubmit = true;
-    }
-
-    if (!RegExp(validators.user.fname).test(this.state.preferredname)) {
-      // Set invalid fields
-      preferredInvalid = true;
-      disableSubmit = true;
-    }
-
-    if (!RegExp(validators.user.lname).test(this.state.lname)) {
-      // Set invalid fields
-      lnameInvalid = true;
-      disableSubmit = true;
-    }
-
-    // Verify if project name is valid
-    if (!RegExp(validators.user.email).test(this.state.email)) {
-      // Set invalid fields
-      emailInvalid = true;
-      disableSubmit = true;
-    }
-
-    if (this.state.passwordInvalid) {
-      disableSubmit = true;
+      // eslint-disable-next-line max-len
+      usernameInvalid = ((!RegExp(validators.user.username).test(this.state.username)) || usernameLengthInvalid);
     }
 
     // Verify if custom data is correct JSON format
@@ -202,10 +173,16 @@ class CreateUser extends Component {
       JSON.parse(this.state.custom);
     }
     catch (err) {
-      // Set invalid fields
       customInvalid = true;
-      disableSubmit = true;
     }
+
+    const disableSubmit = (fnameInvalid
+      || lnameInvalid
+      || preferredInvalid
+      || emailInvalid
+      || usernameInvalid
+      || customInvalid
+      || this.state.passwordInvalid);
 
     // Return the form to create a project
     return (

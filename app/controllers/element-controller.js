@@ -836,13 +836,13 @@ async function update(requestingUser, organizationID, projectID, branchID, eleme
       }
 
       // If updating source, add ID to sourceTargetIDs
-      if (elem.source) {
+      if (elem.source && !elem.hasOwnProperty('sourceNamespace')) {
         elem.source = utils.createID(orgID, projID, branID, elem.source);
         sourceTargetIDs.push(elem.source);
       }
 
       // If updating target, add ID to sourceTargetIDs
-      if (elem.target) {
+      if (elem.target && !elem.hasOwnProperty('targetNamespace')) {
         elem.target = utils.createID(orgID, projID, branID, elem.target);
         sourceTargetIDs.push(elem.target);
       }
@@ -1790,7 +1790,7 @@ async function search(requestingUser, organizationID, projectID, branchID, query
             throw new M.DataFormatError(`The option '${o}' is not a boolean.`, 'warn');
           }
           // Ensure the search option is a string
-          else if (typeof options[o] !== 'string' && o !== 'archived') {
+          else if (typeof options[o] !== 'string' && o !== 'archived' && !o.startsWith('custom.')) {
             throw new M.DataFormatError(`The option '${o}' is not a string.`, 'warn');
           }
 
@@ -1821,7 +1821,7 @@ async function search(requestingUser, organizationID, projectID, branchID, query
     // Permissions check
     permissions.readElement(reqUser, organization, project, branch);
 
-    searchQuery.$text = query;
+    if (query) searchQuery.$text = query;
     // If the includeArchived field is true, remove archived from the query; return everything
     if (validatedOptions.includeArchived) {
       delete searchQuery.archived;
@@ -1967,9 +1967,8 @@ function sourceTargetNamespaceValidator(elem, index, orgID, projID, projectRefs,
       // Delete sourceNamespace, it does not get stored in the database
       delete elem.sourceNamespace;
 
-      // Remove the last source which has the wrong project
+      // Add source to array, used to ensure element exists
       if (sourceTargetIDs) {
-        sourceTargetIDs.pop();
         sourceTargetIDs.push(elem.source);
       }
     }
@@ -2008,9 +2007,8 @@ function sourceTargetNamespaceValidator(elem, index, orgID, projID, projectRefs,
       // Delete targetNamespace, it does not get stored in the database
       delete elem.targetNamespace;
 
-      // Remove the last target which has the wrong project
+      // Add target to array, used to ensure element exists
       if (sourceTargetIDs) {
-        sourceTargetIDs.pop();
         sourceTargetIDs.push(elem.target);
       }
     }

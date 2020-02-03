@@ -28,13 +28,11 @@ const should = chai.should(); // eslint-disable-line no-unused-vars
 // MBEE modules
 const User = M.require('models.user');
 const UserController = M.require('controllers.user-controller');
-const APIController = M.require('controllers.api-controller');
 const localAuth = M.require('auth.local-strategy');
 
 /* --------------------( Test Data )-------------------- */
 const testUtils = M.require('lib.test-utils');
 const testData = testUtils.importTestData('test_data.json');
-const next = testUtils.next;
 let adminUser = null;
 
 /* --------------------( Main )-------------------- */
@@ -71,7 +69,6 @@ describe(M.getModuleName(module.filename), () => {
 
   /* Execute the tests */
   it('should log the time and ip address of a failed login attempt', logFailedLogin);
-  it('should only return the failedlogins field if the requesting user is an admin', failedloginsField);
   it('should archive a user after 5 failed login attempts in 15 minutes', lockoutUser);
   it('should not archive a user after 5 failed login attempts if that user is the only'
     + ' non-archived admin', noAdminLockout);
@@ -109,75 +106,13 @@ async function logFailedLogin() {
 
   // Attempt to authenticate user with wrong password
   await localAuth.handleBasicAuth(req, res, user._id, 'wrongPassword')
-  .should.eventually.be.rejectedWith('Invalid password.');
+  .should.eventually.be.rejectedWith('Invalid username or password.');
 
   const foundUser = await User.findOne({ _id: user._id });
 
   // Validate the failedlogins field
   foundUser.failedlogins[0].ipaddress.should.equal('::1');
   foundUser.failedlogins[0].timestamp.should.be.at.least(timestamp);
-
-  // Remove the test user
-  await UserController.remove(adminUser, user._id);
-}
-
-/**
- * @description This function validates that only an admin user can see the failed login fields
- * of a user.
- */
-async function failedloginsField() {
-  if (M.config.auth.strategy !== 'local-strategy' && M.config.auth.strategy !== 'local-ldap-strategy') {
-    M.log.verbose('Test skipped because local auth strategy is not enabled');
-    this.skip();
-  }
-  // Create a test user
-  const userData = testData.users[0];
-
-  // Create user via controller
-  const users = await UserController.create(adminUser, userData);
-  const user = users[0];
-
-  // Create mock req/res objects for the handleBasicAuth function
-  let req = {
-    connection: {
-      remoteAddress: '::1'
-    }
-  };
-  const res = {};
-
-  // Attempt to authenticate user with wrong password
-  await localAuth.handleBasicAuth(req, res, user._id, 'wrongPassword')
-  .should.eventually.be.rejectedWith('Invalid password.');
-
-  // *************** Verify failedlogins field returned for admin *************** //
-  // Create a mock req object for the api controller
-  req = testUtils.createRequest(adminUser, { username: userData.username }, {}, 'GET');
-  // Create a mock res object for the api controller
-  testUtils.createResponse(res);
-  res.send = function send(_data) {
-    // Convert response to JSON
-    const foundUser = JSON.parse(_data);
-    // Verify expected response
-    foundUser.should.have.property('failedlogins');
-    res.statusCode.should.equal(200);
-  };
-  // GET the test user as an admin
-  await APIController.getUser(req, res, next(req, res));
-
-  // *************** Verify failedlogins field not returned for non-admin *************** //
-  // Create a mock req object for the api controller
-  req = testUtils.createRequest(user, { username: userData.username }, {}, 'GET');
-  // Create a mock res object for the api controller
-  testUtils.createResponse(res);
-  res.send = function send(_data) {
-    // Convert response to JSON
-    const foundUser = JSON.parse(_data);
-    // Verify expected response
-    foundUser.should.not.have.property('failedlogins');
-    res.statusCode.should.equal(200);
-  };
-  // GET the user as a non-admin
-  await APIController.getUser(req, res, next(req, res));
 
   // Remove the test user
   await UserController.remove(adminUser, user._id);
@@ -213,7 +148,7 @@ async function lockoutUser() {
   for (let i = 0; i < 4; i++) {
     // Attempt to authenticate user with wrong password
     await localAuth.handleBasicAuth(req, res, user._id, 'wrongPassword') // eslint-disable-line
-    .should.eventually.be.rejectedWith('Invalid password.');
+    .should.eventually.be.rejectedWith('Invalid username or password.');
   }
 
   // Fail for the 5th time
@@ -255,7 +190,7 @@ async function noAdminLockout() {
   for (let i = 0; i < 4; i++) {
     // Attempt to authenticate admin user with wrong password
     await localAuth.handleBasicAuth(req, res, adminUser._id, 'wrongPassword') // eslint-disable-line
-    .should.eventually.be.rejectedWith('Invalid password.');
+    .should.eventually.be.rejectedWith('Invalid username or password.');
   }
 
   // Expect specific error message for the only active admin user exceeding the login attempts

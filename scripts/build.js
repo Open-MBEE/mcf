@@ -43,6 +43,7 @@ const webpack = require('webpack');
 
 // MBEE modules
 const validators = M.require('lib.validators');
+const utils = M.require('lib.utils');
 
 /**
  * @description Builds the MBEE static assets by:
@@ -120,22 +121,6 @@ function build(_args) {
     .pipe(gulp.dest('build/public/js'));
   }
 
-  // Initialize validators for UI validation
-  const validator = {
-    id: validators.org.id,
-    org: {
-      name: validators.org.name
-    },
-    project: {
-      name: validators.project.name
-    },
-    user: {
-      fname: validators.user.fname,
-      lname: validators.user.lname,
-      username: validators.user.username
-    }
-  };
-
   // Initialize the build directory
   if (!fs.existsSync('build')) {
     fs.mkdirSync('build');
@@ -148,8 +133,12 @@ function build(_args) {
     fs.mkdirSync(validatorsDir);
   }
 
+  // Append ID Delimiter to validators object
+  const _validators = JSON.parse(JSON.stringify(validators));
+  _validators.ID_DELIMITER = utils.ID_DELIMITER;
+
   // Import validator object into validators file
-  fs.writeFileSync(path.join(validatorsDir, 'validators.json'), JSON.stringify(validator), 'utf8');
+  fs.writeFileSync(path.join(validatorsDir, 'validators.json'), JSON.stringify(_validators), 'utf8');
 
   // Compile Sass into CSS
   if (args.includes('--all') || args.includes('--sass')) {

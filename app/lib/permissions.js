@@ -54,7 +54,8 @@ module.exports = {
   updateBranch,
   updateArtifact,
   updateWebhook,
-  getLogs
+  getLogs,
+  listBlobs
 };
 
 /**
@@ -682,6 +683,34 @@ function deleteBlob(user, org, project) {
       assert.ok(project.permissions[user._id].includes('write'),
         'User does not have permission to delete items in the project '
         + `[${utils.parseID(project._id).pop()}].`);
+    }
+  }
+  catch (error) {
+    throw new M.PermissionError(error.message, 'warn');
+  }
+}
+
+/**
+ * @description Verify if user has permission to list blobs in the project.
+ *
+ * @param {User} user - The user object to check permissions for.
+ * @param {Organization} org - The org object containing the project.
+ * @param {Project} project - The project containing the artifact blob.
+ *
+ * @throws {PermissionError}
+ */
+function listBlobs(user, org, project) {
+  try {
+    if (!user.admin) {
+      // User needs read permission of the org, regardless of the project visibility
+      assert.ok(org.permissions.hasOwnProperty(user._id),
+        `User does not have permission to find items in the org [${org._id}].`);
+
+      if (project.visibility === 'private') {
+        assert.ok(project.permissions.hasOwnProperty(user._id),
+          'User does not have permission to get artifacts in the project '
+          + `[${utils.parseID(project._id).pop()}].`);
+      }
     }
   }
   catch (error) {

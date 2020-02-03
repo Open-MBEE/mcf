@@ -50,6 +50,7 @@ api.get('/test', Middleware.logRoute, APIController.test);
 api.get(
   '/coffee',
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   (req, res) => {
     const str = 'I\'m a teapot.';
@@ -103,6 +104,7 @@ api.get('/doc/swagger.json',
 api.route('/login')
 .post(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logSecurityRoute,
   Middleware.logRoute,
   AuthController.doLogin,
@@ -135,6 +137,7 @@ api.route('/login')
 api.route('/version')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   APIController.version,
   Middleware.logResponse,
@@ -191,6 +194,7 @@ api.route('/version')
 api.route('/logs')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.pluginPre('getLogs'),
@@ -567,6 +571,7 @@ api.route('/logs')
 api.route('/orgs')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('getOrgs'),
   APIController.getOrgs,
@@ -576,6 +581,7 @@ api.route('/orgs')
 )
 .post(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.pluginPre('postOrgs'),
@@ -587,6 +593,7 @@ api.route('/orgs')
 )
 .put(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.pluginPre('putOrgs'),
@@ -598,6 +605,7 @@ api.route('/orgs')
 )
 .patch(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('patchOrgs'),
   APIController.patchOrgs,
@@ -607,6 +615,7 @@ api.route('/orgs')
 )
 .delete(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.pluginPre('deleteOrgs'),
@@ -935,6 +944,7 @@ api.route('/orgs')
 api.route('/orgs/:orgid')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('getOrg'),
   APIController.getOrg,
@@ -944,6 +954,7 @@ api.route('/orgs/:orgid')
 )
 .post(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.pluginPre('postOrg'),
@@ -955,6 +966,7 @@ api.route('/orgs/:orgid')
 )
 .put(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.pluginPre('putOrg'),
@@ -966,6 +978,7 @@ api.route('/orgs/:orgid')
 )
 .patch(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('patchOrg'),
   APIController.patchOrg,
@@ -975,6 +988,7 @@ api.route('/orgs/:orgid')
 )
 .delete(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.pluginPre('deleteOrg'),
@@ -1091,6 +1105,7 @@ api.route('/orgs/:orgid')
 api.route('/projects')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('getAllProjects'),
   APIController.getAllProjects,
@@ -1524,6 +1539,7 @@ api.route('/projects')
 api.route('/orgs/:orgid/projects')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('getProjects'),
   APIController.getProjects,
@@ -1533,6 +1549,7 @@ api.route('/orgs/:orgid/projects')
 )
 .post(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('postProjects'),
   APIController.postProjects,
@@ -1542,6 +1559,7 @@ api.route('/orgs/:orgid/projects')
 )
 .put(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('putProjects'),
   APIController.putProjects,
@@ -1551,6 +1569,7 @@ api.route('/orgs/:orgid/projects')
 )
 .patch(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('patchProjects'),
   APIController.patchProjects,
@@ -1560,6 +1579,7 @@ api.route('/orgs/:orgid/projects')
 )
 .delete(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.pluginPre('deleteProjects'),
@@ -1941,6 +1961,7 @@ api.route('/orgs/:orgid/projects')
 api.route('/orgs/:orgid/projects/:projectid')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('getProject'),
   APIController.getProject,
@@ -1950,6 +1971,7 @@ api.route('/orgs/:orgid/projects/:projectid')
 )
 .post(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('postProject'),
   APIController.postProject,
@@ -1959,6 +1981,7 @@ api.route('/orgs/:orgid/projects/:projectid')
 )
 .put(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('putProject'),
   APIController.putProject,
@@ -1968,6 +1991,7 @@ api.route('/orgs/:orgid/projects/:projectid')
 )
 .patch(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('patchProject'),
   APIController.patchProject,
@@ -1977,6 +2001,7 @@ api.route('/orgs/:orgid/projects/:projectid')
 )
 .delete(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.pluginPre('deleteProject'),
@@ -2359,6 +2384,7 @@ api.route('/orgs/:orgid/projects/:projectid')
 api.route('/orgs/:orgid/projects/:projectid/branches')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('getBranches'),
   APIController.getBranches,
@@ -2368,6 +2394,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches')
 )
 .post(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('postBranches'),
   APIController.postBranches,
@@ -2377,6 +2404,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches')
 )
 .patch(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('patchBranches'),
   APIController.patchBranches,
@@ -2386,6 +2414,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches')
 )
 .delete(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('deleteBranches'),
   APIController.deleteBranches,
@@ -2701,6 +2730,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches')
 api.route('/orgs/:orgid/projects/:projectid/branches/:branchid')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('getBranch'),
   APIController.getBranch,
@@ -2710,6 +2740,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid')
 )
 .post(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('postBranch'),
   APIController.postBranch,
@@ -2719,6 +2750,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid')
 )
 .patch(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('patchBranch'),
   APIController.patchBranch,
@@ -2728,6 +2760,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid')
 )
 .delete(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('deleteBranch'),
   APIController.deleteBranch,
@@ -2887,6 +2920,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid')
 api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements/search')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('searchElements'),
   APIController.searchElements,
@@ -3518,6 +3552,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements/search')
 api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('getElements'),
   APIController.getElements,
@@ -3527,6 +3562,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements')
 )
 .post(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('postElements'),
   APIController.postElements,
@@ -3536,6 +3572,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements')
 )
 .put(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('putElements'),
   APIController.putElements,
@@ -3545,6 +3582,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements')
 )
 .patch(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('patchElements'),
   APIController.patchElements,
@@ -3554,6 +3592,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements')
 )
 .delete(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('deleteElements'),
   APIController.deleteElements,
@@ -4114,6 +4153,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements')
 api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements/:elementid')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('getElement'),
   APIController.getElement,
@@ -4123,6 +4163,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements/:element
 )
 .post(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('postElement'),
   APIController.postElement,
@@ -4132,6 +4173,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements/:element
 )
 .put(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPost('putElement'),
   APIController.putElement,
@@ -4141,6 +4183,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements/:element
 )
 .patch(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('patchElement'),
   APIController.patchElement,
@@ -4150,6 +4193,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements/:element
 )
 .delete(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('deleteElement'),
   APIController.deleteElement,
@@ -4158,6 +4202,58 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements/:element
   Middleware.respond
 );
 
+
+/**
+ * @swagger
+ * /api/orgs/{orgid}/projects/{projectid}/artifacts/list:
+ *   get:
+ *     tags:
+ *       - artifacts
+ *     description: Returns a list of artifact blob locations and filenames within a project.
+ *                  Requesting user must have read access on the project to list artifacts.
+ *     produces:
+ *       - application/json
+ *     parameters:
+ *       - name: orgid
+ *         description: The ID of the organization containing the specified
+ *                      project.
+ *         in: path
+ *         required: true
+ *         type: string
+ *       - name: projectid
+ *         description: The ID of the project containing the artifact blob.
+ *         in: path
+ *         required: true
+ *         type: string
+ *     responses:
+ *       200:
+ *         description: OK, Succeeded to GET artifact, returns artifact list.
+ *       400:
+ *         description: Bad Request, Failed to GET artifact list due to invalid data.
+ *       401:
+ *         description: Unauthorized, Failed to GET artifact list due to not being
+ *                      logged in.
+ *       403:
+ *         description: Forbidden, Failed to GET artifact list due to not having
+ *                      permissions.
+ *       404:
+ *         description: Not Found, Failed to GET blob list due to artifact not
+ *                      existing.
+ *       500:
+ *         description: Internal Server Error, Failed to GET blob list due to
+ *                      server side issue.
+ */
+api.route('/orgs/:orgid/projects/:projectid/artifacts/list')
+.get(
+  AuthController.authenticate,
+  Middleware.expiredPassword,
+  Middleware.logRoute,
+  Middleware.pluginPre('listBlobs'),
+  APIController.listBlobs,
+  Middleware.pluginPost('listBlobs'),
+  Middleware.logResponse,
+  Middleware.respond
+);
 
 /**
  * @swagger
@@ -4329,6 +4425,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements/:element
 api.route('/orgs/:orgid/projects/:projectid/artifacts/blob')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('getBlob'),
   APIController.getBlob,
@@ -4338,6 +4435,7 @@ api.route('/orgs/:orgid/projects/:projectid/artifacts/blob')
 )
 .post(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('postBlob'),
   APIController.postBlob,
@@ -4347,6 +4445,7 @@ api.route('/orgs/:orgid/projects/:projectid/artifacts/blob')
 )
 .delete(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('deleteBlob'),
   APIController.deleteBlob,
@@ -4768,6 +4867,7 @@ api.route('/orgs/:orgid/projects/:projectid/artifacts/blob')
 api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('getArtifacts'),
   APIController.getArtifacts,
@@ -4777,6 +4877,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts')
 )
 .post(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('postArtifacts'),
   APIController.postArtifacts,
@@ -4786,6 +4887,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts')
 )
 .patch(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('patchArtifacts'),
   APIController.patchArtifacts,
@@ -4795,6 +4897,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts')
 )
 .delete(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('deleteArtifacts'),
   APIController.deleteArtifacts,
@@ -5144,6 +5247,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts')
 api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts/:artifactid')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('getArtifact'),
   APIController.getArtifact,
@@ -5153,6 +5257,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts/:artifa
 )
 .post(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('postArtifact'),
   APIController.postArtifact,
@@ -5162,6 +5267,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts/:artifa
 )
 .patch(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('patchArtifact'),
   APIController.patchArtifact,
@@ -5171,6 +5277,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts/:artifa
 )
 .delete(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('deleteArtifact'),
   APIController.deleteArtifact,
@@ -5238,6 +5345,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts/:artifa
 api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts/:artifactid/blob')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.pluginPre('getBlobById'),
   APIController.getBlobById,
@@ -5667,6 +5775,7 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts/:artifa
 api.route('/users')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.disableUserAPI,
   Middleware.pluginPre('getUsers'),
@@ -5677,6 +5786,7 @@ api.route('/users')
 )
 .post(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.disableUserAPI,
@@ -5689,6 +5799,7 @@ api.route('/users')
 )
 .put(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.disableUserAPI,
@@ -5701,6 +5812,7 @@ api.route('/users')
 )
 .patch(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.disableUserAPI,
   Middleware.pluginPre('patchUsers'),
@@ -5711,6 +5823,7 @@ api.route('/users')
 )
 .delete(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.disableUserAPI,
@@ -5842,6 +5955,7 @@ api.route('/users/whoami')
 api.route('/users/search')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.disableUserAPI,
   Middleware.pluginPre('searchUsers'),
@@ -6199,6 +6313,7 @@ api.route('/users/search')
 api.route('/users/:username')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.disableUserAPI,
   Middleware.pluginPre('getUser'),
@@ -6209,6 +6324,7 @@ api.route('/users/:username')
 )
 .post(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.disableUserAPI,
@@ -6221,6 +6337,7 @@ api.route('/users/:username')
 )
 .put(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.disableUserAPI,
@@ -6233,6 +6350,7 @@ api.route('/users/:username')
 )
 .patch(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   Middleware.disableUserAPI,
   Middleware.pluginPre('patchUser'),
@@ -6243,6 +6361,7 @@ api.route('/users/:username')
 )
 .delete(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.disableUserAPI,
@@ -6724,6 +6843,7 @@ api.route('/users/:username/password')
 api.route('/webhooks')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.pluginPre('getWebhooks'),
@@ -6735,6 +6855,7 @@ api.route('/webhooks')
 )
 .post(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.pluginPre('postWebhooks'),
@@ -6746,6 +6867,7 @@ api.route('/webhooks')
 )
 .patch(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.pluginPre('patchWebhooks'),
@@ -6757,6 +6879,7 @@ api.route('/webhooks')
 )
 .delete(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.pluginPre('deleteWebhooks'),
@@ -6799,7 +6922,6 @@ api.route('/webhooks')
  */
 api.route('/webhooks/trigger/:encodedid')
 .post(
-  AuthController.authenticate,
   Middleware.logRoute,
   Middleware.pluginPre('triggerWebhook'),
   APIController.triggerWebhook,
@@ -7014,6 +7136,7 @@ api.route('/webhooks/trigger/:encodedid')
 api.route('/webhooks/:webhookid')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.pluginPre('getWebhook'),
@@ -7025,6 +7148,7 @@ api.route('/webhooks/:webhookid')
 )
 .patch(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.pluginPre('patchWebhook'),
@@ -7036,6 +7160,7 @@ api.route('/webhooks/:webhookid')
 )
 .delete(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logSecurityRoute,
   Middleware.logRoute,
   Middleware.pluginPre('deleteWebhook'),

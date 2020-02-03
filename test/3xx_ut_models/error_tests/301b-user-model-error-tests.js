@@ -51,7 +51,7 @@ describe(M.getModuleName(module.filename), () => {
   it('should reject if the provider field is not a string', providerNotString);
   it('should reject if no username (_id) is provided', usernameNotProvided);
   it('should reject with an invalid email', emailInvalid);
-  it('should reject the re-use a recent password', noPasswordReuse);
+  it('should reject the re-use of a recent password', noPasswordReuse);
 });
 
 /* --------------------( Tests )-------------------- */
@@ -86,7 +86,7 @@ async function usernameTooLong() {
     const userData = Object.assign({}, testData.users[0]);
 
     // Change username to be too long.
-    userData._id = 'usernamewiththirtysevencharacters1234';
+    userData._id = 'usernamewiththirtysevencharacters12345678';
     delete userData.id;
 
     // Expect insertMany() to fail with specific error message

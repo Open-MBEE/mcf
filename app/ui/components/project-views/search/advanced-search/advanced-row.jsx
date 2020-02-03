@@ -45,7 +45,9 @@ function AdvancedRow(props) {
                className='adv-input-field'
                name='value'
                value={props.val}
-               onChange={(event) => props.handleChange(props.idx, event)}>
+               onChange={(event) => props.handleChange(props.idx, event)}
+               onKeyDown={props.onKeyDown}
+        >
         </Input>
         { btnDeleteRow }
       </Col>

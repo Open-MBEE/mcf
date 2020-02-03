@@ -38,6 +38,7 @@ class CustomEmitter extends EventEmitter {
       // Find all webhooks that include the triggered event
       const webhooks = await Webhook.find({ type: 'Outgoing', triggers: event });
       webhooks.forEach((webhook) => {
+        M.log.info(`Webhook ${webhook._id} triggered by event ${event}`);
         // Send the request with the provided arguments.
         Webhook.sendRequest(webhook, args);
       });

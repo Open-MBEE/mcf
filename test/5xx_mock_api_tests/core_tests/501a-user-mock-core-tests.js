@@ -78,7 +78,7 @@ describe(M.getModuleName(module.filename), () => {
   it('should GET users through search text', searchUsers);
   it('should PATCH a user', patchUser);
   it('should PATCH multiple users', patchUsers);
-  it('should PATCH a users password', patchUserPassword);
+  it('should PATCH a user\'s own password', patchOwnPassword);
   it('should DELETE a user', deleteUser);
   it('should DELETE multiple users', deleteUsers);
 });
@@ -713,11 +713,11 @@ function patchUsers(done) {
 }
 
 /**
- * @description Verifies mock PATCH request to update a users password.
+ * @description Verifies mock PATCH request to update a user's own password.
  *
  * @param {Function} done - The mocha callback.
  */
-function patchUserPassword(done) {
+function patchOwnPassword(done) {
   // Create request object
   const userData = testData.users[0];
   userData._id = userData.username;
@@ -729,6 +729,9 @@ function patchUserPassword(done) {
   const params = { username: userData.username };
   const method = 'PATCH';
   const req = testUtils.createRequest(userData, params, body, method);
+
+  // Set the requesting user to the target user object
+  req.user = userData;
 
   // Create response object
   const res = {};
