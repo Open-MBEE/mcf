@@ -140,6 +140,7 @@ async function createWebhooks() {
 
     webhookData.forEach((webhookDataObj) => {
       const createdWebhook = jmi2[webhookDataObj.name];
+      const token = `${adminUser._id}:${webhookDataObj.token}`;
 
       // Verify webhook created properly
       chai.expect(createdWebhook.name).to.equal(webhookDataObj.name);
@@ -151,7 +152,7 @@ async function createWebhooks() {
         chai.expect(createdWebhook.response.method).to.equal(webhookDataObj.response.method || 'POST');
       }
       else {
-        chai.expect(createdWebhook.token).to.equal(webhookDataObj.token);
+        chai.expect(createdWebhook.token).to.equal(token);
         chai.expect(createdWebhook.tokenLocation).to.equal(webhookDataObj.tokenLocation);
       }
       chai.expect(createdWebhook.custom).to.deep.equal(webhookDataObj.custom || {});

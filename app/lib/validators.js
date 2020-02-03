@@ -28,15 +28,15 @@ const artifactVal = M.require(`artifact.${M.config.artifact.strategy}`).validato
 const customValidators = M.config.validators || {};
 
 // This ID is used as the common regex for other ID fields in this module
-const id = customValidators.id || '([_a-z0-9])([-_a-z0-9.]){0,}';
-const idLength = customValidators.id_length || 36;
+const id = customValidators.id || '([_a-zA-Z0-9])([-_a-zA-Z0-9.]){0,}';
+const idLength = Number(customValidators.id_length) || 40;
 
 // A list of reserved keywords which cannot be used in ids
 const reservedKeywords = ['css', 'js', 'img', 'doc', 'docs', 'webfonts',
   'login', 'about', 'assets', 'static', 'public', 'api', 'organizations',
   'orgs', 'projects', 'users', 'plugins', 'ext', 'extension', 'search',
   'whoami', 'profile', 'edit', 'proj', 'elements', 'branch', 'anonymous',
-  'blob', 'artifact', 'artifacts'];
+  'blob', 'artifact', 'artifacts', 'list'];
 
 // Create a validator function to test ids against the reserved keywords
 const reserved = function(data) {

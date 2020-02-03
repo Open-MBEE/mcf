@@ -127,7 +127,7 @@ async function handleBasicAuth(req, res, username, password) {
     }
     // User is within allowed number of failed attempts; throw an error
     else {
-      throw new M.AuthorizationError('Invalid password.', 'warn');
+      throw new M.AuthorizationError('Invalid username or password.', 'warn');
     }
   }
   // Authenticated, return user

@@ -87,7 +87,7 @@ module.exports.render = function(req, res, name, params) {
   opts.pluginNames = (M.config.server.plugins.enabled)
     ? require(path.join(M.root, 'plugins', 'routes.js')).loadedPlugins : []; // eslint-disable-line global-require
   opts.ui = opts.ui || M.config.server.ui;
-  opts.user = opts.user || ((req.user) ? publicData.getPublicData(req.user, 'user') : '');
+  opts.user = opts.user || ((req.user) ? publicData.getPublicData(req.user, req.user, 'user', {}) : '');
   opts.title = opts.title || 'Model-Based Engineering Environment';
   return res.render(name, opts);
 };

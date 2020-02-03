@@ -128,14 +128,20 @@ class ProfileEdit extends Component {
 
   render() {
     // Initialize variables
-    let fnameInvalid;
-    let lnameInvalid;
-    let preferredInvalid;
-    let customInvalid;
-    let disableSubmit;
+    const fnameInvalid = (!RegExp(validators.user.firstName).test(this.state.fname));
+    const lnameInvalid = (!RegExp(validators.user.lastName).test(this.state.lname));
+    const preferredInvalid = (!RegExp(validators.user.firstName).test(this.state.preferredname));
+    let emailInvalid = false;
+    let customInvalid = false;
     let titleClass = 'workspace-title workspace-title-padding';
     let localUser = false;
     let adminUser = false;
+
+    // Ensure the characters have been entered first
+    if (this.state.email.length !== 0) {
+      emailInvalid = (!RegExp(validators.user.email).test(this.state.email));
+    }
+
     // Check admin/write permissions
     if (this.props.user.provider === 'local') {
       localUser = true;
@@ -147,28 +153,7 @@ class ProfileEdit extends Component {
     }
 
     if (this.props.viewingUser) {
-      localUser = false;
       adminUser = this.props.viewingUser.admin;
-    }
-
-    // Verify if user's first name is valid
-    if (!RegExp(validators.user.fname).test(this.state.fname)) {
-      // Set invalid fields
-      fnameInvalid = true;
-      disableSubmit = true;
-    }
-
-    if (!RegExp(validators.user.fname).test(this.state.preferredname)) {
-      // Set invalid fields
-      preferredInvalid = true;
-      disableSubmit = true;
-    }
-
-    // Verify if user's last name is valid
-    if (!RegExp(validators.user.lname).test(this.state.lname)) {
-      // Set invalid fields
-      lnameInvalid = true;
-      disableSubmit = true;
     }
 
     // Verify if custom data is correct JSON format
@@ -178,33 +163,39 @@ class ProfileEdit extends Component {
     catch (err) {
       // Set invalid fields
       customInvalid = true;
-      disableSubmit = true;
     }
+
+    // eslint-disable-next-line max-len
+    const disableSubmit = (fnameInvalid
+      || lnameInvalid
+      || preferredInvalid
+      || emailInvalid
+      || customInvalid);
 
     // Render user edit page
     return (
       <div id='workspace'>
         <div className='workspace-header'>
           <h2 className={titleClass}>User Edit</h2>
-          {(!localUser)
-            ? ''
-            : (<div className='workspace-header-button'>
-                <Button className='bigger-width-btn'
-                        size='sm'
-                        outline color='primary'
-                        onClick={this.props.togglePasswordModal}>
-                  Edit Password
-                </Button>
-               </div>)
+          {(localUser)
+            ? (<div className='workspace-header-button'>
+              <Button className='bigger-width-btn'
+                      size='sm'
+                      outline color='primary'
+                      onClick={this.props.togglePasswordModal}>
+                Edit Password
+              </Button>
+            </div>)
+            : ''
           }
         </div>
         <div id='workspace-body' className='extra-padding'>
           <div className='main-workspace'>
-            {(!this.state.error)
-              ? ''
-              : (<UncontrolledAlert color="danger">
-                  {this.state.error}
-                </UncontrolledAlert>)
+            {(this.state.error)
+              ? (<UncontrolledAlert color="danger">
+                {this.state.error}
+              </UncontrolledAlert>)
+              : ''
             }
             {/* Create form to update user data */}
             <Form>
@@ -261,6 +252,7 @@ class ProfileEdit extends Component {
                        id="email"
                        placeholder="email@example.com"
                        value={this.state.email || ''}
+                       invalid={emailInvalid}
                        onChange={this.handleChange}/>
               </FormGroup>
               {/* Form section for custom data */}

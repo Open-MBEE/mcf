@@ -1251,13 +1251,12 @@ async function remove(requestingUser, organizationID, projects, options) {
     // Delete any artifacts in the projects
     await Artifact.deleteMany(ownedQuery);
 
+    const promises = [];
     // Remove all blobs under the projects
     foundProjectIDs.forEach((p) => {
-      ArtifactStrategy.clear({
-        orgID: orgID,
-        projectID: utils.parseID(p).pop()
-      });
+      promises.push(ArtifactStrategy.clear(path.join(orgID, utils.parseID(p).pop())));
     });
+    await Promise.all(promises);
 
     // Delete any branches in the projects
     await Branch.deleteMany(ownedQuery);

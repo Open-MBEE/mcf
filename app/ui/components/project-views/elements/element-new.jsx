@@ -194,8 +194,10 @@ class ElementNew extends Component {
     let idInvalid;
     let disableSubmit;
 
-    // Verify if user's first name is valid
-    if (!RegExp(validators.id).test(this.state.id)) {
+    // Verify element id is valid
+    const validatorsElementId = validators.element.id.split(validators.ID_DELIMITER).pop();
+    const validLen = validators.element.idLength - validators.branch.idLength - 1;
+    if (!RegExp(validatorsElementId).test(this.state.id) || validLen < this.state.id.length) {
       // Set invalid fields
       idInvalid = true;
       disableSubmit = true;
@@ -236,7 +238,7 @@ class ElementNew extends Component {
                    onChange={this.handleChange}/>
               {/* If invalid id, notify user */}
               <FormFeedback >
-                Invalid: A id may only contain lower case letters, numbers, or dashes.
+                Invalid: An id may only contain letters, numbers, or dashes.
               </FormFeedback>
             </Col>
           </FormGroup>

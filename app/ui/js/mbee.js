@@ -68,7 +68,8 @@ function mbeeWhoAmI(callback) {
         email: _data.email,
         custom: _data.custom,
         admin: _data.admin,
-        provider: _data.provider
+        provider: _data.provider,
+        changePassword: _data.changePassword
       };
       if (data.username) {
         window.sessionStorage.setItem('mbee-user', JSON.stringify(data));

@@ -1,7 +1,7 @@
 /**
  * @classification UNCLASSIFIED
  *
- * @module test.821-artifact-local-strategy
+ * @module test.822-artifact-s3-strategy
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
@@ -11,11 +11,10 @@
  *
  * @author Phillip Lee
  *
- * @description Tests the exported functions and classes from the
- * artifact local-strategy. If this strategy is NOT selected in the running
+ * @description Tests the functionality of the artifact s3-strategy.
+ * If this strategy is NOT selected in the running
  * config, the tests will be skipped.
  */
-
 // Node modules
 const path = require('path');
 const fs = require('fs');
@@ -24,15 +23,15 @@ const fs = require('fs');
 const chai = require('chai');
 
 // MBEE modules
-const testUtils = M.require('lib.test-utils');
-const localStrategy = M.require('artifact.local-strategy');
+const testData = require(path.join(M.root, 'test', 'test_data.json'));
+const s3Strategy = M.require('artifact.s3-strategy');
 
 /* --------------------( Test Data )-------------------- */
-const testData = testUtils.importTestData('test_data.json');
 let artifactBlob0 = null;
 let artifactBlob1 = null;
 let project = null;
 let org = null;
+
 /* --------------------( Main )-------------------- */
 /**
  * The "describe" function is provided by Mocha and provides a way of wrapping
@@ -46,10 +45,10 @@ describe(M.getModuleName(module.filename), () => {
    * for access to 'this' variable.
    */
   before(async function() {
-    // If not using the artifact-local-strategy strategy, skip this test
-    if (M.config.artifact.strategy !== 'local-strategy') {
-      M.log.verbose('Test skipped because the local artifact strategy is not '
-        + 'being used.');
+    // If not using the artifact-s3-strategy strategy, skip this test
+    if (M.config.artifact.strategy !== 's3-strategy') {
+      M.log.verbose('Test skipped because the s3 artifact strategy is not being'
+        + ' used.');
       this.skip();
     }
 
@@ -73,8 +72,8 @@ describe(M.getModuleName(module.filename), () => {
 
   /* Execute the tests */
   it('should post artifact blob.', postBlob);
-  it('should get artifact blob.', getBlob);
-  it('should list artifact blobs.', listBlobs);
+  it('should get an artifact blob.', getBlob);
+  it('should list all artifact blobs.', listBlobs);
   it('should put artifact blob.', putBlob);
   it('should delete an artifact blob.', deleteBlob);
 });
@@ -90,35 +89,9 @@ async function postBlob() {
     project: project.id,
     org: org.id
   };
-
   try {
     // Upload the blob
-    localStrategy.postBlob(artData, artifactBlob0);
-
-    // Ensure location ends with separator if not present
-    if (artData.location[artData.location.length - 1] !== path.sep) {
-      // Add separator for location
-      artData.location += path.sep;
-    }
-
-    // Form the blob name, location concat with filename
-    const concatenName = artData.location.replace(
-      // eslint-disable-next-line security/detect-non-literal-regexp
-      new RegExp(`\\${path.sep}`, 'g'), '.'
-    ) + artData.filename;
-
-    // Create artifact path
-    const filePath = path.join(M.root, '/storage', org.id,
-      project.id, concatenName);
-
-    // Check file was posted
-    const blob = fs.readFileSync(filePath);
-
-    // Check return artifact is of buffer type
-    chai.expect(Buffer.isBuffer(blob)).to.equal(true);
-
-    // Deep compare both binaries
-    chai.expect(blob).to.deep.equal(artifactBlob0);
+    await s3Strategy.postBlob(artData, artifactBlob0);
   }
   catch (error) {
     M.log.error(error);
@@ -128,7 +101,7 @@ async function postBlob() {
 }
 
 /**
- * @description Gets artifact blob.
+ * @description Gets an artifact blob.
  */
 async function getBlob() {
   const artData = {
@@ -139,7 +112,7 @@ async function getBlob() {
   };
   try {
     // Find the artifact previously uploaded.
-    const artifactBlob = localStrategy.getBlob(artData);
+    const artifactBlob = await s3Strategy.getBlob(artData);
 
     // Check return artifact is of buffer type
     chai.expect(Buffer.isBuffer(artifactBlob)).to.equal(true);
@@ -155,7 +128,7 @@ async function getBlob() {
 }
 
 /**
- * @description This function validates a list of all blobs by location and filename.
+ * @description List all blobs.
  */
 async function listBlobs() {
   try {
@@ -164,8 +137,8 @@ async function listBlobs() {
       org: org.id
     };
 
-    // Get a list of blobs
-    const blobList = localStrategy.listBlobs(artData);
+    // Find the artifact previously uploaded.
+    const blobList = await s3Strategy.listBlobs(artData);
 
     // Validate return data
     chai.expect(blobList[0].location).to.equal(testData.artifacts[0].location);
@@ -179,7 +152,7 @@ async function listBlobs() {
 }
 
 /**
- * @description Uploads an artifact blob. Overwrites existing blob.
+ * @description Puts an artifact blob.
  */
 async function putBlob() {
   const artData = {
@@ -190,11 +163,11 @@ async function putBlob() {
   };
   try {
     // Replace the blob previously uploaded.
-    localStrategy.putBlob(artData, artifactBlob1);
+    await s3Strategy.putBlob(artData, artifactBlob1);
 
     // Validate that put worked
     // Find the blob previously uploaded.
-    const artifactBlob = localStrategy.getBlob(artData);
+    const artifactBlob = await s3Strategy.getBlob(artData);
 
     // Check return blob is of buffer type
     chai.expect(Buffer.isBuffer(artifactBlob)).to.equal(true);
@@ -213,16 +186,24 @@ async function putBlob() {
  * @description Deletes an artifact blob.
  */
 async function deleteBlob() {
-  const artData = {
-    location: testData.artifacts[0].location,
-    filename: testData.artifacts[0].filename,
-    project: project.id,
-    org: org.id
-  };
+  try {
+    const artData = {
+      location: testData.artifacts[0].location,
+      filename: testData.artifacts[0].filename,
+      project: project.id,
+      org: org.id
+    };
 
-  // Delete blob
-  localStrategy.deleteBlob(artData);
-  chai.expect(localStrategy.getBlob.bind(
-    localStrategy, artData
-  )).to.throw('Artifact blob not found.');
+    // Delete blob
+    await s3Strategy.deleteBlob(artData);
+
+    // Verify blob not found
+    await s3Strategy.getBlob(artData)
+    .should.eventually.be.rejectedWith('Artifact blob not found.');
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }

@@ -16,6 +16,7 @@
 
 // Node modules
 const fs = require('fs');
+const fsExtra = require('fs-extra');
 const path = require('path');
 const { execSync } = require('child_process');
 
@@ -238,17 +239,17 @@ function clonePluginFromGitRepo(data) {
  */
 function copyPluginFromLocalDir(data) {
   // Remove plugin if it already exists in plugins directory
-  const stdoutRmCmd = execSync(`${rmd} ${path.join(M.root, 'plugins', data.name)}`);
-  M.log.verbose(stdoutRmCmd.toString());
+  if (fs.existsSync(path.join(M.root, 'plugins', data.name))) {
+    const stdoutRmCmd = execSync(`${rmd} ${path.join(M.root, 'plugins', data.name)}`);
+    M.log.verbose(stdoutRmCmd.toString());
+  }
 
-  // Generate the copy command
-  let cmd = (process.platform === 'win32') ? 'xcopy /E' : 'cp -r ';
-  cmd = `${cmd} ${data.source} ${path.join(M.root, 'plugins', data.name)}`;
+  // Making the directory for the plugin
+  fs.mkdirSync(path.join(M.root, 'plugins', data.name));
 
   // Execute the copy command
-  M.log.info(`Copying plugin ${data.name} from ${data.source} ...`);
-  const stdout = execSync(cmd);
-  M.log.verbose(stdout.toString());
+  M.log.info(`Copying plugin files to ${data.name} from ${data.source} ...`);
+  fsExtra.copySync(data.source, path.join(M.root, 'plugins', data.name));
   M.log.info('Copy complete');
 }
 
@@ -269,7 +270,7 @@ function downloadPluginFromWebsite(data) {
 
   // Create directory for plugin
   const dirName = path.join(M.root, 'plugins', data.name);
-  const stdoutMkdirCmd = execSync(`mkdir -p ${dirName}`);
+  const stdoutMkdirCmd = fsExtra.mkdirpSync(dirName);
   M.log.verbose(stdoutMkdirCmd.toString());
 
   // Setting parameters

@@ -178,7 +178,6 @@ function test(_args) {
   });
 }
 
-
 /**
  * @description Prints the MBEE test framework header.
  */

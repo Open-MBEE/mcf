@@ -113,8 +113,7 @@ server configuration, training and even physical access to machines.
 
 
 ### Contributors
-Thanks to all of the following people below who have directly contributed code
-to MBEE
+Thanks to all of the following people who have directly contributed code to MBEE
 
 - Austin Bieber
 - Danny Chiu
@@ -123,4 +122,5 @@ to MBEE
 - Jimmy Eckstein
 - Josh Kaplan
 - Phillip Lee
+- Donte McDaniel
 - Jake Ursetta

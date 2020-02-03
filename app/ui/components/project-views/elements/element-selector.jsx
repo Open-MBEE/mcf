@@ -94,7 +94,7 @@ class ElementSelector extends React.Component {
    */
   selectElementHandler(id) {
     // Verify id is not self
-    if (id === this.props.self) {
+    if (id === this.props.self && this.state.project === this.props.project.id) {
       // Display error
       this.setState({
         selectedElementPreview: null,

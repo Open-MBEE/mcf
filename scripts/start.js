@@ -30,10 +30,10 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
-const https = require('https');
 
 // NPM Modules
 const express = require('express');
+const spdy = require('spdy');
 
 // MBEE modules
 const app = M.require('app');
@@ -69,12 +69,12 @@ function start(args) {
   }
 
 
-  // Initialize httpServer and httpsServer objects
+  // Initialize httpServer and http2Server objects
   let httpServer = null;
-  let httpsServer = null;
+  let http2Server = null;
 
   // Create HTTP Server
-  // Note: The server is not being run until both the http and https objects
+  // Note: The server is not being run until both the http and http/2 objects
   // have been successfully created
   if (M.config.server.http.enabled) {
     // If set to redirect to HTTPS
@@ -108,22 +108,23 @@ function start(args) {
     }
   }
 
-  // Create HTTPS Server
-  // Note: The server is not being run until both the http and https objects
+  // Create HTTP/2 Server
+  // Note: The server is not being run until both the http and http/2 objects
   // have been successfully created
   if (M.config.server.https.enabled) {
-    // Set https credentials
+    // Set http/2 options
     const privateKey = fs.readFileSync(path.join(M.root, M.config.server.https.sslKey), 'utf8');
     const certificate = fs.readFileSync(path.join(M.root, M.config.server.https.sslCert), 'utf8');
-    const credentials = {
+    const options = {
       key: privateKey,
-      cert: certificate
+      cert: certificate,
+      protocol: ['h2']
     };
-    httpsServer = https.createServer(credentials, app);
+    http2Server = spdy.createServer(options, app);
 
     // If a timeout is defined in the config, set it
     if (M.config.server.requestTimeout) {
-      httpsServer.setTimeout(M.config.server.requestTimeout);
+      http2Server.setTimeout(M.config.server.requestTimeout);
     }
   }
 
@@ -135,9 +136,9 @@ function start(args) {
     });
   }
 
-  // Run HTTPS Server
+  // Run HTTP/2 Server
   if (M.config.server.https.enabled) {
-    httpsServer.listen(M.config.server.https.port, () => {
+    http2Server.listen(M.config.server.https.port, () => {
       const port = M.config.server.https.port;
       M.log.info(`MBEE server listening on port ${port}!`);
     });

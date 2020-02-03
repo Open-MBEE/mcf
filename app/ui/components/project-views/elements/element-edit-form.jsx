@@ -59,7 +59,8 @@ class ElementEditForm extends Component {
       custom: {},
       org: null,
       project: null,
-      error: null
+      error: null,
+      customInvalid: ''
     };
 
     this.textboxProps = [
@@ -80,7 +81,6 @@ class ElementEditForm extends Component {
       { label: 'Custom Data' }
     ];
 
-    this.handleSubmit = this.handleSubmit.bind(this);
     this.handleChange = this.handleChange.bind(this);
     this.getElement = this.getElement.bind(this);
     this.onSubmit = this.onSubmit.bind(this);
@@ -91,16 +91,26 @@ class ElementEditForm extends Component {
 
   handleChange(event) {
     const { name, value } = event.target;
-    const state = (name === 'archived') ? { [name]: !this.state.archived } : { [name]: value };
-    this.setState(state);
-    if (name === 'custom') {
+    if (name === 'archived') {
+      // Change the archived state to opposite value
+      this.setState(prevState => ({ archived: !prevState.archived }));
+    }
+    else if (name === 'customData') {
+      this.setState({ custom: value });
       // Verify if custom data is correct JSON format
       try {
-        JSON.parse(this.state.custom);
+        if (value.length > 0) {
+          JSON.parse(value);
+        }
+        this.setState({ customInvalid: '' });
       }
       catch (err) {
-        this.setState({ error: 'Custom data must be valid JSON.' });
+        this.setState({ customInvalid: 'Custom data must be valid JSON.' });
       }
+    }
+    else {
+      // Change the state with new value
+      this.setState({ [name]: value });
     }
   }
 
@@ -165,11 +175,6 @@ class ElementEditForm extends Component {
     }
 
     this.setState({ target: _id });
-  }
-
-  // eslint-disable-next-line class-methods-use-this
-  handleSubmit(event) {
-    event.preventDefault();
   }
 
   // eslint-disable-next-line class-methods-use-this
@@ -238,15 +243,21 @@ class ElementEditForm extends Component {
   renderTextareas(numColumn) {
     // eslint-disable-next-line no-undef
     const stateNames = this.textareaProps.map(propObj => toCamel(propObj.label));
-    const textareas = this.textareaProps.map(
-      (propObj, index) => (<ElementTextarea key={`el-textarea-${index}`}
-                                            name={stateNames[index]}
-                                            value={this.state[stateNames[index]]}
-                                            id={`${stateNames[index]}_Id`}
-                                            label={propObj.label}
-                                            placeholder={this.state[stateNames[index]]}
-                                            onChange={this.handleChange}/>)
-    );
+    const textareas = [];
+    this.textareaProps.forEach((propObj, index) => {
+      const value = (stateNames[index] === 'customData') ? 'custom' : 'documentation';
+      textareas.push(
+        <ElementTextarea key={`el-textarea-${index}`}
+                         name={stateNames[index]}
+                         value={this.state[value]}
+                         id={`${stateNames[index]}_Id`}
+                         label={propObj.label}
+                         placeholder={this.state[stateNames[index]]}
+                         invalid={this.state.customInvalid}
+                         onChange={this.handleChange}/>
+      );
+    });
+
     return this.renderColumnComponents(textareas, numColumn);
   }
 
@@ -326,6 +337,7 @@ class ElementEditForm extends Component {
       documentation: documentation,
       custom: JSON.parse(custom)
     };
+
     // Verify that there is a source and target
     if (source !== null && target !== null) {
       data.source = source;
@@ -381,7 +393,7 @@ class ElementEditForm extends Component {
 
     return (
       <Modal isOpen={modal} toggle={toggle} size={'lg'}>
-        <form onSubmit={this.handleSubmit}>
+        <form>
           <ModalHeader>Element: {id}</ModalHeader>
           <ModalBody style={{ maxHeight: 'calc(100vh - 210px)', overflowY: 'auto' }}>
             {(error) ? <UncontrolledAlert color='danger'>{error}</UncontrolledAlert> : ''}
@@ -404,8 +416,12 @@ class ElementEditForm extends Component {
             </FormGroup>
           </ModalBody>
           <ModalFooter>
-             <Button color="primary" onClick={this.onSubmit}>Update</Button>{' '}
-             <Button color="secondary" onClick={toggle}>Cancel</Button>
+            <Button color="primary"
+                    onClick={this.onSubmit}
+                    disabled={this.state.customInvalid.length > 0}>
+              Update
+            </Button>{' '}
+            <Button color="secondary" onClick={toggle}>Cancel</Button>
           </ModalFooter>
         </form>
       </Modal>
