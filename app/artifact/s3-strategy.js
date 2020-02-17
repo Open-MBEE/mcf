@@ -222,7 +222,7 @@ async function doesObjectExist(bucket, key) {
     return true;
   }
   catch (err) {
-    // Error occured, check if object not found
+    // Error occurred, check if object not found
     if (err.code !== 'NotFound') {
       throw errors.captureError(err);
     }

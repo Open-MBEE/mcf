@@ -1,6 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [1.0.2] - 2020-02-14
+### Bug Fixes and Other Changes
+* Implemented the `fs-extra` library to increase windows compatibility by
+  reducing the number of bash commands used
+
 ## [1.0.1] - 2020-01-31
 ### Major Features and Improvements
 * Implemented HTTP/2 in place of HTTPS/1.1. This requires no change for the

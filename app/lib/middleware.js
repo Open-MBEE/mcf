@@ -17,6 +17,8 @@
  * express to perform actions during requests.
  */
 
+/* eslint-disable jsdoc/require-returns */
+
 // Node modules
 const path = require('path');
 const fs = require('fs');
@@ -33,14 +35,14 @@ const logger = M.require('lib.logger');
  * @param {object} res - Response object from express.
  * @param {Function} next - Callback to express authentication flow.
  */
-module.exports.logRoute = function logRoute(req, res, next) {
+function logRoute(req, res, next) {
   // Set username to anonymous if req.user is not defined
   const username = (req.user) ? (req.user._id || req.user.username) : 'anonymous';
   // Log the method, url, and username for the request
   const message = `${req.method} "${req.originalUrl}" requested by ${username}`;
   M.log.info(message);
   next();
-};
+}
 
 /**
  * @description Log the route and method requested by a user to a separate security log
@@ -50,7 +52,7 @@ module.exports.logRoute = function logRoute(req, res, next) {
  * @param {object} res - Response object from express.
  * @param {Function} next - Callback to to trigger the next middleware.
  */
-module.exports.logSecurityRoute = function logRoute(req, res, next) {
+function logSecurityRoute(req, res, next) {
   // Set username to anonymous if req.user is not defined
   const username = (req.user) ? (req.user._id || req.user.username) : 'anonymous';
   // Log the method, url, and username for the request
@@ -58,7 +60,7 @@ module.exports.logSecurityRoute = function logRoute(req, res, next) {
   // Add it to the security log
   fs.appendFileSync(path.join('logs', M.config.log.security_file), `${message}\n`);
   next();
-};
+}
 
 /**
  * @description Logs the response to an HTTP request and calls the next middleware in the line.
@@ -67,10 +69,10 @@ module.exports.logSecurityRoute = function logRoute(req, res, next) {
  * @param {object} res - Response object from express.
  * @param {Function} next - Callback to to trigger the next middleware.
  */
-module.exports.logResponse = function logResponse(req, res, next) {
+function logResponse(req, res, next) {
   logger.logResponse(req, res);
   next();
-};
+}
 
 /**
  * @description Logs the response to an HTTP request to a separate security log file for
@@ -80,10 +82,10 @@ module.exports.logResponse = function logResponse(req, res, next) {
  * @param {object} res - Response object from express.
  * @param {Function} next - Callback to to trigger the next middleware.
  */
-module.exports.logSecurityResponse = function logSecurityResponse(req, res, next) {
+function logSecurityResponse(req, res, next) {
   logger.logSecurityResponse(req, res);
   next();
-};
+}
 
 /**
  * @description Log the IP address where the request originated from.
@@ -92,7 +94,7 @@ module.exports.logSecurityResponse = function logSecurityResponse(req, res, next
  * @param {object} res - Response object from express.
  * @param {Function} next - Callback to express authentication flow.
  */
-module.exports.logIP = function logIP(req, res, next) {
+function logIP(req, res, next) {
   let ip = req.ip;
   // If IP is ::1, set it equal to 127.0.0.1
   if (req.ip === '::1') {
@@ -105,7 +107,7 @@ module.exports.logIP = function logIP(req, res, next) {
   // Log the method, url, and ip address for the request
   M.log.verbose(`${req.method} "${req.originalUrl}" requested from ${ip}`);
   next();
-};
+}
 
 /**
  * @description Disables specific user api methods using the configuration
@@ -115,8 +117,7 @@ module.exports.logIP = function logIP(req, res, next) {
  * @param {object} res - Response object from express.
  * @param {Function} next - Callback to express authentication flow.
  */
-// eslint-disable-next-line consistent-return
-module.exports.disableUserAPI = function disableUserAPI(req, res, next) {
+function disableUserAPI(req, res, next) { // eslint-disable-line consistent-return
   // Check if the request method is disabled
   if (M.config.server.api.userAPI[req.method.toLowerCase()] === false) {
     // Create error message '<method> <url> is disabled'
@@ -127,7 +128,7 @@ module.exports.disableUserAPI = function disableUserAPI(req, res, next) {
     return res.status(403).send(error.message);
   }
   next();
-};
+}
 
 /**
  * @description Disables the user patchPassword API endpoint.
@@ -136,8 +137,7 @@ module.exports.disableUserAPI = function disableUserAPI(req, res, next) {
  * @param {object} res - Response object from express.
  * @param {Function} next - Callback to express authentication flow.
  */
-// eslint-disable-next-line consistent-return
-module.exports.disableUserPatchPassword = function disableUserPatchPassword(req, res, next) {
+function disableUserPatchPassword(req, res, next) { // eslint-disable-line consistent-return
   // Check if the value in the config is explicitly set to false
   if (M.config.server.api.userAPI.patchPassword === false) {
     // Create error message 'PATCH <url> is disabled'
@@ -148,7 +148,7 @@ module.exports.disableUserPatchPassword = function disableUserPatchPassword(req,
     return res.status(403).send(error.message);
   }
   next();
-};
+}
 
 /**
  * @description Defines the plugin middleware function to be used before API controller
@@ -159,17 +159,24 @@ module.exports.disableUserPatchPassword = function disableUserPatchPassword(req,
  * @returns {Function} The function used in API routing that runs every plugin function
  * registered to the endpoint of interest.
  */
-module.exports.pluginPre = function pluginPre(endpoint) {
+function pluginPre(endpoint) {
   if (M.config.server.plugins.enabled) {
     // eslint-disable-next-line global-require
     const { pluginFunctions } = require(path.join(M.root, 'plugins', 'routes.js'));
 
     return async function(req, res, next) {
-      for (let i = 0; i < pluginFunctions[endpoint].pre.length; i++) {
-        // eslint-disable-next-line no-await-in-loop
-        await pluginFunctions[endpoint].pre[i](req, res);
+      try {
+        for (let i = 0; i < pluginFunctions[endpoint].pre.length; i++) {
+          // eslint-disable-next-line no-await-in-loop
+          await pluginFunctions[endpoint].pre[i](req, res);
+        }
+        next();
       }
-      next();
+      catch (error) {
+        M.log.warn(error);
+        const statusCode = errors.getStatusCode(error);
+        utils.formatResponse(req, res, error.message, statusCode, next);
+      }
     };
   }
   else {
@@ -177,7 +184,7 @@ module.exports.pluginPre = function pluginPre(endpoint) {
       next();
     };
   }
-};
+}
 
 /**
  * @description Defines the plugin middleware function to be used after API controller
@@ -188,7 +195,7 @@ module.exports.pluginPre = function pluginPre(endpoint) {
  * @returns {Function} The function used in API routing that runs every plugin function
  * registered to the endpoint of interest.
  */
-module.exports.pluginPost = function pluginPost(endpoint) {
+function pluginPost(endpoint) {
   if (M.config.server.plugins.enabled) {
     // eslint-disable-next-line global-require
     const { pluginFunctions } = require(path.join(M.root, 'plugins', 'routes.js'));
@@ -212,7 +219,7 @@ module.exports.pluginPost = function pluginPost(endpoint) {
       next();
     };
   }
-};
+}
 
 /**
  * @description Parses information from the locals field of the response object and then
@@ -224,7 +231,7 @@ module.exports.pluginPost = function pluginPost(endpoint) {
  *
  * @returns {object} Returns the response.
  */
-module.exports.respond = function respond(req, res) {
+function respond(req, res) {
   const message = res.locals.message;
 
   // If the response hasn't been formatted already, format it
@@ -239,7 +246,7 @@ module.exports.respond = function respond(req, res) {
   res.send(message);
 
   return res;
-};
+}
 
 /**
  * @description Checks a requesting user to see if their password has expired.
@@ -248,8 +255,7 @@ module.exports.respond = function respond(req, res) {
  * @param {object} res - Response express object.
  * @param {Function} next - Callback to express authentication flow.
  */
-// eslint-disable-next-line consistent-return
-module.exports.expiredPassword = function(req, res, next) {
+function expiredPassword(req, res, next) { // eslint-disable-line consistent-return
   // If the user needs to change their password
   if (req.user.changePassword) {
     // If it is NOT an API request
@@ -267,4 +273,18 @@ module.exports.expiredPassword = function(req, res, next) {
   else {
     next();
   }
+}
+
+module.exports = {
+  logRoute,
+  logSecurityRoute,
+  logResponse,
+  logSecurityResponse,
+  logIP,
+  disableUserAPI,
+  disableUserPatchPassword,
+  pluginPre,
+  pluginPost,
+  respond,
+  expiredPassword
 };
