@@ -388,6 +388,28 @@ module.exports.validate = function(config) {
       `Configuration file: Artifact strategy file ${config.artifact.strategy} not found in app/artifact directory.`
     );
   }
+
+  // Test s3 artifact
+  if (config.artifact.strategy === 's3-strategy') {
+    test(config, 'artifact.s3.Bucket', 'string');
+    test(config, 'artifact.s3.accessKeyId', 'string');
+    test(config, 'artifact.s3.secretAccessKey', 'string');
+    test(config, 'artifact.s3.region', 'string');
+    // If CA is defined
+    if (config.artifact.s3.ca) {
+      // Validate the ca file
+      test(config, 'artifact.s3.ca', 'string');
+      const caFile = fs.readdirSync(path.join(M.root, 'certs'))
+      .filter((file) => config.artifact.s3.ca.includes(file));
+      if (caFile.length === 0) {
+        throw new Error(`Configuration file: CA file ${config.artifact.s3.ca} not found in certs directory.`);
+      }
+    }
+    // Test the optional proxy field
+    if (config.artifact.s3.proxy) {
+      test(config, 'artifact.s3.proxy', 'string');
+    }
+  }
 };
 
 /**
@@ -413,4 +435,29 @@ module.exports.removeComments = function(inputString) {
   // Join the array into a single string separated by new line characters
   // Return the now-valid JSON
   return arrCommRem.join('\n');
+};
+
+/**
+ * @description Removes '^' and '$' from the RegEx of custom validators because those characters
+ * are factored in in the validators.js file.
+ *
+ * @param {object} configObj - The config object, before it gets frozen on the M object.
+ */
+module.exports.parseRegEx = function(configObj) {
+  if (configObj.hasOwnProperty('validators')) {
+    Object.keys(configObj.validators).forEach((key) => {
+      // Only search custom id validators, not id length validators
+      if (typeof configObj.validators[key] === 'string' && !key.includes('length')) {
+        // Remove ^ and $ from custom validator regex strings
+        configObj.validators[key] = configObj.validators[key].replace(/\^|\$/g, (match, offset, string) => {
+          if (offset !== 0 && string[offset - 1] === '\\') {
+            return match;
+          }
+          else {
+            return '';
+          }
+        });
+      }
+    });
+  }
 };

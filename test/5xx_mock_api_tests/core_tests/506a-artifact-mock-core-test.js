@@ -803,7 +803,7 @@ function deleteArtifact(done) {
   const artData = testData.artifacts[0];
 
   // Create request body
-  const body = artData.id;
+  const body = [artData.id];
 
   // Create request params
   const params = {

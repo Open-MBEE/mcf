@@ -190,11 +190,15 @@ function swaggerSpec() {
  * @returns {object} Response object with swagger JSON
  */
 function swaggerJSON(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Return swagger specification
   const json = formatJSON(swaggerSpec());
   return utils.formatResponse(req, res, json, 200, next);
 }
 
+// eslint-disable-next-line jsdoc/require-returns
 /**
  * POST /api/login
  *
@@ -205,6 +209,9 @@ function swaggerJSON(req, res, next) {
  * @param {Function} next - Middleware callback to trigger the next function.
  */
 function login(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   const json = formatJSON({ token: req.session.token });
   res.locals = {
     message: json,
@@ -238,6 +245,9 @@ function test(req, res) {
  * @returns {object} Response object with version
  */
 function version(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Create version object
   const json = formatJSON({
     version: M.version,
@@ -261,6 +271,9 @@ function version(req, res, next) {
  * @returns {object} Response object with log info.
  */
 function getLogs(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   let options;
   let logContent;
   let returnedLines;
@@ -376,6 +389,9 @@ function getLogs(req, res, next) {
  * access to at least this organization.
  */
 async function getOrgs(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options and ids
   // Note: Undefined if not set
   let ids;
@@ -484,6 +500,9 @@ async function getOrgs(req, res, next) {
  * @returns {object} Response object with orgs' public data
  */
 async function postOrgs(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -569,6 +588,9 @@ async function postOrgs(req, res, next) {
  * @returns {object} Response object with orgs' public data
  */
 async function putOrgs(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -653,6 +675,9 @@ async function putOrgs(req, res, next) {
  * @returns {object} Response object with orgs' public data
  */
 async function patchOrgs(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -739,6 +764,9 @@ async function patchOrgs(req, res, next) {
  * @returns {object} Response object with array of deleted org IDs.
  */
 async function deleteOrgs(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -804,6 +832,9 @@ async function deleteOrgs(req, res, next) {
  * @returns {object} Response object with org's public data
  */
 async function getOrg(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -881,6 +912,9 @@ async function getOrg(req, res, next) {
  * @returns {object} Response object with org's public data
  */
 async function postOrg(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -967,6 +1001,9 @@ async function postOrg(req, res, next) {
  * @returns {object} Response object with org's public data
  */
 async function putOrg(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1052,6 +1089,9 @@ async function putOrg(req, res, next) {
  * @returns {object} Response object with updated org
  */
 async function patchOrg(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1138,6 +1178,9 @@ async function patchOrg(req, res, next) {
  * @returns {object} Response object with deleted org ID.
  */
 async function deleteOrg(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1202,6 +1245,9 @@ async function deleteOrg(req, res, next) {
  * @returns {object} Response object with projects' public data
  */
 async function getAllProjects(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1294,6 +1340,9 @@ async function getAllProjects(req, res, next) {
  * @returns {object} Response object with projects' public data
  */
 async function getProjects(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options and ids
   // Note: Undefined if not set
   let ids;
@@ -1404,6 +1453,9 @@ async function getProjects(req, res, next) {
  * @returns {object} Response object with created projects.
  */
 async function postProjects(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1489,6 +1541,9 @@ async function postProjects(req, res, next) {
  * @returns {object} Response object with created/replaced projects.
  */
 async function putProjects(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1573,6 +1628,9 @@ async function putProjects(req, res, next) {
  * @returns {object} Response object with updated projects.
  */
 async function patchProjects(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1659,6 +1717,9 @@ async function patchProjects(req, res, next) {
  * @returns {object} Response object with deleted project IDs.
  */
 async function deleteProjects(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1727,6 +1788,9 @@ async function deleteProjects(req, res, next) {
  * @returns {object} Response object with project's public data
  */
 async function getProject(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1804,6 +1868,9 @@ async function getProject(req, res, next) {
  * @returns {object} Response object with created project.
  */
 async function postProject(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1889,6 +1956,9 @@ async function postProject(req, res, next) {
  * @returns {object} Response object with created project.
  */
 async function putProject(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1974,6 +2044,9 @@ async function putProject(req, res, next) {
  * @returns {object} Response object with updated project.
  */
 async function patchProject(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2060,6 +2133,9 @@ async function patchProject(req, res, next) {
  * @returns {object} Response object with deleted project ID.
  */
 async function deleteProject(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2125,6 +2201,9 @@ async function deleteProject(req, res, next) {
  * @returns {object} Response object with users' public data
  */
 async function getUsers(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2230,6 +2309,9 @@ async function getUsers(req, res, next) {
  * @returns {object} Response object with users' public data
  */
 async function postUsers(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2314,6 +2396,9 @@ async function postUsers(req, res, next) {
  * @returns {object} Response object with users' public data
  */
 async function putUsers(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2398,6 +2483,9 @@ async function putUsers(req, res, next) {
  * @returns {object} Response object with users' public data
  */
 async function patchUsers(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2483,6 +2571,9 @@ async function patchUsers(req, res, next) {
  * @returns {object} Response object with usernames
  */
 async function deleteUsers(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2544,6 +2635,9 @@ async function deleteUsers(req, res, next) {
  * @returns {object} Response object with user's public data
  */
 async function getUser(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2620,6 +2714,9 @@ async function getUser(req, res, next) {
  * @returns {object} Response object with created user
  */
 async function postUser(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2705,6 +2802,9 @@ async function postUser(req, res, next) {
  * @returns {object} Response object with created user
  */
 async function putUser(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2790,6 +2890,9 @@ async function putUser(req, res, next) {
  * @returns {object} Response object with updated user
  */
 async function patchUser(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2875,6 +2978,9 @@ async function patchUser(req, res, next) {
  * @returns {object} Response object with deleted username
  */
 async function deleteUser(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2944,6 +3050,9 @@ async function deleteUser(req, res, next) {
  * @returns {object} Response object with user's public data
  */
 async function whoami(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -3000,6 +3109,9 @@ async function whoami(req, res, next) {
  * @returns {object} Response object with found users
  */
 async function searchUsers(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options and query
   // Note: Undefined if not set
   let options;
@@ -3084,6 +3196,9 @@ async function searchUsers(req, res, next) {
  * @returns {object} Response object with updated user public data.
  */
 async function patchPassword(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -3173,6 +3288,9 @@ async function patchPassword(req, res, next) {
  * @returns {object} Response object with elements' public data
  */
 async function getElements(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options and ids
   // Note: Undefined if not set
   let elemIDs;
@@ -3336,6 +3454,9 @@ async function getElements(req, res, next) {
  * @returns {object} Response object with created elements
  */
 async function postElements(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -3422,6 +3543,9 @@ async function postElements(req, res, next) {
  * @returns {object} Response object with created/replaced elements
  */
 async function putElements(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -3506,6 +3630,9 @@ async function putElements(req, res, next) {
  * @returns {object} Response object with updated elements
  */
 async function patchElements(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -3591,6 +3718,9 @@ async function patchElements(req, res, next) {
  * @returns {object} Response object with element ids.
  */
 async function deleteElements(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -3655,6 +3785,9 @@ async function deleteElements(req, res, next) {
  * @returns {object} Response object with elements
  */
 async function searchElements(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options and query
   // Note: Undefined if not set
   let options;
@@ -3765,6 +3898,9 @@ async function searchElements(req, res, next) {
  * @returns {object} Response object with element's public data
  */
 async function getElement(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -3848,6 +3984,9 @@ async function getElement(req, res, next) {
  * @returns {object} Response object with created element
  */
 async function postElement(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -3934,6 +4073,9 @@ async function postElement(req, res, next) {
  * @returns {object} Response object with created/replaced element
  */
 async function putElement(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -4019,6 +4161,9 @@ async function putElement(req, res, next) {
  * @returns {object} Response object with updated element
  */
 async function patchElement(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -4104,6 +4249,9 @@ async function patchElement(req, res, next) {
  * @returns {object} Response object with deleted element id.
  */
 async function deleteElement(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -4169,6 +4317,9 @@ async function deleteElement(req, res, next) {
  * @returns {object} Response object with branches' public data
  */
 async function getBranches(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options and ids
   // Note: Undefined if not set
   let branchIDs;
@@ -4279,6 +4430,9 @@ async function getBranches(req, res, next) {
  * @returns {object} Response object with created branches.
  */
 async function postBranches(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -4363,6 +4517,9 @@ async function postBranches(req, res, next) {
  * @returns {object} Response object with updated branches
  */
 async function patchBranches(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -4448,6 +4605,9 @@ async function patchBranches(req, res, next) {
  * @returns {object} Response object with deleted branch IDs.
  */
 async function deleteBranches(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -4516,6 +4676,9 @@ async function deleteBranches(req, res, next) {
  * @returns {object} Response object with branch's public data
  */
 async function getBranch(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -4592,6 +4755,9 @@ async function getBranch(req, res, next) {
  * @returns {object} Response object with created branch
  */
 async function postBranch(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -4677,6 +4843,9 @@ async function postBranch(req, res, next) {
  * @returns {object} Response object with updated branch
  */
 async function patchBranch(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -4763,6 +4932,9 @@ async function patchBranch(req, res, next) {
  * @returns {object} Response object with deleted branch ID.
  */
 async function deleteBranch(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -4828,6 +5000,9 @@ async function deleteBranch(req, res, next) {
  * @returns {object} Response object with public data of found artifacts
  */
 async function getArtifacts(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let artIDs;
@@ -4972,6 +5147,9 @@ async function getArtifacts(req, res, next) {
  * @returns {object} Response object with created artifacts
  */
 async function postArtifacts(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -5057,6 +5235,9 @@ async function postArtifacts(req, res, next) {
  * @returns {object} Response object with updated artifacts
  */
 async function patchArtifacts(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -5144,6 +5325,9 @@ async function patchArtifacts(req, res, next) {
  * @returns {object} Response object with artifact ids.
  */
 async function deleteArtifacts(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let artIDs;
@@ -5224,6 +5408,9 @@ async function deleteArtifacts(req, res, next) {
  * @returns {object} Response object with found artifact
  */
 async function getArtifact(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -5301,6 +5488,9 @@ async function getArtifact(req, res, next) {
  * @returns {object} Response object with created artifact
  */
 async function postArtifact(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -5385,6 +5575,9 @@ async function postArtifact(req, res, next) {
  * @returns {object} Response object with updated artifact
  */
 async function patchArtifact(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -5474,6 +5667,9 @@ async function patchArtifact(req, res, next) {
  * @returns {object} Response object with artifact id.
  */
 async function deleteArtifact(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -5538,6 +5734,9 @@ async function deleteArtifact(req, res, next) {
  * @returns {object[]} An array of objects that contain artifact location, filename.
  */
 async function listBlobs(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Sanity Check: there should always be a user in the request
   if (!req.user) return noUserError(req, res);
 
@@ -5570,6 +5769,9 @@ async function listBlobs(req, res, next) {
  * @returns {Buffer} Artifact blob.
  */
 async function getBlob(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Sanity Check: there should always be a user in the request
   if (!req.user) return noUserError(req, res, next);
 
@@ -5608,6 +5810,9 @@ async function getBlob(req, res, next) {
  * @returns {object} Posted Artifact object.
  */
 async function postBlob(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   await upload(req, res, async function(err) {
     // Sanity Check: there should always be a user in the request
     if (!req.user) return noUserError(req, res, next);
@@ -5661,6 +5866,9 @@ async function postBlob(req, res, next) {
  * @returns {object} Deleted Artifact object.
  */
 async function deleteBlob(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Sanity Check: there should always be a user in the request
   if (!req.user) return noUserError(req, res, next);
 
@@ -5700,6 +5908,9 @@ async function deleteBlob(req, res, next) {
  * @returns {Buffer} Artifact blob.
  */
 async function getBlobById(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -5772,6 +5983,9 @@ async function getBlobById(req, res, next) {
  * @returns {object} Response object with webhooks' public data.
  */
 async function getWebhooks(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   let webhookIDs;
   let options;
@@ -5889,6 +6103,9 @@ async function getWebhooks(req, res, next) {
  * @returns {object} Response object with the created webhook.
  */
 async function postWebhooks(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   let options;
   let minified = false;
@@ -5960,6 +6177,9 @@ async function postWebhooks(req, res, next) {
  * @returns {object} Response object with the updated webhooks.
  */
 async function patchWebhooks(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   let options;
   let minified = false;
@@ -6031,6 +6251,9 @@ async function patchWebhooks(req, res, next) {
  * @returns {object} Response object with the deleted webhook ids.
  */
 async function deleteWebhooks(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   let options = {};
   let minified = false;
@@ -6095,6 +6318,9 @@ async function deleteWebhooks(req, res, next) {
  * @returns {object} Response object with the webhook's public data.
  */
 async function getWebhook(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   let options;
   let minified = false;
@@ -6175,6 +6401,9 @@ async function getWebhook(req, res, next) {
  * @returns {object} Response object with the updated webhook.
  */
 async function patchWebhook(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   let options;
   let minified = false;
@@ -6263,6 +6492,9 @@ async function patchWebhook(req, res, next) {
  * @returns {object} Response object with the deleted webhook id.
  */
 async function deleteWebhook(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   let options;
   let minified = false;
@@ -6327,6 +6559,9 @@ async function deleteWebhook(req, res, next) {
  * @returns {object} Notification that the trigger succeeded or failed.
  */
 async function triggerWebhook(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Parse the webhook id from the base64 encoded url
   const webhookID = sani.db(Buffer.from(req.params.encodedid, 'base64').toString('ascii'));
 

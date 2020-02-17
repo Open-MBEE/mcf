@@ -29,7 +29,6 @@
 // Node modules
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
 
 // NPM modules
 const winston = require('winston');
@@ -156,8 +155,7 @@ const formatter = printf((msg) => {
 // Check that the logs directory exists
 if (!fs.existsSync(path.join(M.root, 'logs'))) {
   // If logs directory doesn't exist, create it
-  const cmd = 'mkdir logs';
-  execSync(cmd);
+  fs.mkdirSync(path.join(M.root, 'logs'));
 }
 
 /**

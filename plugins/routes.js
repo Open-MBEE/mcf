@@ -25,7 +25,6 @@ const express = require('express');
 const pluginRouter = express.Router();
 
 const protectedFileNames = ['routes.js'];
-const rmd = (process.platform === 'win32') ? 'RMDIR /S /Q' : 'rm -rf';
 
 // Load the plugins
 loadPlugins();
@@ -88,17 +87,13 @@ function loadPlugins() {
     // Removes old plugins
     if (!pluginNames.includes(f)) {
       M.log.info(`Removing plugin '${f}' ...`);
-      const c = `${rmd} ${path.join(__dirname, f)}`;
-      const stdout = execSync(c);
-      M.log.verbose(stdout.toString());
+      fsExtra.removeSync(path.join(__dirname, f));
     }
     // If package.json doesn't exist, it is not a valid plugin. Skip it.
     const pluginPath = path.join(__dirname, f);
     if (!fs.existsSync(path.join(pluginPath, 'package.json'))) {
       M.log.info(`Removing invalid plugin '${f}' ...`);
-      const c = `${rmd} ${path.join(__dirname, f)}`;
-      const stdout = execSync(c);
-      M.log.verbose(stdout.toString());
+      fsExtra.removeSync(path.join(__dirname, f));
       return;
     }
 
@@ -196,8 +191,7 @@ function loadPlugins() {
  */
 function clonePluginFromGitRepo(data) {
   // Remove plugin if it already exists in plugins directory
-  const stdoutRmCmd = execSync(`${rmd} ${path.join(M.root, 'plugins', data.name)}`);
-  M.log.verbose(stdoutRmCmd.toString());
+  fsExtra.removeSync(path.join(M.root, 'plugins', data.name));
 
   try {
     // Set deploy key file permissions
@@ -240,8 +234,7 @@ function clonePluginFromGitRepo(data) {
 function copyPluginFromLocalDir(data) {
   // Remove plugin if it already exists in plugins directory
   if (fs.existsSync(path.join(M.root, 'plugins', data.name))) {
-    const stdoutRmCmd = execSync(`${rmd} ${path.join(M.root, 'plugins', data.name)}`);
-    M.log.verbose(stdoutRmCmd.toString());
+    fsExtra.removeSync(path.join(M.root, 'plugins', data.name));
   }
 
   // Making the directory for the plugin
@@ -262,8 +255,7 @@ function copyPluginFromLocalDir(data) {
  */
 function downloadPluginFromWebsite(data) {
   // Remove plugin if it already exists in plugins directory
-  const stdoutRmCmd = execSync(`${rmd} ${path.join(M.root, 'plugins', data.name)}`);
-  M.log.verbose(stdoutRmCmd.toString());
+  fsExtra.removeSync(path.join(M.root, 'plugins', data.name));
 
   // Proxy information
   const httpProxy = M.config.server.proxy;

@@ -24,6 +24,7 @@ const path = require('path');
 
 const rmd = (process.platform === 'win32') ? 'RMDIR /S /Q' : 'rm -rf';
 const rmf = (process.platform === 'win32') ? 'DEL /S /Q' : 'rm -rf';
+
 // eslint-disable-next-line no-console
 const log = (module.parent == null || typeof M === 'undefined') ? console.log : M.log.info;
 
@@ -92,7 +93,6 @@ function clean(_args) {
 
     // Format the string, concatenating full paths of all plugins
     const deleteString = plugins.map(p => path.join(root, 'plugins', p)).join(' ');
-
     execSync(`${rmd} ${deleteString}`);
   }
 

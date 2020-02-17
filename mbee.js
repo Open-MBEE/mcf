@@ -119,6 +119,8 @@ const configContent = fs.readFileSync(configPath).toString();
 const stripComments = configUtils.removeComments(configContent);
 // Parse configuration string into JSON object
 const config = JSON.parse(stripComments);
+// Parse custom validator regex
+configUtils.parseRegEx(config);
 
 /**
  * Define the MBEE configuration.

@@ -22,7 +22,7 @@ const rootStoragePath = '/storage';
 const path = require('path');    // Find directory paths
 const fs = require('fs');        // Access the filesystem
 const assert = require('assert');
-const { execSync } = require('child_process');
+const fsExtra = require('fs-extra');
 
 // MBEE modules
 const utils = M.require('lib.utils');
@@ -357,14 +357,13 @@ function validateBlobMeta(artMetadata) {
  *
  * @param {string} clearPath - Path to clear.
  */
-async function clear(clearPath) {
+function clear(clearPath) {
   try {
     // Create the root artifact path
     const dirToDelete = path.join(M.root, rootStoragePath, clearPath);
 
     // Remove artifacts
-    const rmd = (process.platform === 'win32') ? 'RMDIR /S /Q' : 'rm -rf';
-    execSync(`${rmd} ${dirToDelete}`);
+    fsExtra.removeSync(`${dirToDelete}`);
   }
   catch (err) {
     throw errors.captureError(err);
