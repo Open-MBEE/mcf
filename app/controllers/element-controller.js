@@ -141,7 +141,7 @@ async function find(requestingUser, organizationID, projectID, branchID, element
 
     // Validate the provided options
     const validatedOptions = utils.validateOptions(options, ['includeArchived',
-      'populate', 'subtree', 'fields', 'limit', 'skip', 'sort', 'rootpath'], Element);
+      'populate', 'subtree', 'fields', 'limit', 'skip', 'sort', 'rootpath', 'depth'], Element);
 
     // Ensure search options are valid
     if (options) {
@@ -211,6 +211,11 @@ async function find(requestingUser, organizationID, projectID, branchID, element
     // If wanting to find subtree, find subtree ids
     if (validatedOptions.subtree) {
       elementsToFind = await findElementTree(orgID, projID, branID, elementsToFind);
+    }
+    // Otherwise if a specific depth of the subtree is specified, find those ids
+    else if (validatedOptions.depth) {
+      elementsToFind = await findElementTree(orgID, projID, branID, elementsToFind,
+        validatedOptions.depth);
     }
 
     if (validatedOptions.rootpath) {
@@ -1533,6 +1538,8 @@ async function remove(requestingUser, organizationID, projectID, branchID, eleme
  * @param {string} projectID - The ID of the owning project.
  * @param {string} branchID - The ID of the branch to find elements from.
  * @param {string[]} elementIDs - The elements whose subtrees are being found.
+ * @param {number|null} targetDepth - The target depth to search through element
+ * subtrees.
  *
  * @returns {Promise<string[]>} Array of found element ids.
  *
@@ -1545,7 +1552,8 @@ async function remove(requestingUser, organizationID, projectID, branchID, eleme
  *   M.log.error(error);
  * });
  */
-function findElementTree(organizationID, projectID, branchID, elementIDs) {
+async function findElementTree(organizationID, projectID, branchID, elementIDs,
+  targetDepth = null) {
   // Ensure elementIDs is an array
   if (!Array.isArray(elementIDs)) {
     throw new M.DataFormatError('ElementIDs array is not an array.', 'warn');
@@ -1565,52 +1573,45 @@ function findElementTree(organizationID, projectID, branchID, elementIDs) {
    * element ids.
    *
    * @param {string[]} ids - A list of element IDs to examine.
+   * @param {number|null} depth - The depth of elements to search through.
    * @returns {Promise<string>} Returns either a recursive call
    * to itself or an empty string once there are no more elements to search.
    */
-  async function findElementTreeHelper(ids) {
-    try {
-      // Find all elements whose parent is in the list of given ids
-      const elements = await Element.find({ parent: { $in: ids } }, '_id');
-      // Get a list of element ids
-      const foundIDs = elements.map(e => e._id);
-      // Add these elements to the global list of found elements
-      foundElements = foundElements.concat(foundIDs);
+  async function findElementTreeHelper(ids, depth) {
+    // Find all elements whose parent is in the list of given ids
+    const elements = await Element.find({ parent: { $in: ids } }, '_id');
+    // Get a list of element ids
+    const foundIDs = elements.map(e => e._id);
+    // Add these elements to the global list of found elements
+    foundElements = foundElements.concat(foundIDs);
 
-      // If no elements were found, exit the recursive function
-      if (foundIDs.length === 0) {
-        return '';
-      }
+    // If no elements were found, exit the recursive function
+    if (foundIDs.length === 0) {
+      return '';
+    }
 
+    // If target depth has not yet been reached, keep going
+    if (targetDepth === null || depth < targetDepth) {
       // Recursively find the sub-children of the found elements in batches of 50000 or less
       for (let i = 0; i < foundIDs.length / 50000; i++) {
         const tmpIDs = foundIDs.slice(i * 50000, i * 50000 + 50000);
-        await findElementTreeHelper(tmpIDs); // eslint-disable-line no-await-in-loop
+        await findElementTreeHelper(tmpIDs, depth + 1); // eslint-disable-line no-await-in-loop
       }
-    }
-    catch (error) {
-      throw error;
     }
   }
 
-  return new Promise(async (resolve, reject) => {
-    const promises = [];
+  const promises = [];
 
-    // If initial batch of ids is greater than 50000, split up in batches
-    for (let i = 0; i < foundElements.length / 50000; i++) {
-      const tmpIDs = foundElements.slice(i * 50000, i * 50000 + 50000);
-      // Find elements subtree
-      promises.push(findElementTreeHelper(tmpIDs));
-    }
+  // If initial batch of ids is greater than 50000, split up in batches
+  for (let i = 0; i < foundElements.length / 50000; i++) {
+    const tmpIDs = foundElements.slice(i * 50000, i * 50000 + 50000);
+    // Find elements subtree
+    promises.push(findElementTreeHelper(tmpIDs, 1));
+  }
 
-    try {
-      await Promise.all(promises);
-    }
-    catch (error) {
-      reject(errors.captureError(error));
-    }
-    resolve(foundElements);
-  });
+  await Promise.all(promises);
+
+  return foundElements;
 }
 
 /**

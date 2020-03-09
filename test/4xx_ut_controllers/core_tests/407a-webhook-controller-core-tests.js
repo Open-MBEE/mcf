@@ -99,8 +99,7 @@ async function createWebhook() {
     chai.expect(createdWebhook.type).to.equal(webhookData.type);
     chai.expect(createdWebhook.description).to.equal(webhookData.description);
     chai.expect(createdWebhook.triggers).to.deep.equal(webhookData.triggers);
-    chai.expect(createdWebhook.response.url).to.equal(webhookData.response.url);
-    chai.expect(createdWebhook.response.method).to.equal(webhookData.response.method || 'POST');
+    chai.expect(createdWebhook.url).to.equal(webhookData.url);
     chai.expect(createdWebhook.custom).to.deep.equal(webhookData.custom || {});
 
     // Verify additional properties
@@ -147,9 +146,8 @@ async function createWebhooks() {
       chai.expect(createdWebhook.type).to.equal(webhookDataObj.type);
       chai.expect(createdWebhook.description).to.equal(webhookDataObj.description);
       chai.expect(createdWebhook.triggers).to.deep.equal(webhookDataObj.triggers);
-      if (createdWebhook.response) {
-        chai.expect(createdWebhook.response.url).to.equal(webhookDataObj.response.url);
-        chai.expect(createdWebhook.response.method).to.equal(webhookDataObj.response.method || 'POST');
+      if (createdWebhook.type === 'Outgoing') {
+        chai.expect(createdWebhook.url).to.equal(webhookDataObj.url);
       }
       else {
         chai.expect(createdWebhook.token).to.equal(token);
@@ -197,8 +195,7 @@ async function findWebhook() {
     chai.expect(foundWebhook.type).to.equal(webhookData.type);
     chai.expect(foundWebhook.description).to.equal(webhookData.description);
     chai.expect(foundWebhook.triggers).to.deep.equal(webhookData.triggers);
-    chai.expect(foundWebhook.response.url).to.equal(webhookData.response.url);
-    chai.expect(foundWebhook.response.method).to.equal(webhookData.response.method || 'POST');
+    chai.expect(foundWebhook.url).to.equal(webhookData.url);
     chai.expect(foundWebhook.reference).to.equal('');
     chai.expect(foundWebhook.custom).to.deep.equal(webhookData.custom || {});
 
@@ -236,6 +233,7 @@ async function findWebhooks() {
 
     webhookData.forEach((webhookDataObj) => {
       const foundWebhook = jmi2[webhookDataObj._id];
+      const token = `${adminUser._id}:${webhookDataObj.token}`;
 
       // Verify webhook
       chai.expect(foundWebhook._id).to.equal(webhookDataObj._id);
@@ -243,6 +241,13 @@ async function findWebhooks() {
       chai.expect(foundWebhook.type).to.equal(webhookDataObj.type);
       chai.expect(foundWebhook.description).to.equal(webhookDataObj.description);
       chai.expect(foundWebhook.triggers).to.deep.equal(webhookDataObj.triggers);
+      if (foundWebhook.type === 'Outgoing') {
+        chai.expect(foundWebhook.url).to.equal(webhookDataObj.url);
+      }
+      else {
+        chai.expect(foundWebhook.token).to.equal(token);
+        chai.expect(foundWebhook.tokenLocation).to.equal(webhookDataObj.tokenLocation);
+      }
       chai.expect(foundWebhook.custom).to.deep.equal(webhookDataObj.custom || {});
 
       // Verify additional properties
@@ -279,6 +284,7 @@ async function findAllWebhooks() {
 
     webhookData.forEach((webhookDataObj) => {
       const foundWebhook = jmi2[webhookDataObj._id];
+      const token = `${adminUser._id}:${webhookDataObj.token}`;
 
       // Verify webhook
       chai.expect(foundWebhook._id).to.equal(webhookDataObj._id);
@@ -286,6 +292,13 @@ async function findAllWebhooks() {
       chai.expect(foundWebhook.type).to.equal(webhookDataObj.type);
       chai.expect(foundWebhook.description).to.equal(webhookDataObj.description);
       chai.expect(foundWebhook.triggers).to.deep.equal(webhookDataObj.triggers);
+      if (foundWebhook.type === 'Outgoing') {
+        chai.expect(foundWebhook.url).to.equal(webhookDataObj.url);
+      }
+      else {
+        chai.expect(foundWebhook.token).to.equal(token);
+        chai.expect(foundWebhook.tokenLocation).to.equal(webhookDataObj.tokenLocation);
+      }
       chai.expect(foundWebhook.custom).to.deep.equal(webhookDataObj.custom || {});
 
       // Verify additional properties
@@ -327,8 +340,7 @@ async function updateWebhook() {
     chai.expect(updatedWebhook.type).to.equal(webhookData.type);
     chai.expect(updatedWebhook.description).to.equal(webhookData.description);
     chai.expect(updatedWebhook.triggers).to.deep.equal(webhookData.triggers);
-    chai.expect(updatedWebhook.response.url).to.equal(webhookData.response.url);
-    chai.expect(updatedWebhook.response.method).to.equal(webhookData.response.method || 'POST');
+    chai.expect(updatedWebhook.url).to.equal(webhookData.url);
     chai.expect(updatedWebhook.custom).to.deep.equal(webhookData.custom || {});
 
     // Verify additional properties
@@ -372,6 +384,7 @@ async function updateWebhooks() {
 
     webhookData.forEach((webhookDataObj) => {
       const webhook = jmi2[webhookDataObj._id];
+      const token = `${adminUser._id}:${webhookDataObj.token}`;
 
       // Verify webhook
       chai.expect(webhook._id).to.equal(webhookDataObj._id);
@@ -379,6 +392,13 @@ async function updateWebhooks() {
       chai.expect(webhook.type).to.equal(webhookDataObj.type);
       chai.expect(webhook.description).to.equal(webhookDataObj.description);
       chai.expect(webhook.triggers).to.deep.equal(webhookDataObj.triggers);
+      if (webhook.type === 'Outgoing') {
+        chai.expect(webhook.url).to.equal(webhookDataObj.url);
+      }
+      else {
+        chai.expect(webhook.token).to.equal(token);
+        chai.expect(webhook.tokenLocation).to.equal(webhookDataObj.tokenLocation);
+      }
       chai.expect(webhook.custom).to.deep.equal(webhookDataObj.custom || {});
 
       // Verify additional properties

@@ -126,8 +126,7 @@ async function findWebhook() {
     webhook.type.should.equal(testData.webhooks[0].type);
     webhook.description.should.equal(testData.webhooks[0].description);
     webhook.triggers.should.deep.equal(testData.webhooks[0].triggers);
-    webhook.response.hasOwnProperty('url').should.equal(true);
-    webhook.response.hasOwnProperty('method').should.equal(true);
+    webhook.url.should.equal(testData.webhooks[0].url);
   }
   catch (error) {
     M.log.error(error);
@@ -213,7 +212,7 @@ async function verifyToken() {
 async function validUpdateFields() {
   try {
     // Set the array of correct update fields;
-    const updateFields = ['name', 'description', 'triggers', 'response', 'token',
+    const updateFields = ['name', 'description', 'triggers', 'url', 'token',
       'tokenLocation', 'archived'];
 
     // Get the update fields from the webhook model

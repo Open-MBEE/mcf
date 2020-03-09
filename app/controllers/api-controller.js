@@ -3304,6 +3304,7 @@ async function getElements(req, res, next) {
     archived: 'boolean',
     includeArchived: 'boolean',
     subtree: 'boolean',
+    depth: 'number',
     fields: 'array',
     limit: 'number',
     skip: 'number',
@@ -3392,38 +3393,15 @@ async function getElements(req, res, next) {
       throw new M.NotFoundError('No elements found.', 'warn');
     }
 
-    const retData = elementsPublicData;
+    // Defaults to JMI type 1 (plain element public data)
+    let retData = elementsPublicData;
 
     // Check for JMI conversion
-    if (format) {
-      // Convert data to correct JMI format
-      try {
-        let jmiData = [];
-
-        // If JMI type 1, return plain element public data
-        if (format === 'jmi1') {
-          jmiData = elementsPublicData;
-        }
-        else if (format === 'jmi2') {
-          jmiData = jmi.convertJMI(1, 2, elementsPublicData, 'id');
-        }
-        else if (format === 'jmi3') {
-          jmiData = jmi.convertJMI(1, 3, elementsPublicData, 'id');
-        }
-
-        // Format JSON
-        const json = formatJSON(jmiData, minified);
-
-        // Send a 200: OK and public JMI type 3 element data
-        res.locals = {
-          message: json,
-          statusCode: 200
-        };
-        next();
-      }
-      catch (err) {
-        throw err;
-      }
+    if (format === 'jmi2') {
+      retData = jmi.convertJMI(1, 2, elementsPublicData, 'id');
+    }
+    else if (format === 'jmi3') {
+      retData = jmi.convertJMI(1, 3, elementsPublicData, 'id');
     }
 
     // Format JSON
@@ -3911,6 +3889,7 @@ async function getElement(req, res, next) {
     populate: 'array',
     includeArchived: 'boolean',
     subtree: 'boolean',
+    depth: 'number',
     fields: 'array',
     minified: 'boolean',
     rootpath: 'boolean'

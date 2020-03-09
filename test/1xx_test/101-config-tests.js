@@ -15,6 +15,10 @@
  * object. For now, it only tests the version number.
  */
 
+// Node modules
+const fs = require('fs');
+const path = require('path');
+
 // NPM modules
 const chai = require('chai');
 
@@ -37,8 +41,12 @@ describe(M.getModuleName(module.filename), () => {
 async function environmentCheck() {
   // Verify inputted environment is configuration environment
   const processEnv = process.env.MBEE_ENV;
+
   if (typeof processEnv !== 'undefined') {
-    chai.expect(processEnv).to.equal(M.env);
+    chai.expect(M.env).to.equal(processEnv);
+  }
+  else if (fs.existsSync(path.join(M.root, 'config', 'dev.cfg'))) {
+    chai.expect(M.env).to.equal('dev');
   }
   else {
     chai.expect(M.env).to.equal('default');

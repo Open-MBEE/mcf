@@ -51,7 +51,7 @@ class ElementNew extends Component {
       id: rndID,
       name: '',
       type: '',
-      parent: this.props.parent,
+      parent: this.props.parent || 'model',
       target: null,
       targetNamespace: null,
       source: null,
@@ -265,7 +265,7 @@ class ElementNew extends Component {
             </Col>
           </FormGroup>
           <FormGroup row>
-            <Label for="parent" sm={2}>Parent</Label>
+            <Label for="parent" sm={2}>Parent*</Label>
             <Col sm={10}>
               <div id="parent" className={'selector-value'}>
                 {this.state.parent || 'Select an element.'}
@@ -278,6 +278,7 @@ class ElementNew extends Component {
                   selectedHandler={this.parentSelectHandler} />
               </div>
             </Col>
+            {(!this.state.parent) && (<div className='warning-label'>*Parent cannot be null.</div>)}
           </FormGroup>
           <FormGroup row>
             <Label for='name' sm={2}>Source</Label>
@@ -314,9 +315,10 @@ class ElementNew extends Component {
               : ''
             }
           </FormGroup>
+          <div className='required-fields'>* required fields.</div>
           <Button className='btn btn'
                   outline color="primary"
-                  disabled={disableSubmit}
+                  disabled={disableSubmit || !this.state.parent}
                   onClick={this.onSubmit}>
             Submit
           </Button>

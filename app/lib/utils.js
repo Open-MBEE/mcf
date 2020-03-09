@@ -389,6 +389,22 @@ module.exports.validateOptions = function(options, validOptions, model) {
       validatedOptions.subtree = val;
     }
 
+    // Handle the depth option
+    if (opt === 'depth') {
+      // Ensure value is a number
+      if (typeof options.depth !== 'number') {
+        throw new M.DataFormatError('The option \'depth\' is not a number.', 'warn');
+      }
+      // Ensure depth and rootpath are not both enabled at the same time
+      if (options.rootpath) {
+        throw new M.DataFormatError('Options \'depth\' and \'rootpath\' cannot be'
+          + ' applied simultaneously', 'warn');
+      }
+
+      // Set the subtree option in the returnObject
+      validatedOptions.depth = val;
+    }
+
     // Handle the rootpath option
     if (opt === 'rootpath') {
       // Ensure value is a boolean

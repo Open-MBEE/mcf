@@ -399,64 +399,24 @@ const user = {
 const webhook = {
   type: {
     outgoing: function(data) {
-      // An outgoing webhook must have a response object and cannot have a token or tokenLocation.
+      // An outgoing webhook must have a url field and cannot have a tokenLocation.
       return data === 'Outgoing'
-        ? typeof this.response === 'object' && this.response !== null
-        && !(this.token || this.tokenLocation)
+        ? typeof this.url === 'string' && !this.tokenLocation
         : true;
     },
     incoming: function(data) {
-      // An incoming webhook must have a token and tokenLocation and cannot have a response field.
+      // An incoming webhook must have a token and tokenLocation and cannot have a url field.
       return data === 'Incoming'
         ? (typeof this.token === 'string' && typeof this.tokenLocation === 'string')
-        && this.response === undefined
+        && this.url === undefined
         : true;
     }
   },
   triggers: function(data) {
     return Array.isArray(data) && data.every((s) => typeof s === 'string');
   },
-  response: {
-    object: function(data) {
-      return typeof data === 'object' && !Array.isArray(data) && data !== null;
-    },
-    url: function(data) {
-      return typeof data.url === 'string';
-    },
-    method: function(data) {
-      if (data.method === undefined) {
-        data.method = 'POST';
-      }
-      return ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'].includes(data.method);
-    },
-    headers: function(data) {
-      if (data.headers === undefined) {
-        data.headers = { 'Content-Type': 'application/json' };
-      }
-      return typeof data.headers === 'object' && !Array.isArray(data) && data.headers !== null;
-    },
-    token: function(data) {
-      // If the response field has a token, it must be a string
-      return data.token !== undefined ? typeof data.token === 'string' : true;
-    },
-    ca: function(data) {
-      // If the response field has a ca, it must be a string
-      return data.ca !== undefined ? typeof data.ca === 'string' : true;
-    },
-    data: function(data) {
-      // If the response field has a data field, it must be an object
-      return data.data !== undefined ? typeof data.data === 'object' : true;
-    },
-    validFields: function(data) {
-      // Ensure only the response only has valid fields
-      const keys = Object.keys(data);
-      const validKeys = ['url', 'method', 'headers', 'token', 'ca', 'data'];
-      for (let i = 0; i < keys.length; i++) {
-        if (!(validKeys.includes(keys[i]))) return false;
-      }
-      return true;
-    }
-
+  url: function(data) {
+    return typeof data === 'string';
   },
   token: function(data) {
     // Protect against null entries

@@ -46,16 +46,11 @@ describe(M.getModuleName(module.filename), () => {
   it('should reject changing the type of a webhook', typeImmutable);
   it('should reject creating a webhook with no triggers field', noTriggers);
   it('should reject creating a webhook with an invalid triggers field', invalidTriggers);
-  it('should reject creating an outgoing webhook with no response field', noResponseOutgoing);
-  it('should reject creating an incoming webhook with a response field', responseIncoming);
-  it('should reject creating a webhook with no url in the response', noUrlInResponse);
-  it('should reject creating a webhook with an invalid method in a response', invalidMethodInResponse);
-  it('should reject creating a webhook with an invalid token in a response', invalidTokenInResponse);
-  it('should reject creating a webhook with an invalid field in a response', invalidFieldInResponse);
+  it('should reject creating an outgoing webhook without a url', noUrlOutgoing);
+  it('should reject creating an incoming webhook with a url', urlIncoming);
   it('should reject creating an incoming webhook with no token', noTokenIncoming);
   it('should reject creating an incoming webhook with no tokenLocation', noTokenLocationIncoming);
-  it('should reject creating an outgoing webhook with an incoming field', tokenOutgoing);
-  it('should reject creating an outgoing webhook with an incoming field', tokenLocationOutgoing);
+  it('should reject creating an outgoing webhook with a tokenLocation field', tokenLocationOutgoing);
   it('should throw an error when the input token does not match the stored token', verifyToken);
 });
 
@@ -211,16 +206,16 @@ async function invalidTriggers() {
 /**
  * @description Validates that an outgoing webhook cannot be created without a response field.
  */
-async function noResponseOutgoing() {
+async function noUrlOutgoing() {
   try {
     const webhookData = Object.assign({}, testData.webhooks[0]);
     webhookData._id = webhookID;
 
-    delete webhookData.response;
+    delete webhookData.url;
 
     // Save webhook; expect specific error message
     await Webhook.insertMany(webhookData).should.eventually.be.rejectedWith('Webhook validation '
-      + 'failed: type: An outgoing webhook must have a response field and cannot have a token or'
+      + 'failed: type: An outgoing webhook must have a url field and cannot have a'
       + ' tokenLocation.');
   }
   catch (error) {
@@ -236,127 +231,17 @@ async function noResponseOutgoing() {
 /**
  * @description Validates that an incoming webhook cannot be created with a response field.
  */
-async function responseIncoming() {
+async function urlIncoming() {
   try {
     const webhookData = Object.assign({}, testData.webhooks[1]);
     webhookData._id = webhookID;
 
-    webhookData.response = {
-      url: 'test'
-    };
+    webhookData.url = 'test';
 
     // Save webhook; expect specific error message
     await Webhook.insertMany(webhookData).should.eventually.be.rejectedWith('Webhook validation '
       + 'failed: type: An incoming webhook must have a token and a tokenLocation and cannot have'
-      + ' a response field.');
-  }
-  catch (error) {
-    // Remove the webhook in case the test failed
-    await Webhook.deleteMany({ _id: webhookID });
-
-    M.log.error(error);
-    // There should be no error
-    should.not.exist(error);
-  }
-}
-
-/**
- * @description Validates that a webhook cannot be created with a response that's missing a url.
- */
-async function noUrlInResponse() {
-  try {
-    const webhookData = Object.assign({}, testData.webhooks[0]);
-    webhookData._id = webhookID;
-
-    webhookData.response = {};
-
-    // Save webhook; expect specific error message
-    await Webhook.insertMany(webhookData).should.eventually.be.rejectedWith('Webhook validation '
-      + 'failed: response: The response field must have a url.');
-  }
-  catch (error) {
-    // Remove the webhook in case the test failed
-    await Webhook.deleteMany({ _id: webhookID });
-
-    M.log.error(error);
-    // There should be no error
-    should.not.exist(error);
-  }
-}
-
-/**
- * @description Validates that a webhook cannot be created with a response that has an invalid
- * method.
- */
-async function invalidMethodInResponse() {
-  try {
-    const webhookData = Object.assign({}, testData.webhooks[0]);
-    webhookData._id = webhookID;
-
-    webhookData.response = {
-      url: 'test',
-      method: 'invalid'
-    };
-
-    // Save webhook; expect specific error message
-    await Webhook.insertMany(webhookData).should.eventually.be.rejectedWith('Webhook validation '
-      + 'failed: response: Invalid method in response field.');
-  }
-  catch (error) {
-    // Remove the webhook in case the test failed
-    await Webhook.deleteMany({ _id: webhookID });
-
-    M.log.error(error);
-    // There should be no error
-    should.not.exist(error);
-  }
-}
-
-/**
- * @description Validates that a webhook cannot be created with a response that has an invalid
- * token field.
- */
-async function invalidTokenInResponse() {
-  try {
-    const webhookData = Object.assign({}, testData.webhooks[0]);
-    webhookData._id = webhookID;
-
-    webhookData.response = {
-      url: 'test',
-      token: {}
-    };
-
-    // Save webhook; expect specific error message
-    await Webhook.insertMany(webhookData).should.eventually.be.rejectedWith('Webhook validation '
-      + 'failed: response: Invalid token in response field.');
-  }
-  catch (error) {
-    // Remove the webhook in case the test failed
-    await Webhook.deleteMany({ _id: webhookID });
-
-    M.log.error(error);
-    // There should be no error
-    should.not.exist(error);
-  }
-}
-
-/**
- * @description Validates that a webhook cannot be created with a response that has an invalid
- * field.
- */
-async function invalidFieldInResponse() {
-  try {
-    const webhookData = Object.assign({}, testData.webhooks[0]);
-    webhookData._id = webhookID;
-
-    webhookData.response = {
-      url: 'test',
-      wrong: {}
-    };
-
-    // Save webhook; expect specific error message
-    await Webhook.insertMany(webhookData).should.eventually.be.rejectedWith('Webhook validation '
-      + 'failed: response: Invalid field [wrong] in response field.');
+      + ' a url field.');
   }
   catch (error) {
     // Remove the webhook in case the test failed
@@ -382,7 +267,7 @@ async function noTokenIncoming() {
     // Save webhook; expect specific error message
     await Webhook.insertMany(webhookData).should.eventually.be.rejectedWith('Webhook validation '
       + 'failed: type: An incoming webhook must have a token and a tokenLocation and cannot have'
-      + ' a response field.');
+      + ' a url field.');
   }
   catch (error) {
     // Remove the webhook in case the test failed
@@ -408,33 +293,7 @@ async function noTokenLocationIncoming() {
     // Save webhook; expect specific error message
     await Webhook.insertMany(webhookData).should.eventually.be.rejectedWith('Webhook validation '
       + 'failed: type: An incoming webhook must have a token and a tokenLocation and cannot have'
-      + ' a response field.');
-  }
-  catch (error) {
-    // Remove the webhook in case the test failed
-    await Webhook.deleteMany({ _id: webhookID });
-
-    M.log.error(error);
-    // There should be no error
-    should.not.exist(error);
-  }
-}
-
-/**
- * @description Validates that an outgoing webhook cannot be created with a token.
- */
-async function tokenOutgoing() {
-  try {
-    // Get test data for an outgoing webhook
-    const webhookData = Object.assign({}, testData.webhooks[0]);
-    webhookData._id = webhookID;
-
-    webhookData.token = 'test';
-
-    // Save webhook; expect specific error message
-    await Webhook.insertMany(webhookData).should.eventually.be.rejectedWith('Webhook validation '
-      + 'failed: type: An outgoing webhook must have a response field and cannot have a token or'
-      + ' tokenLocation.');
+      + ' a url field.');
   }
   catch (error) {
     // Remove the webhook in case the test failed
@@ -459,7 +318,7 @@ async function tokenLocationOutgoing() {
 
     // Save webhook; expect specific error message
     await Webhook.insertMany(webhookData).should.eventually.be.rejectedWith('Webhook validation '
-      + 'failed: type: An outgoing webhook must have a response field and cannot have a token or'
+      + 'failed: type: An outgoing webhook must have a url field and cannot have a'
       + ' tokenLocation.');
   }
   catch (error) {

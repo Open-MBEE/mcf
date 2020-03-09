@@ -124,9 +124,8 @@ function postWebhooks(done) {
       chai.expect(createdWebhook.type).to.equal(webhookDataObj.type);
       chai.expect(createdWebhook.description).to.equal(webhookDataObj.description);
       chai.expect(createdWebhook.triggers).to.deep.equal(webhookDataObj.triggers);
-      if (createdWebhook.response) {
-        chai.expect(createdWebhook.response.url).to.equal(webhookDataObj.response.url);
-        chai.expect(createdWebhook.response.method).to.equal(webhookDataObj.response.method || 'POST');
+      if (createdWebhook.type === 'Outgoing') {
+        chai.expect(createdWebhook.url).to.equal(webhookDataObj.url);
       }
       else {
         chai.expect(createdWebhook.token).to.equal(token);
@@ -178,8 +177,7 @@ function getWebhook(done) {
     const foundWebhook = JSON.parse(body);
     chai.expect(foundWebhook.name).to.equal(webhookData.name);
     chai.expect(foundWebhook.triggers).to.deep.equal(webhookData.triggers);
-    chai.expect(foundWebhook.response.url).to.equal(webhookData.response.url);
-    chai.expect(foundWebhook.response.method).to.equal(webhookData.response.method || 'POST');
+    chai.expect(foundWebhook.url).to.equal(webhookData.url);
     chai.expect(foundWebhook.reference).to.equal('');
     chai.expect(foundWebhook.custom).to.deep.equal(webhookData.custom || {});
 
@@ -234,9 +232,8 @@ function getWebhooks(done) {
       chai.expect(foundWebhook.type).to.equal(webhookDataObj.type);
       chai.expect(foundWebhook.description).to.equal(webhookDataObj.description);
       chai.expect(foundWebhook.triggers).to.deep.equal(webhookDataObj.triggers);
-      if (foundWebhook.response) {
-        chai.expect(foundWebhook.response.url).to.equal(webhookDataObj.response.url);
-        chai.expect(foundWebhook.response.method).to.equal(webhookDataObj.response.method || 'POST');
+      if (foundWebhook.type === 'Outgoing') {
+        chai.expect(foundWebhook.url).to.equal(webhookDataObj.url);
       }
       else {
         chai.expect(foundWebhook.token).to.equal(token);
@@ -296,9 +293,8 @@ function getAllWebhooks(done) {
       chai.expect(foundWebhook.type).to.equal(webhookDataObj.type);
       chai.expect(foundWebhook.description).to.equal(webhookDataObj.description);
       chai.expect(foundWebhook.triggers).to.deep.equal(webhookDataObj.triggers);
-      if (foundWebhook.response) {
-        chai.expect(foundWebhook.response.url).to.equal(webhookDataObj.response.url);
-        chai.expect(foundWebhook.response.method).to.equal(webhookDataObj.response.method || 'POST');
+      if (foundWebhook.type === 'Outgoing') {
+        chai.expect(foundWebhook.url).to.equal(webhookDataObj.url);
       }
       else {
         chai.expect(foundWebhook.token).to.equal(token);
@@ -350,8 +346,7 @@ function patchWebhook(done) {
     const updatedWebhook = JSON.parse(body);
     chai.expect(updatedWebhook.name).to.equal('test update');
     chai.expect(updatedWebhook.triggers).to.deep.equal(webhookData.triggers);
-    chai.expect(updatedWebhook.response.url).to.equal(webhookData.response.url);
-    chai.expect(updatedWebhook.response.method).to.equal(webhookData.response.method || 'POST');
+    chai.expect(updatedWebhook.url).to.equal(webhookData.url);
     chai.expect(updatedWebhook.reference).to.equal('');
     chai.expect(updatedWebhook.custom).to.deep.equal(webhookData.custom || {});
 
@@ -411,9 +406,8 @@ function patchWebhooks(done) {
       chai.expect(updatedWebhook.type).to.equal(webhookDataObj.type);
       chai.expect(updatedWebhook.description).to.equal(webhookDataObj.description);
       chai.expect(updatedWebhook.triggers).to.deep.equal(webhookDataObj.triggers);
-      if (updatedWebhook.response) {
-        chai.expect(updatedWebhook.response.url).to.equal(webhookDataObj.response.url);
-        chai.expect(updatedWebhook.response.method).to.equal(webhookDataObj.response.method || 'POST');
+      if (updatedWebhook.type === 'Outgoing') {
+        chai.expect(updatedWebhook.url).to.equal(webhookDataObj.url);
       }
       else {
         chai.expect(updatedWebhook.token).to.equal(token);

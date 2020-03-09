@@ -18,9 +18,6 @@
 /* eslint-disable jsdoc/require-description-complete-sentence */
 /* eslint-disable jsdoc/require-jsdoc */
 
-// ESLint disabled for client-side JS for now.
-/* eslint-disabled */
-
 $.fn.extend({
   autoResize: function() {
     const nlines = $(this).html().split('\n').length;

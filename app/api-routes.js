@@ -31,7 +31,6 @@ const api = express.Router();
 const APIController = M.require('controllers.api-controller');
 const AuthController = M.require('lib.auth');
 const Middleware = M.require('lib.middleware');
-const logger = M.require('lib.logger');
 
 
 /**
@@ -52,11 +51,13 @@ api.get(
   AuthController.authenticate,
   Middleware.expiredPassword,
   Middleware.logRoute,
-  (req, res) => {
-    const str = 'I\'m a teapot.';
-    res.status(418).send(str);
-    logger.logResponse(str.length, req, res);
-  }
+  (req, res, next) => {
+    res.locals.message = 'I\'m a teapot.';
+    res.locals.statusCode = 418;
+    next();
+  },
+  Middleware.logResponse,
+  Middleware.respond
 );
 
 
@@ -6510,7 +6511,7 @@ api.route('/users/:username/password')
  *                      include a field, include a '-' in front of the field
  *                      (-name). [archived, archivedBy, archivedOn, createdBy,
  *                      createdOn, updatedOn, custom, description, lastModifiedBy,
- *                      name, reference, type, triggers, response, token,
+ *                      name, reference, type, triggers, url, token,
  *                      tokenLocation]
  *         in: query
  *         type: string
@@ -6617,30 +6618,16 @@ api.route('/users/:username/password')
  *               description: An array of strings that refer to the events that
  *                            trigger the webhook. All Outgoing webhooks must
  *                            have at least one trigger.
- *             response:
- *               type: Object
- *               description: An object that contain information for http requests.
- *               properties:
- *                 url:
- *                   type: string
- *                 method:
- *                   type: string
- *                   default: 'POST'
- *                 headers:
- *                   type: object
- *                   default: { 'Content-Type': 'application/json' }
- *                 token:
- *                   type: string
- *                 ca:
- *                   type: string
- *                 data:
- *                   type: object
- *                   description: An optional field to store data to send with the
- *                                http requests upon webhook triggering.
- *             token:
+ *             url:
  *               type: string
- *               description: A secret token used to verify external requests to
- *                            trigger the incoming webhook.
+ *               description: The url to send the request to upon triggering of an
+ *                            outgoing webhook.
+ *             token:
+ *                 type: string
+ *                 description: A secret token used to verify external requests to
+ *                              trigger the incoming webhook, or an optional field
+ *                              for a token to send with the request of an outgoing
+ *                              webhook.
  *             tokenLocation:
  *               type: string
  *               description: A dot-delimited string specifying where to find the
@@ -6672,7 +6659,7 @@ api.route('/users/:username/password')
  *                      include a field, include a '-' in front of the field
  *                      (-name). [archived, archivedBy, archivedOn, createdBy,
  *                      createdOn, updatedOn, custom, description, lastModifiedBy,
- *                      name, reference, type, triggers, response, token,
+ *                      name, reference, type, triggers, url, token,
  *                      tokenLocation]
  *         in: query
  *         type: string
@@ -6729,30 +6716,16 @@ api.route('/users/:username/password')
  *               description: An array of strings that refer to the events that
  *                            trigger the webhook. All Outgoing webhooks must
  *                            have at least one trigger.
- *             response:
- *               type: Object
- *               description: An object that contain information for http requests.
- *               properties:
- *                 url:
- *                   type: string
- *                 method:
- *                   type: string
- *                   default: 'POST'
- *                 headers:
- *                   type: object
- *                   default: { 'Content-Type': 'application/json' }
- *                 token:
- *                   type: string
- *                 ca:
- *                   type: string
- *                 data:
- *                   type: object
- *                   description: An optional field to store data to send with the
- *                                http requests upon webhook triggering.
+ *             url:
+ *               type: string
+ *               description: The url to send the request to upon triggering of an
+ *                            outgoing webhook.
  *             token:
  *                 type: string
  *                 description: A secret token used to verify external requests to
- *                              trigger the incoming webhook.
+ *                              trigger the incoming webhook, or an optional field
+ *                              for a token to send with the request of an outgoing
+ *                              webhook.
  *             tokenLocation:
  *                 type: string
  *                 description: A dot-delimited string specifying where to find the
@@ -6773,7 +6746,7 @@ api.route('/users/:username/password')
  *                      include a field, include a '-' in front of the field
  *                      (-name). [archived, archivedBy, archivedOn, createdBy,
  *                      createdOn, updatedOn, custom, description, lastModifiedBy,
- *                      name, reference, type, triggers, response, token,
+ *                      name, reference, type, triggers, url, token,
  *                      tokenLocation]
  *         in: query
  *         type: string
@@ -6964,7 +6937,7 @@ api.route('/webhooks/trigger/:encodedid')
  *                      include a field, include a '-' in front of the field
  *                      (-name). [archived, archivedBy, archivedOn, createdBy,
  *                      createdOn, updatedOn, custom, description, lastModifiedBy,
- *                      name, reference, type, triggers, response, token,
+ *                      name, reference, type, triggers, url, token,
  *                      tokenLocation]
  *         in: query
  *         type: string
@@ -7025,30 +6998,16 @@ api.route('/webhooks/trigger/:encodedid')
  *               description: An array of strings that refer to the events that
  *                            trigger the webhook. All Outgoing webhooks must
  *                            have at least one trigger.
- *             response:
- *               type: Object
- *               description: An object that contain information for http requests.
- *               properties:
- *                 url:
- *                   type: string
- *                 method:
- *                   type: string
- *                   default: 'POST'
- *                 headers:
- *                   type: object
- *                   default: { 'Content-Type': 'application/json' }
- *                 token:
- *                   type: string
- *                 ca:
- *                   type: string
- *                 data:
- *                   type: object
- *                   description: An optional field to store data to send with the
- *                                http requests upon webhook triggering.
+ *             url:
+ *               type: string
+ *               description: The url to send the request to upon triggering of an
+ *                            outgoing webhook.
  *             token:
  *                 type: string
  *                 description: A secret token used to verify external requests to
- *                              trigger the incoming webhook.
+ *                              trigger the incoming webhook, or an optional field
+ *                              for a token to send with the request of an outgoing
+ *                              webhook.
  *             tokenLocation:
  *                 type: string
  *                 description: A dot-delimited string specifying where to find the
@@ -7069,7 +7028,7 @@ api.route('/webhooks/trigger/:encodedid')
  *                      include a field, include a '-' in front of the field
  *                      (-name). [archived, archivedBy, archivedOn, createdBy,
  *                      createdOn, updatedOn, custom, description, lastModifiedBy,
- *                      name, reference, type, triggers, response, token,
+ *                      name, reference, type, triggers, url, token,
  *                      tokenLocation]
  *         in: query
  *         type: string
