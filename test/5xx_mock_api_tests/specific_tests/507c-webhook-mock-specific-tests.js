@@ -170,10 +170,17 @@ function post(reference) {
       // Verify response body
       const createdWebhooks = JSON.parse(_data);
       const createdWebhook = createdWebhooks[0];
+      const token = `${adminUser._id}:${webhookData.token}`;
+
       chai.expect(createdWebhook.name).to.equal(webhookData.name);
       chai.expect(createdWebhook.triggers).to.deep.equal(webhookData.triggers);
-      chai.expect(createdWebhook.response.url).to.equal(webhookData.response.url);
-      chai.expect(createdWebhook.response.method).to.equal(webhookData.response.method || 'POST');
+      if (createdWebhook.type === 'Outgoing') {
+        chai.expect(createdWebhook.url).to.equal(webhookData.url);
+      }
+      else {
+        chai.expect(createdWebhook.token).to.equal(token);
+        chai.expect(createdWebhook.tokenLocation).to.equal(webhookData.tokenLocation);
+      }
       chai.expect(createdWebhook.reference).to.deep.equal(ref);
       chai.expect(createdWebhook.custom).to.deep.equal(webhookData.custom || {});
 
@@ -280,9 +287,8 @@ function postMany(reference) {
         chai.expect(createdWebhook.type).to.equal(webhookDataObj.type);
         chai.expect(createdWebhook.description).to.equal(webhookDataObj.description);
         chai.expect(createdWebhook.triggers).to.deep.equal(webhookDataObj.triggers);
-        if (createdWebhook.response) {
-          chai.expect(createdWebhook.response.url).to.equal(webhookDataObj.response.url);
-          chai.expect(createdWebhook.response.method).to.equal(webhookDataObj.response.method || 'POST');
+        if (createdWebhook.type === 'Outgoing') {
+          chai.expect(createdWebhook.url).to.equal(webhookDataObj.url);
         }
         else {
           chai.expect(createdWebhook.token).to.equal(token);
@@ -390,9 +396,8 @@ function getAll(reference) {
         chai.expect(foundWebhook.type).to.equal(webhookDataObj.type);
         chai.expect(foundWebhook.description).to.equal(webhookDataObj.description);
         chai.expect(foundWebhook.triggers).to.deep.equal(webhookDataObj.triggers);
-        if (foundWebhook.response) {
-          chai.expect(foundWebhook.response.url).to.equal(webhookDataObj.response.url);
-          chai.expect(foundWebhook.response.method).to.equal(webhookDataObj.response.method || 'POST');
+        if (foundWebhook.type === 'Outgoing') {
+          chai.expect(foundWebhook.url).to.equal(webhookDataObj.url);
         }
         else {
           chai.expect(foundWebhook.token).to.equal(webhookDataObj.token);
@@ -482,8 +487,7 @@ function patch(reference) {
       const updatedWebhook = JSON.parse(_data);
       chai.expect(updatedWebhook.name).to.equal('Patch test');
       chai.expect(updatedWebhook.triggers).to.deep.equal(webhookData.triggers);
-      chai.expect(updatedWebhook.response.url).to.equal(webhookData.response.url);
-      chai.expect(updatedWebhook.response.method).to.equal(webhookData.response.method || 'POST');
+      chai.expect(updatedWebhook.url).to.equal(webhookData.url);
       chai.expect(updatedWebhook.reference).to.deep.equal(ref);
       chai.expect(updatedWebhook.custom).to.deep.equal(webhookData.custom || {});
 

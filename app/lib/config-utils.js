@@ -247,6 +247,9 @@ module.exports.validate = function(config) {
   test(config, 'server.https', 'object');
   test(config, 'server.https.enabled', 'boolean');
   if (config.server.https.enabled) test(config, 'server.http.port', 'number');
+  if (config.server.requestSize) {
+    limitRequestSize(config.server.requestSize);
+  }
   test(config, 'server.api', 'object');
   test(config, 'server.api.enabled', 'boolean');
   if (config.server.api.enabled) {
@@ -461,3 +464,34 @@ module.exports.parseRegEx = function(configObj) {
     });
   }
 };
+
+/**
+ * @description A helper function specifically to parse and validate the requestSize server option.
+ *
+ * @param {string} size - The requestSize specified in the config file.
+ */
+function limitRequestSize(size) {
+  if (typeof size !== 'string') throw new Error('Configuration file: requestSize is not a string.');
+  // Extract the number and the unit from the string
+  const number = Number(size.match(/(\d+)/g)[0]);
+  const unit = size.match(/(\D+)/g)[0];
+  switch (unit) {
+    case 'kb':
+      if (number > 1024 * 1024) {
+        throw new Error('Configuration file: requestSize cannot be greater than 1 gb.');
+      }
+      break;
+    case 'mb':
+      if (number > 1024) {
+        throw new Error('Configuration file: requestSize cannot be greater than 1 gb.');
+      }
+      break;
+    case 'gb':
+      if (number > 1) {
+        throw new Error('Configuration file: requestSize cannot be greater than 1 gb.');
+      }
+      break;
+    default:
+      throw new Error('Configuration file: invalid format for requestSize.');
+  }
+}

@@ -1,6 +1,15 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [1.0.3] - 2020-02-28
+### Major Features and Improvements
+* Refactored outgoing webhooks to simplify response input
+
+### Bug Fixes and Other Changes
+* Fixed a bug causing elements with cross-references to not render properly 
+  in the UI
+* Added "depth" option to the `getElements()` endpoint
+
 ## [1.0.2] - 2020-02-14
 ### Bug Fixes and Other Changes
 * Implemented the `fs-extra` library to increase windows compatibility by

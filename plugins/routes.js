@@ -272,19 +272,19 @@ function downloadPluginFromWebsite(data) {
   // .zip files
   if (data.source.endsWith('.zip')) {
     // Set name and unzip command
-    fileName = `${path.join(M.root, 'plugins', data.name, `${data.name}.zip`)}`;
+    fileName = path.join(M.root, 'plugins', data.name, `${data.name}.zip`);
     unzipCmd = `unzip ${fileName} -d ${dirName}`;
   }
   // .tar.gz files
   else if (data.source.endsWith('.tar.gz')) {
     // Set name and unzip command
-    fileName = `${path.join(M.root, 'plugins', data.name, `${data.name}.tar.gz`)}`;
+    fileName = path.join(M.root, 'plugins', data.name, `${data.name}.tar.gz`);
     unzipCmd = `tar xvzf ${fileName} -C ${dirName}`;
   }
   // .gz files
   else if (data.source.endsWith('.gz')) {
     // Set name and unzip command
-    fileName = `${path.join(M.root, 'plugins', data.name, `${data.name}.gz`)}`;
+    fileName = path.join(M.root, 'plugins', data.name, `${data.name}.gz`);
     unzipCmd = `gunzip -c ${fileName} > ${dirName}`;
   }
   // Other files
