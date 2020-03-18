@@ -1,6 +1,13 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [1.0.4] - 2020-03-13
+### Bug Fixes and Other Changes
+* Fixed a bug preventing Webhook creation with custom data.
+* Added `scripts/webpack-dev.config.js` to support hot reload for React 
+  development. Running `yarn watch` in a separate terminal will transpile
+  updates made to React component JSX files. 
+
 ## [1.0.3] - 2020-02-28
 ### Major Features and Improvements
 * Refactored outgoing webhooks to simplify response input
