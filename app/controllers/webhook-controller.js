@@ -270,7 +270,7 @@ async function create(requestingUser, webhooks, options) {
 
     // Create a list of valid keys
     const validWebhookKeys = ['name', 'type', 'description', 'triggers', 'url', 'token',
-      'tokenLocation', 'reference'];
+      'tokenLocation', 'reference', 'custom'];
 
     // Check that user has permission to create webhooks
     await checkPermissions(reqUser, webhooksToCreate, 'createWebhook');

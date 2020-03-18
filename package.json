@@ -1,6 +1,6 @@
 {
   "name": "mbee",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "build": "NO_BUILD_NUMBER",
   "description": "Model-Based Engineering Environment",
   "main": "mbee.js",
@@ -66,7 +66,8 @@
     "react-router-dom": "^5.0.1",
     "reactstrap": "^8.4.0",
     "sinon": "^7.5.0",
-    "webpack": "^4.41.3"
+    "webpack": "^4.41.3",
+    "webpack-cli": "^3.3.11"
   },
   "scripts": {
     "build": "node mbee build",
@@ -77,7 +78,8 @@
     "postinstall": "test $NOPOSTINSTALL || node mbee build",
     "preinstall": "test $NOPREINSTALL || node ./scripts/clean.js --all",
     "start": "node mbee start",
-    "test": "node mbee test"
+    "test": "node mbee test",
+    "watch": "./node_modules/.bin/webpack --watch --config scripts/webpack-dev.config.js"
   },
   "engines": {
     "node": ">=10.15.0"
