@@ -735,12 +735,15 @@ function deleteUsers(done) {
     testData.users[2],
     testData.users[3]
   ];
+
+  const userIDs = userData.map(u => u.username);
+  const ids = userIDs.join(',');
+
   request({
-    url: `${test.url}/api/users`,
+    url: `${test.url}/api/users?ids=${ids}`,
     headers: testUtils.getHeaders(),
     ca: testUtils.readCaFile(),
-    method: 'DELETE',
-    body: JSON.stringify(userData.map(u => u.username))
+    method: 'DELETE'
   },
   (err, response, body) => {
     // Expect no error

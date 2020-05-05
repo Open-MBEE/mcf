@@ -628,3 +628,32 @@ module.exports.formatResponse = function formatResponse(req, res, message, statu
   // be passed in to this function when this function is called due to an error.
   if (next !== null) next();
 };
+
+/**
+ * @description This is a utility function that parses IDs from a request body or query parameters.
+ *
+ * @param {object} req - The request object.
+ * @param {object} options - The query parameter options from the request.
+ * @param {boolean} users - Indicates whether usernames (T) or IDs (F) are parsed.
+ *
+ * @returns {string[]} An array of ids.
+ */
+module.exports.parseRequestIDs = function parseRequestIDs(req, options, users = false) {
+  let ids = [];
+  const field = (users) ? 'usernames' : 'id';
+
+  // Check parsed query options for IDs
+  if (options.ids) {
+    ids = options.ids;
+  }
+  // If req.body contains array of IDs
+  else if (Array.isArray(req.body) && req.body.every(s => typeof s === 'string')) {
+    ids = req.body;
+  }
+  // If req.body contains objects, grab the IDs from the objects
+  else if (Array.isArray(req.body) && req.body.every(s => typeof s === 'object')) {
+    ids = req.body.map(id => id[field]);
+  }
+
+  return ids;
+};

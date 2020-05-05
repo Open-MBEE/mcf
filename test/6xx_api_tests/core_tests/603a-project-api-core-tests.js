@@ -665,12 +665,15 @@ function deleteProjects(done) {
     testData.projects[3],
     testData.projects[4]
   ];
+
+  const projIDs = projData.map(p => p.id);
+  const ids = projIDs.join(',');
+
   request({
-    url: `${test.url}/api/orgs/${org._id}/projects`,
+    url: `${test.url}/api/orgs/${org._id}/projects?ids=${ids}`,
     headers: testUtils.getHeaders(),
     ca: testUtils.readCaFile(),
-    method: 'DELETE',
-    body: JSON.stringify(projData.map(p => p.id))
+    method: 'DELETE'
   },
   (err, response, body) => {
     // Expect no error
@@ -681,7 +684,7 @@ function deleteProjects(done) {
     const deletedIDs = JSON.parse(body);
 
     // Verify correct project deleted
-    chai.expect(deletedIDs).to.have.members(projData.map(p => p.id));
+    chai.expect(deletedIDs).to.have.members(projIDs);
 
     done();
   });

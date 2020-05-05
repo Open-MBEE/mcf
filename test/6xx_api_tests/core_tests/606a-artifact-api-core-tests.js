@@ -707,11 +707,12 @@ function deleteArtifacts(done) {
     testData.artifacts[2].id
   ];
 
+  const ids = artIDs.join(',');
+
   const options = {
     method: 'DELETE',
-    url: `${test.url}/api/orgs/${orgID}/projects/${projID}/branches/${branchID}/artifacts`,
-    headers: testUtils.getHeaders(),
-    body: JSON.stringify(artIDs)
+    url: `${test.url}/api/orgs/${orgID}/projects/${projID}/branches/${branchID}/artifacts?ids=${ids}`,
+    headers: testUtils.getHeaders()
   };
 
   request(options, (err, response, body) => {

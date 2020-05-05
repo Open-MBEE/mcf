@@ -640,9 +640,15 @@ function deleteOrgs(done) {
     testData.orgs[2],
     testData.orgs[3]
   ];
+
+  const orgIDs = orgData.map(o => o.id);
+  const ids = orgIDs.join(',');
+  const query = { ids: ids };
+  const body = {};
+
   const params = {};
   const method = 'DELETE';
-  const req = testUtils.createRequest(adminUser, params, orgData, method);
+  const req = testUtils.createRequest(adminUser, params, body, method, query);
 
   // Set response as empty object
   const res = {};
@@ -654,7 +660,7 @@ function deleteOrgs(done) {
   res.send = function send(_data) {
     const deletedIDs = JSON.parse(_data);
     // Verify correct orgs deleted
-    chai.expect(deletedIDs).to.have.members(orgData.map(p => p.id));
+    chai.expect(deletedIDs).to.have.members(orgIDs);
 
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);

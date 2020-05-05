@@ -451,7 +451,7 @@ async function update(requestingUser, webhooks, options) {
 
       // An archived webhook cannot be updated
       if (webhook.archived && (webhookUpdate.archived === undefined
-        || webhookUpdate.archived !== false || webhookUpdate.archived !== 'false')) {
+        || !(webhookUpdate.archived === false || webhookUpdate.archived === 'false'))) {
         throw new M.OperationError(`The Webhook [${webhook._id}] is archived. `
           + 'It must first be unarchived before performing this operation.', 'warn');
       }

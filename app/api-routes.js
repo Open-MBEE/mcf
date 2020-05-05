@@ -546,6 +546,12 @@ api.route('/logs')
  *           type: array
  *           items:
  *             type: string
+ *       - name: ids
+ *         description: Comma separated list of organization IDs to delete.
+ *                      If both query parameter and body are provided, the
+ *                      query parameter will be prioritized over the body.
+ *         in: query
+ *         type: string
  *       - name: minified
  *         description: If true, the returned JSON is minified. If false, the
  *                      returned JSON is formatted based on the format specified
@@ -1513,6 +1519,12 @@ api.route('/projects')
  *           type: array
  *           items:
  *             type: string
+ *       - name: ids
+ *         description: Comma separated list of project IDs to delete.
+ *                      If both query parameter and body are provided, the
+ *                      query parameter will be prioritized over the body.
+ *         in: query
+ *         type: string
  *       - name: minified
  *         description: If true, the returned JSON is minified. If false, the
  *                      returned JSON is formatted based on the format specified
@@ -2358,6 +2370,12 @@ api.route('/orgs/:orgid/projects/:projectid')
  *           type: array
  *           items:
  *             type: string
+ *       - name: ids
+ *         description: Comma separated list of branch IDs to delete.
+ *                      If both query parameter and body are provided, the
+ *                      query parameter will be prioritized over the body.
+ *         in: query
+ *         type: string
  *       - name: minified
  *         description: If true, the returned JSON is minified. If false, the
  *                      returned JSON is formatted based on the format specified
@@ -3526,6 +3544,12 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements/search')
  *           type: array
  *           items:
  *             type: string
+ *       - name: ids
+ *         description: Comma separated list of IDs to delete. If both query
+ *                      parameter and body are provided, the query parameter
+ *                      will be prioritized over the body.
+ *         in: query
+ *         type: string
  *       - name: minified
  *         description: If true, the returned JSON is minified. If false, the
  *                      returned JSON is formatted based on the format specified
@@ -4831,6 +4855,12 @@ api.route('/orgs/:orgid/projects/:projectid/artifacts/blob')
  *           type: array
  *           items:
  *             type: string
+ *       - name: ids
+ *         description: Comma separated list of artifact IDs to delete.
+ *                      If both query parameter and body are provided, the
+ *                      query parameter will be prioritized over the body.
+ *         in: query
+ *         type: string
  *       - name: minified
  *         description: If true, the returned JSON is minified. If false, the
  *                      returned JSON is formatted based on the format specified
@@ -5750,6 +5780,12 @@ api.route('/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts/:artifa
  *           type: array
  *           items:
  *             type: string
+ *       - name: ids
+ *         description: Comma separated list of usernames to delete.
+ *                      If both query parameter and body are provided, the
+ *                      query parameter will be prioritized over the body.
+ *         in: query
+ *         type: string
  *       - name: minified
  *         description: If true, the returned JSON is minified. If false, the
  *                      returned JSON is formatted based on the format specified
@@ -6789,6 +6825,12 @@ api.route('/users/:username/password')
  *           type: array
  *           items:
  *             type: string
+ *       - name: ids
+ *         description: Comma separated list of webhook IDs to delete.
+ *                      If both query parameter and body are provided, the
+ *                      query parameter will be prioritized over the body.
+ *         in: query
+ *         type: string
  *       - name: minified
  *         description: If true, the returned JSON is minified. If false, the
  *                      returned JSON is formatted based on the format specified
