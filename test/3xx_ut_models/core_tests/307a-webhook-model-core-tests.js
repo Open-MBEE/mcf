@@ -213,7 +213,7 @@ async function validUpdateFields() {
   try {
     // Set the array of correct update fields;
     const updateFields = ['name', 'description', 'triggers', 'url', 'token',
-      'tokenLocation', 'archived'];
+      'tokenLocation', 'archived', 'custom'];
 
     // Get the update fields from the webhook model
     const modelUpdateFields = Webhook.getValidUpdateFields();

@@ -783,11 +783,16 @@ function deleteProjects(done) {
     testData.projects[3],
     testData.projects[4]
   ];
-  const params = {
-    orgid: org._id
-  };
+
+  const projIDs = projData.map(p => p.id);
+  const ids = projIDs.join(',');
+
+  const body = {};
+  const query = { ids: ids };
+  const params = { orgid: org._id };
   const method = 'PATCH';
-  const req = testUtils.createRequest(adminUser, params, projData.map(p => p.id), method);
+
+  const req = testUtils.createRequest(adminUser, params, body, method, query);
 
   // Set response as empty object
   const res = {};
@@ -801,7 +806,7 @@ function deleteProjects(done) {
     const deletedIDs = JSON.parse(_data);
 
     // Verify correct project found
-    chai.expect(deletedIDs).to.have.members(projData.map(p => p.id));
+    chai.expect(deletedIDs).to.have.members(projIDs);
 
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);

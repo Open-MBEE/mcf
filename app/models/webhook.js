@@ -210,7 +210,7 @@ WebhookSchema.static('verifyAuthority', function(webhook, value) {
  */
 WebhookSchema.static('getValidUpdateFields', function() {
   return ['name', 'description', 'triggers', 'url', 'token', 'tokenLocation',
-    'archived'];
+    'archived', 'custom'];
 });
 
 /**

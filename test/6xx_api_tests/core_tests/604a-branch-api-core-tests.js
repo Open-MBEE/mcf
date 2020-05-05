@@ -446,12 +446,15 @@ function deleteBranches(done) {
     testData.branches[5],
     testData.branches[6]
   ];
+
+  const branchIDs = branchData.map(b => b.id);
+  const ids = branchIDs.join(',');
+
   request({
-    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches`,
+    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches?ids=${ids}`,
     headers: testUtils.getHeaders(),
     ca: testUtils.readCaFile(),
-    method: 'DELETE',
-    body: JSON.stringify(branchData.map(b => b.id))
+    method: 'DELETE'
   },
   (err, response, body) => {
     // Expect no error
@@ -460,7 +463,7 @@ function deleteBranches(done) {
     chai.expect(response.statusCode).to.equal(200);
     // Verify response body
     const deletedBranchIDs = JSON.parse(body);
-    chai.expect(deletedBranchIDs).to.have.members(branchData.map(b => b.id));
+    chai.expect(deletedBranchIDs).to.have.members(branchIDs);
     done();
   });
 }
