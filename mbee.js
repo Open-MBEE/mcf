@@ -30,13 +30,24 @@ const pkg = require(path.join(__dirname, 'package.json'));
 // The global MBEE helper object
 global.M = {};
 
+// Get the environment. By default, the environment is 'default'
+let env = 'default';
+// If a environment is set, use that
+if (process.env.MBEE_ENV) {
+  env = process.env.MBEE_ENV;
+}
+// If a dev config exists, use it over the default
+else if (fs.existsSync(path.join(__dirname, 'config', 'dev.cfg'))) {
+  env = 'dev';
+}
+
 /**
  * Defines the environment based on the MBEE_ENV environment variable.
- * If the MBEE_ENV environment variable is not set, the default environment
- * is set to 'default'.
+ * If the MBEE_ENV environment variable is not set, and a dev config does not
+ * exist, the default environment is set to 'default'.
  */
 Object.defineProperty(M, 'env', {
-  value: process.env.MBEE_ENV || 'default',
+  value: env,
   writable: false,
   enumerable: true
 });
@@ -119,6 +130,8 @@ const configContent = fs.readFileSync(configPath).toString();
 const stripComments = configUtils.removeComments(configContent);
 // Parse configuration string into JSON object
 const config = JSON.parse(stripComments);
+// Parse custom validator regex
+configUtils.parseRegEx(config);
 
 /**
  * Define the MBEE configuration.

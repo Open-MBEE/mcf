@@ -7,7 +7,7 @@
  *
  * @license MIT
  *
- * @owner Austin Bieber
+ * @owner Donte McDaniel
  *
  * @author Austin Bieber
  *

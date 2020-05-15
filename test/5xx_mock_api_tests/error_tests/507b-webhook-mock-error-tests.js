@@ -357,10 +357,10 @@ function tokenInvalid(done) {
   // Verifies the response data
   res.send = function send(_data) {
     // Expect an error message
-    _data.should.equal('Token received from request does not match stored token.');
+    _data.should.equal('Invalid token');
 
-    // Expect the statusCode to be 401
-    res.statusCode.should.equal(401);
+    // Expect the statusCode to be 400
+    res.statusCode.should.equal(400);
 
     done();
   };

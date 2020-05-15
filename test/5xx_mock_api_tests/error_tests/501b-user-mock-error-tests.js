@@ -123,8 +123,6 @@ describe(M.getModuleName(module.filename), () => {
     badPasswordInput('New'));
   it('should reject a PATCH request to patchPassword if the confirm password is not provided in the body',
     badPasswordInput('Confirmed'));
-  it('should reject a PATCH request to patchPassword if the requestingUser and username parameters do not match',
-    badPasswordInput('user'));
 });
 
 /* --------------------( Tests )-------------------- */
@@ -338,7 +336,6 @@ function badPasswordInput(type) {
     password: 'pass',
     confirmPassword: 'pass'
   };
-  const params = {};
   const endpoint = 'patchPassword';
   // Initialize expected message and status code
   let message = `${type} password not in request body.`;
@@ -362,6 +359,8 @@ function badPasswordInput(type) {
   }
 
   return function(done) {
+    const params = { username: adminUser._id };
+
     // Create request object
     const req = testUtils.createRequest(adminUser, params, body, method);
 

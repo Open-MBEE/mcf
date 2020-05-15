@@ -100,6 +100,7 @@ describe(M.getModuleName(module.filename), () => {
   it('should update an artifact document', updateArtifact);
   it('should update multiple artifact documents', updateArtifacts);
   it('should get an artifact blob', getBlob);
+  it('should list artifact blobs', listBlobs);
   it('should delete an artifact blob', deleteBlob);
   it('should delete an artifact document', deleteArtifact);
   it('should delete multiple artifact documents', deleteArtifacts);
@@ -538,6 +539,26 @@ async function getBlob() {
 }
 
 /**
+ * @description Validates that the ArtifactController can retrieve a list of artifact blobs.
+ */
+async function listBlobs() {
+  try {
+    // List all previously uploaded artifact blobs
+    const blobList = await ArtifactController.listBlobs(adminUser,
+      orgID, projectID);
+
+    // Verify response
+    chai.expect(blobList[0].location).to.equal(testData.artifacts[0].location);
+    chai.expect(blobList[0].filename).to.equal(testData.artifacts[0].filename);
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
+}
+
+/**
  * @description Validates that the ArtifactController can delete an artifact blob.
  */
 async function deleteBlob() {
@@ -552,10 +573,9 @@ async function deleteBlob() {
     // Find and delete the artifact
     await ArtifactController.deleteBlob(adminUser, orgID, projectID, artData);
 
-    await ArtifactController.getBlob(adminUser, orgID,
-      projectID, artData).should.eventually.be.rejectedWith(
-      'Artifact blob not found.'
-    );
+    // Blob should NOT be found
+    await ArtifactController.getBlob(adminUser, orgID, projectID, artData)
+    .should.eventually.be.rejectedWith('Artifact blob not found.');
   }
   catch (error) {
     M.log.error(error);

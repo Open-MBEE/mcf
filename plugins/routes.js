@@ -16,6 +16,7 @@
 
 // Node modules
 const fs = require('fs');
+const fsExtra = require('fs-extra');
 const path = require('path');
 const { execSync } = require('child_process');
 
@@ -24,7 +25,6 @@ const express = require('express');
 const pluginRouter = express.Router();
 
 const protectedFileNames = ['routes.js'];
-const rmd = (process.platform === 'win32') ? 'RMDIR /S /Q' : 'rm -rf';
 
 // Load the plugins
 loadPlugins();
@@ -87,17 +87,13 @@ function loadPlugins() {
     // Removes old plugins
     if (!pluginNames.includes(f)) {
       M.log.info(`Removing plugin '${f}' ...`);
-      const c = `${rmd} ${path.join(__dirname, f)}`;
-      const stdout = execSync(c);
-      M.log.verbose(stdout.toString());
+      fsExtra.removeSync(path.join(__dirname, f));
     }
     // If package.json doesn't exist, it is not a valid plugin. Skip it.
     const pluginPath = path.join(__dirname, f);
     if (!fs.existsSync(path.join(pluginPath, 'package.json'))) {
       M.log.info(`Removing invalid plugin '${f}' ...`);
-      const c = `${rmd} ${path.join(__dirname, f)}`;
-      const stdout = execSync(c);
-      M.log.verbose(stdout.toString());
+      fsExtra.removeSync(path.join(__dirname, f));
       return;
     }
 
@@ -195,8 +191,7 @@ function loadPlugins() {
  */
 function clonePluginFromGitRepo(data) {
   // Remove plugin if it already exists in plugins directory
-  const stdoutRmCmd = execSync(`${rmd} ${path.join(M.root, 'plugins', data.name)}`);
-  M.log.verbose(stdoutRmCmd.toString());
+  fsExtra.removeSync(path.join(M.root, 'plugins', data.name));
 
   try {
     // Set deploy key file permissions
@@ -238,17 +233,16 @@ function clonePluginFromGitRepo(data) {
  */
 function copyPluginFromLocalDir(data) {
   // Remove plugin if it already exists in plugins directory
-  const stdoutRmCmd = execSync(`${rmd} ${path.join(M.root, 'plugins', data.name)}`);
-  M.log.verbose(stdoutRmCmd.toString());
+  if (fs.existsSync(path.join(M.root, 'plugins', data.name))) {
+    fsExtra.removeSync(path.join(M.root, 'plugins', data.name));
+  }
 
-  // Generate the copy command
-  let cmd = (process.platform === 'win32') ? 'xcopy /E' : 'cp -r ';
-  cmd = `${cmd} ${data.source} ${path.join(M.root, 'plugins', data.name)}`;
+  // Making the directory for the plugin
+  fs.mkdirSync(path.join(M.root, 'plugins', data.name));
 
   // Execute the copy command
-  M.log.info(`Copying plugin ${data.name} from ${data.source} ...`);
-  const stdout = execSync(cmd);
-  M.log.verbose(stdout.toString());
+  M.log.info(`Copying plugin files to ${data.name} from ${data.source} ...`);
+  fsExtra.copySync(data.source, path.join(M.root, 'plugins', data.name));
   M.log.info('Copy complete');
 }
 
@@ -261,15 +255,14 @@ function copyPluginFromLocalDir(data) {
  */
 function downloadPluginFromWebsite(data) {
   // Remove plugin if it already exists in plugins directory
-  const stdoutRmCmd = execSync(`${rmd} ${path.join(M.root, 'plugins', data.name)}`);
-  M.log.verbose(stdoutRmCmd.toString());
+  fsExtra.removeSync(path.join(M.root, 'plugins', data.name));
 
   // Proxy information
   const httpProxy = M.config.server.proxy;
 
   // Create directory for plugin
   const dirName = path.join(M.root, 'plugins', data.name);
-  const stdoutMkdirCmd = execSync(`mkdir -p ${dirName}`);
+  const stdoutMkdirCmd = fsExtra.mkdirpSync(dirName);
   M.log.verbose(stdoutMkdirCmd.toString());
 
   // Setting parameters
@@ -279,19 +272,19 @@ function downloadPluginFromWebsite(data) {
   // .zip files
   if (data.source.endsWith('.zip')) {
     // Set name and unzip command
-    fileName = `${path.join(M.root, 'plugins', data.name, `${data.name}.zip`)}`;
+    fileName = path.join(M.root, 'plugins', data.name, `${data.name}.zip`);
     unzipCmd = `unzip ${fileName} -d ${dirName}`;
   }
   // .tar.gz files
   else if (data.source.endsWith('.tar.gz')) {
     // Set name and unzip command
-    fileName = `${path.join(M.root, 'plugins', data.name, `${data.name}.tar.gz`)}`;
+    fileName = path.join(M.root, 'plugins', data.name, `${data.name}.tar.gz`);
     unzipCmd = `tar xvzf ${fileName} -C ${dirName}`;
   }
   // .gz files
   else if (data.source.endsWith('.gz')) {
     // Set name and unzip command
-    fileName = `${path.join(M.root, 'plugins', data.name, `${data.name}.gz`)}`;
+    fileName = path.join(M.root, 'plugins', data.name, `${data.name}.gz`);
     unzipCmd = `gunzip -c ${fileName} > ${dirName}`;
   }
   // Other files

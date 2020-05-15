@@ -78,7 +78,7 @@ describe(M.getModuleName(module.filename), () => {
   it('should GET users through search text', searchUsers);
   it('should PATCH a user', patchUser);
   it('should PATCH multiple users', patchUsers);
-  it('should PATCH a users password', patchUserPassword);
+  it('should PATCH a user\'s own password', patchOwnPassword);
   it('should DELETE a user', deleteUser);
   it('should DELETE multiple users', deleteUsers);
 });
@@ -713,11 +713,11 @@ function patchUsers(done) {
 }
 
 /**
- * @description Verifies mock PATCH request to update a users password.
+ * @description Verifies mock PATCH request to update a user's own password.
  *
  * @param {Function} done - The mocha callback.
  */
-function patchUserPassword(done) {
+function patchOwnPassword(done) {
   // Create request object
   const userData = testData.users[0];
   userData._id = userData.username;
@@ -729,6 +729,9 @@ function patchUserPassword(done) {
   const params = { username: userData.username };
   const method = 'PATCH';
   const req = testUtils.createRequest(userData, params, body, method);
+
+  // Set the requesting user to the target user object
+  req.user = userData;
 
   // Create response object
   const res = {};
@@ -813,9 +816,16 @@ function deleteUsers(done) {
     testData.users[2],
     testData.users[3]
   ];
+
+  const userIDs = userData.map(u => u.username);
+  const ids = userIDs.join(',');
+
+  const body = {};
+  const query = { ids: ids };
+
   const params = {};
   const method = 'DELETE';
-  const req = testUtils.createRequest(adminUser, params, userData.map(u => u.username), method);
+  const req = testUtils.createRequest(adminUser, params, body, method, query);
 
   // Create response object
   const res = {};
@@ -828,7 +838,7 @@ function deleteUsers(done) {
     chai.expect(deletedUsernames.length).to.equal(userData.length);
 
     // Verify expected response
-    chai.expect(deletedUsernames).to.have.members(userData.map(u => u.username));
+    chai.expect(deletedUsernames).to.have.members(userIDs);
 
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);

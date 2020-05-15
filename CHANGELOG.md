@@ -1,6 +1,51 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2020-04-28
+### Bug Fixes and Other Changes
+* Fixed a bug where webhook custom data could not be updated
+* Fixed a bug where webhooks could not be unarchived
+* Added support for ids query parameter for all batch delete endpoints
+* Updated `5xx` and `6xx` core tests to leverage the `ids` query parameter
+  for all batch delete tests
+
+## [1.0.4] - 2020-03-13
+### Bug Fixes and Other Changes
+* Fixed a bug preventing Webhook creation with custom data
+* Added `scripts/webpack-dev.config.js` to support hot reload for React 
+  development. Running `yarn watch` in a separate terminal will transpile
+  updates made to React component JSX files
+
+## [1.0.3] - 2020-02-28
+### Major Features and Improvements
+* Refactored outgoing webhooks to simplify response input
+
+### Bug Fixes and Other Changes
+* Fixed a bug causing elements with cross-references to not render properly 
+  in the UI
+* Added "depth" option to the `getElements()` endpoint
+
+## [1.0.2] - 2020-02-14
+### Bug Fixes and Other Changes
+* Implemented the `fs-extra` library to increase windows compatibility by
+  reducing the number of bash commands used
+
+## [1.0.1] - 2020-01-31
+### Major Features and Improvements
+* Implemented HTTP/2 in place of HTTPS/1.1. This requires no change for the
+  current user
+* Added a new artifact strategy for Amazon's S3
+* Added the ability for system wide admins to reset a users password
+* Added support for temporary passwords. Whenever a local user is created or
+  has their password reset, they must change their password upon first login
+  
+### Bug Fixes and Other Changes
+* Fixed a bug causing the cursor to flicker while hovering over buttons in the
+  UI
+* Fixed a bug causing local plugins to not load properly on Windows
+* Added an API endpoint which lists the filename and location of all artifact
+  blobs on a project
+
 ## [1.0.0] - 2020-01-20
 ### Bug Fixes and Other Changes
 * Added CONTRIBUTING.md file for detailing expectations for code contribution

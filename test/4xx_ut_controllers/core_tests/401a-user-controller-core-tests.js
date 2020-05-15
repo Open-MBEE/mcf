@@ -673,7 +673,8 @@ function updateUserPassword(done) {
   .then((user) => {
     foundUser = user[0];
     // Update the password via the controller
-    return UserController.updatePassword(foundUser, userData.password, newPassword, newPassword);
+    return UserController.updatePassword(foundUser, foundUser._id, userData.password, newPassword,
+      newPassword);
   })
   .then((updatedUser) => {
     // Verify user updated properly

@@ -94,7 +94,7 @@ async function idTooLong() {
 
     // Change id to be too long.
     branchData._id = '012345678901234567890123456789012345:01234567890123456789'
-      + '0123456789012345:0123456789012345678901234567890123456';
+      + '0123456789012345:01234567890123456789012345678901234560987890987098789';
     delete branchData.id;
 
     // Expect insertMany() to fail with specific error message

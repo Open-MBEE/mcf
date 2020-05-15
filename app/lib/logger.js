@@ -29,7 +29,6 @@
 // Node modules
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
 
 // NPM modules
 const winston = require('winston');
@@ -156,8 +155,7 @@ const formatter = printf((msg) => {
 // Check that the logs directory exists
 if (!fs.existsSync(path.join(M.root, 'logs'))) {
   // If logs directory doesn't exist, create it
-  const cmd = 'mkdir logs';
-  execSync(cmd);
+  fs.mkdirSync(path.join(M.root, 'logs'));
 }
 
 /**
@@ -248,7 +246,9 @@ function logSecurityResponse(req, res) {
  */
 function formatResponseLog(req, res) {
   const responseMessage = (res.locals && res.locals.message) ? res.locals.message : '';
-  const responseLength = responseMessage.length;
+  const responseLength = typeof responseMessage === 'string'
+    ? responseMessage.length
+    : responseMessage.toString().length;
   const statusCode = res.locals.statusCode ? res.locals.statusCode : res.statusCode;
 
   // Set username to anonymous if req.user is not defined

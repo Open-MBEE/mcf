@@ -78,6 +78,7 @@ router.route('/login')
 router.route('/')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   UIController.home
 );
@@ -89,6 +90,7 @@ router.route('/')
 router.route('/admin')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   UIController.adminConsole
 );
@@ -100,6 +102,7 @@ router.route('/admin')
 router.route('/admin/orgs')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   UIController.adminConsole
 );
@@ -111,6 +114,7 @@ router.route('/admin/orgs')
 router.route('/admin/projects')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   UIController.adminConsole
 );
@@ -137,6 +141,7 @@ router.param('username', (req, res, next, username) => {
 router.route('/profile/:username')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   UIController.profile
 );
@@ -186,6 +191,7 @@ router.param('elementid', (req, res, next, branch) => {
 router.route('/orgs/:orgid')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   UIController.organization
 );
@@ -196,6 +202,7 @@ router.route('/orgs/:orgid')
 router.route('/orgs/:orgid/users')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   UIController.organization
 );
@@ -206,6 +213,7 @@ router.route('/orgs/:orgid/users')
 router.route('/orgs/:orgid/projects')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   UIController.organization
 );
@@ -216,6 +224,7 @@ router.route('/orgs/:orgid/projects')
 router.route('/orgs/:orgid/projects/:projectid/info')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   UIController.project
 );
@@ -226,6 +235,7 @@ router.route('/orgs/:orgid/projects/:projectid/info')
 router.route('/orgs/:orgid/projects/:projectid/users')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   UIController.project
 );
@@ -236,6 +246,7 @@ router.route('/orgs/:orgid/projects/:projectid/users')
 router.route('/orgs/:orgid/projects/:projectid/branches')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   UIController.project
 );
@@ -246,6 +257,7 @@ router.route('/orgs/:orgid/projects/:projectid/branches')
 router.route('/orgs/:orgid/projects/:projectid/branches/:branchid')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   UIController.project
 );
@@ -256,6 +268,7 @@ router.route('/orgs/:orgid/projects/:projectid/branches/:branchid')
 router.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   UIController.project
 );
@@ -266,6 +279,7 @@ router.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements')
 router.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements#:elementid')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   UIController.project
 );
@@ -276,6 +290,7 @@ router.route('/orgs/:orgid/projects/:projectid/branches/:branchid/elements#:elem
 router.route('/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   UIController.project
 );
@@ -286,6 +301,7 @@ router.route('/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts')
 router.route('/orgs/:orgid/projects/:projectid/branches/:branchid/search')
 .get(
   AuthController.authenticate,
+  Middleware.expiredPassword,
   Middleware.logRoute,
   UIController.project
 );

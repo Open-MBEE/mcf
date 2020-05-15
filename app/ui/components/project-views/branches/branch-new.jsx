@@ -42,8 +42,7 @@ class CreateBranch extends Component {
 
     // Initialize state props
     this.state = {
-      branches: null,
-      tags: null,
+      branches: [],
       name: '',
       id: '',
       source: 'master',
@@ -130,7 +129,7 @@ class CreateBranch extends Component {
           this.setState({ error: err.responseText });
         },
         401: () => {
-          this.setState({ branches: null, tags: null });
+          this.setState({ branches: [] });
 
           // Refresh when session expires
           window.location.reload();
@@ -148,44 +147,29 @@ class CreateBranch extends Component {
 
   render() {
     // Initialize validators
-    let idInvalid;
-    let customInvalid;
-    let disableSubmit;
+    let idInvalid = false;
+    let customInvalid = false;
 
-    const branchOptions = [];
-    const tagOptions = [];
+    const branches = [];
+    const tags = [];
 
-    if (this.state.branches) {
-      this.state.branches.forEach((branch) => {
-        if (!branch.tag) {
-          branchOptions.push(
-            <option className='branch-opts'
-                    value={branch.id}>
-              {(branch.name.length > 0) ? branch.name : branch.id}
-            </option>
-          );
-        }
-        else {
-          tagOptions.push(
-            <option className='branch-opts'
-                    value={branch.id}>
-              {(branch.name.length > 0) ? branch.name : branch.id}
-            </option>
-          );
-        }
-      });
-    }
+    this.state.branches.forEach((branch, idx) => {
+      const option = (<option key={`opt-${idx}`} className='branch-opts' value={branch.id}>
+                        {(branch.name.length > 0) ? branch.name : branch.id}
+                      </option>);
+
+      const options = (branch.tag) ? tags : branches;
+
+      options.push(option);
+    });
 
     // Verify if id is valid
-    if (this.state.id.length !== 0) {
-      if (!RegExp(validators.id).test(this.state.id)) {
-        // Set invalid fields
-        idInvalid = true;
-        disableSubmit = true;
-      }
-    }
-    else {
-      disableSubmit = true;
+    const { id } = this.state;
+    const validatorsBranchId = validators.branch.id.split(validators.ID_DELIMITER).pop();
+    const maxLength = validators.branch.idLength - validators.project.idLength - 1;
+
+    if (id.length !== 0) {
+      idInvalid = (id.length > maxLength || (!RegExp(validatorsBranchId).test(id)));
     }
 
     // Verify custom data is valid
@@ -195,8 +179,9 @@ class CreateBranch extends Component {
     catch (err) {
       // Set invalid fields
       customInvalid = true;
-      disableSubmit = true;
     }
+
+    const disableSubmit = (customInvalid || idInvalid || id.length === 0);
 
     // Return the form to create a project
     return (
@@ -223,9 +208,9 @@ class CreateBranch extends Component {
                      value={this.state.source || ''}
                      onChange={this.handleChange}>
                 <option disabled={true}>Branches</option>
-                {branchOptions}
+                {branches}
                 <option disabled={true}>Tags</option>
-                {tagOptions}
+                {tags}
               </Input>
             </FormGroup>
             {/* Create an input for project id */}
@@ -240,7 +225,7 @@ class CreateBranch extends Component {
                      onChange={this.handleChange}/>
               {/* If invalid id, notify user */}
               <FormFeedback >
-                Invalid: A id may only contain lower case letters, numbers, or dashes.
+                Invalid: An id may only contain letters, numbers, or dashes.
               </FormFeedback>
             </FormGroup>
             {/* Create an input for project name */}

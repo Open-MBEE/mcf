@@ -53,9 +53,9 @@ async function verifyOrgID() {
   chai.expect(RegExp(validators.org.id).test('validorgid')).to.equal(true);
   chai.expect(RegExp(validators.org.id).test('3org-id')).to.equal(true);
   chai.expect(RegExp(validators.org.id).test('underscore_allowed')).to.equal(true);
+  chai.expect(RegExp(validators.org.id).test('Org3')).to.equal(true);
 
   // Invalid IDs
-  chai.expect(RegExp(validators.org.id).test('Org3')).to.equal(false);
   chai.expect(RegExp(validators.org.id).test('special*')).to.equal(false);
   chai.expect(RegExp(validators.org.id).test('')).to.equal(false);
 }
@@ -70,10 +70,11 @@ async function verifyProjectID() {
   // Valid IDs
   chai.expect(RegExp(validators.project.id).test('someorgid:proj3')).to.equal(true);
   chai.expect(RegExp(validators.project.id).test('anotherorgid:3proj-id')).to.equal(true);
+  chai.expect(RegExp(validators.project.id).test('org:Proj3')).to.equal(true);
 
   // Invalid IDs
-  chai.expect(RegExp(validators.project.id).test('Proj3')).to.equal(false);
-  chai.expect(RegExp(validators.project.id).test('special*')).to.equal(false);
+  chai.expect(RegExp(validators.project.id).test('org:special*')).to.equal(false);
+  chai.expect(RegExp(validators.project.id).test('org:')).to.equal(false);
   chai.expect(RegExp(validators.project.id).test('')).to.equal(false);
 }
 
@@ -87,10 +88,11 @@ async function verifyBranchID() {
   // Valid IDs
   chai.expect(RegExp(validators.branch.id).test('org:proj:branch1')).to.equal(true);
   chai.expect(RegExp(validators.branch.id).test('org:proj:3branch-id')).to.equal(true);
+  chai.expect(RegExp(validators.branch.id).test('org:proj:Branch3')).to.equal(true);
 
   // Invalid IDs
-  chai.expect(RegExp(validators.project.id).test('Branch3')).to.equal(false);
-  chai.expect(RegExp(validators.project.id).test('special*')).to.equal(false);
+  chai.expect(RegExp(validators.branch.id).test('org:proj:special*')).to.equal(false);
+  chai.expect(RegExp(validators.branch.id).test('org:proj:')).to.equal(false);
   chai.expect(RegExp(validators.project.id).test('')).to.equal(false);
 }
 

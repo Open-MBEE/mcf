@@ -25,16 +25,22 @@ import React from 'react';
 
 function SearchResult(props) {
   const cols = [];
+  const { org, project, branch, id } = props.data;
+  const href = `/orgs/${org}/projects/${project}/branches/${branch}/elements#${id}`;
 
   props.keys.forEach((key, index) => {
     // Check if element has value defined for respective key
     const currentValue = (typeof props.data[key] === 'undefined' || !props.data[key]) ? '' : props.data[key].toString();
     // Convert Custom data to string
     const displayValue = (key === 'custom') ? JSON.stringify(props.data[key]) : currentValue;
-
-    cols.push(
-      <td className={`search-col-${index}`} key={`col-${index}`}>{displayValue}</td>
-    );
+    const col = (key === 'id')
+      ? <td className={`search-col-${index}`} key={`col-${index}`}>
+          <a href={href}>
+            {displayValue}
+          </a>
+        </td>
+      : <td className={`search-col-${index}`} key={`col-${index}`}>{displayValue}</td>;
+    cols.push(col);
   });
 
   return cols;

@@ -33,6 +33,7 @@ const testData = testUtils.importTestData('test_data.json');
 const next = testUtils.next;
 const filepath = path.join(M.root, '/test/testzip.json');
 let adminUser = null;
+let nonAdminUser = null;
 let org = null;
 
 
@@ -51,6 +52,8 @@ describe(M.getModuleName(module.filename), () => {
     try {
       // Create test admin
       adminUser = await testUtils.createTestAdmin();
+      // Create test user
+      nonAdminUser = await testUtils.createNonAdminUser();
       // Create organization
       org = await testUtils.createTestOrg(adminUser);
     }
@@ -68,6 +71,7 @@ describe(M.getModuleName(module.filename), () => {
     try {
       await testUtils.removeTestOrg();
       await testUtils.removeTestAdmin();
+      await testUtils.removeNonAdminUser();
       await fs.unlinkSync(filepath);
     }
     catch (error) {
@@ -78,12 +82,60 @@ describe(M.getModuleName(module.filename), () => {
   });
 
   /* Execute tests */
+  it('should PATCH another user\'s password as admin', patchOtherPassword);
   it('should post users from an uploaded gzip file', postGzip);
   it('should put users from an uploaded gzip file', putGzip);
   it('should patch users from an uploaded gzip file', patchGzip);
 });
 
 /* --------------------( Tests )-------------------- */
+/**
+ * @description Verifies mock PATCH request to update another user's password as
+ * an admin.
+ *
+ * @param {Function} done - The mocha callback.
+ */
+function patchOtherPassword(done) {
+  // Create request object
+  const userData = testData.users[1];
+
+  const body = {
+    password: 'NewPass123456?',
+    confirmPassword: 'NewPass123456?',
+    oldPassword: userData.password
+  };
+  const params = { username: userData.username };
+  const method = 'PATCH';
+  const req = testUtils.createRequest(nonAdminUser, params, body, method);
+
+  req.user = adminUser;
+
+  // Create response object
+  const res = {};
+  testUtils.createResponse(res);
+
+  // Verifies the response data
+  res.send = function send(_data) {
+    // Convert response to JSON
+    const updatedUser = JSON.parse(_data);
+
+    // Verify expected response
+    chai.expect(updatedUser.username).to.equal(userData.username);
+    chai.expect(updatedUser.fname).to.equal(userData.fname);
+    chai.expect(updatedUser.lname).to.equal(userData.lname);
+    chai.expect(updatedUser.admin).to.equal(userData.admin);
+    chai.expect(updatedUser).to.not.have.any.keys('password', '_id', '__v');
+
+    // Expect the statusCode to be 200
+    chai.expect(res.statusCode).to.equal(200);
+
+    done();
+  };
+
+  // PATCH a user's password
+  APIController.patchPassword(req, res, next(req, res));
+}
+
 /**
  * @description Verifies that a gzip file can be uploaded, unzipped, and
  * the contents can be used to create users.

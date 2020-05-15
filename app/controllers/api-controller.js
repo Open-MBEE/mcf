@@ -39,6 +39,7 @@ const BranchController = M.require('controllers.branch-controller');
 const OrgController = M.require('controllers.organization-controller');
 const ProjectController = M.require('controllers.project-controller');
 const UserController = M.require('controllers.user-controller');
+const User = M.require('models.user');
 const WebhookController = M.require('controllers.webhook-controller');
 const Webhook = M.require('models.webhook');
 const EventEmitter = M.require('lib.events');
@@ -123,6 +124,7 @@ module.exports = {
   postBlob,
   deleteBlob,
   getBlobById,
+  listBlobs,
   getWebhooks,
   postWebhooks,
   patchWebhooks,
@@ -188,11 +190,15 @@ function swaggerSpec() {
  * @returns {object} Response object with swagger JSON
  */
 function swaggerJSON(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Return swagger specification
   const json = formatJSON(swaggerSpec());
   return utils.formatResponse(req, res, json, 200, next);
 }
 
+// eslint-disable-next-line jsdoc/require-returns
 /**
  * POST /api/login
  *
@@ -203,6 +209,9 @@ function swaggerJSON(req, res, next) {
  * @param {Function} next - Middleware callback to trigger the next function.
  */
 function login(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   const json = formatJSON({ token: req.session.token });
   res.locals = {
     message: json,
@@ -236,6 +245,9 @@ function test(req, res) {
  * @returns {object} Response object with version
  */
 function version(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Create version object
   const json = formatJSON({
     version: M.version,
@@ -259,6 +271,9 @@ function version(req, res, next) {
  * @returns {object} Response object with log info.
  */
 function getLogs(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   let options;
   let logContent;
   let returnedLines;
@@ -374,6 +389,9 @@ function getLogs(req, res, next) {
  * access to at least this organization.
  */
 async function getOrgs(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options and ids
   // Note: Undefined if not set
   let ids;
@@ -425,7 +443,7 @@ async function getOrgs(req, res, next) {
     ids = options.ids;
     delete options.ids;
   }
-  // No IDs include in options, check body for IDs
+  // No IDs included in options, check body for IDs
   else if (Array.isArray(req.body) && req.body.every(s => typeof s === 'string')) {
     ids = req.body;
   }
@@ -451,7 +469,7 @@ async function getOrgs(req, res, next) {
 
     // Get the public data of each org
     const orgsPublicData = sani.html(
-      orgs.map(o => publicData.getPublicData(o, 'org', options))
+      orgs.map(o => publicData.getPublicData(req.user, o, 'org', options))
     );
 
     // Format JSON
@@ -482,6 +500,9 @@ async function getOrgs(req, res, next) {
  * @returns {object} Response object with orgs' public data
  */
 async function postOrgs(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -535,7 +556,7 @@ async function postOrgs(req, res, next) {
     const orgs = await OrgController.create(req.user, orgData, options);
     // Get the public data of each org
     const orgsPublicData = sani.html(
-      orgs.map(o => publicData.getPublicData(o, 'org', options))
+      orgs.map(o => publicData.getPublicData(req.user, o, 'org', options))
     );
 
     // Format JSON
@@ -567,6 +588,9 @@ async function postOrgs(req, res, next) {
  * @returns {object} Response object with orgs' public data
  */
 async function putOrgs(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -620,7 +644,7 @@ async function putOrgs(req, res, next) {
     const orgs = await OrgController.createOrReplace(req.user, orgData, options);
     // Get the public data of each org
     const orgsPublicData = sani.html(
-      orgs.map(o => publicData.getPublicData(o, 'org', options))
+      orgs.map(o => publicData.getPublicData(req.user, o, 'org', options))
     );
 
     // Format JSON
@@ -651,6 +675,9 @@ async function putOrgs(req, res, next) {
  * @returns {object} Response object with orgs' public data
  */
 async function patchOrgs(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -704,7 +731,7 @@ async function patchOrgs(req, res, next) {
     const orgs = await OrgController.update(req.user, orgData, options);
     // Get the public data of each org
     const orgsPublicData = sani.html(
-      orgs.map(o => publicData.getPublicData(o, 'org', options))
+      orgs.map(o => publicData.getPublicData(req.user, o, 'org', options))
     );
 
     // Format JSON
@@ -726,8 +753,8 @@ async function patchOrgs(req, res, next) {
 /**
  * DELETE /api/orgs
  *
- * @description Deletes multiple orgs from an array of org IDs or array of org
- * objects.
+ * @description Deletes multiple orgs from an array of org IDs, an array of org
+ * objects, or from a comma separated list of org IDs.
  * NOTE: This function is system-admin ONLY.
  *
  * @param {object} req - Request express object.
@@ -737,6 +764,9 @@ async function patchOrgs(req, res, next) {
  * @returns {object} Response object with array of deleted org IDs.
  */
 async function deleteOrgs(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -744,7 +774,8 @@ async function deleteOrgs(req, res, next) {
 
   // Define valid option and its parsed type
   const validOptions = {
-    minified: 'boolean'
+    minified: 'boolean',
+    ids: 'array'
   };
 
   // Sanity Check: there should always be a user in the request
@@ -760,10 +791,11 @@ async function deleteOrgs(req, res, next) {
     return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
-  // If req.body contains objects, grab the org IDs from the objects
-  if (Array.isArray(req.body) && req.body.every(s => typeof s === 'object')) {
-    req.body = req.body.map(o => o.id);
-  }
+  // Extract IDs from request
+  const ids = utils.parseRequestIDs(req, options);
+
+  // Remove option IDs
+  delete options.ids;
 
   // Check options for minified
   if (options.hasOwnProperty('minified')) {
@@ -773,7 +805,7 @@ async function deleteOrgs(req, res, next) {
 
   try {
     // Remove the specified orgs
-    const orgIDs = await OrgController.remove(req.user, req.body, options);
+    const orgIDs = await OrgController.remove(req.user, ids, options);
     // Format JSON
     const json = formatJSON(orgIDs, minified);
 
@@ -802,6 +834,9 @@ async function deleteOrgs(req, res, next) {
  * @returns {object} Response object with org's public data
  */
 async function getOrg(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -847,7 +882,7 @@ async function getOrg(req, res, next) {
 
     // Get the public data of each org
     const orgsPublicData = sani.html(
-      orgs.map(o => publicData.getPublicData(o, 'org', options))
+      orgs.map(o => publicData.getPublicData(req.user, o, 'org', options))
     );
 
     // Format JSON
@@ -879,6 +914,9 @@ async function getOrg(req, res, next) {
  * @returns {object} Response object with org's public data
  */
 async function postOrg(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -933,7 +971,7 @@ async function postOrg(req, res, next) {
     const orgs = await OrgController.create(req.user, req.body, options);
     // Get the public data of each org
     const orgsPublicData = sani.html(
-      orgs.map(o => publicData.getPublicData(o, 'org', options))
+      orgs.map(o => publicData.getPublicData(req.user, o, 'org', options))
     );
 
     // Format JSON
@@ -965,6 +1003,9 @@ async function postOrg(req, res, next) {
  * @returns {object} Response object with org's public data
  */
 async function putOrg(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1019,7 +1060,7 @@ async function putOrg(req, res, next) {
     const orgs = await OrgController.createOrReplace(req.user, req.body, options);
     // Get the public data of each org
     const orgsPublicData = sani.html(
-      orgs.map(o => publicData.getPublicData(o, 'org', options))
+      orgs.map(o => publicData.getPublicData(req.user, o, 'org', options))
     );
 
     // Format JSON
@@ -1050,6 +1091,9 @@ async function putOrg(req, res, next) {
  * @returns {object} Response object with updated org
  */
 async function patchOrg(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1104,7 +1148,7 @@ async function patchOrg(req, res, next) {
     const orgs = await OrgController.update(req.user, req.body, options);
     // Get the public data of each org
     const orgsPublicData = sani.html(
-      orgs.map(o => publicData.getPublicData(o, 'org', options))
+      orgs.map(o => publicData.getPublicData(req.user, o, 'org', options))
     );
 
     // Format JSON
@@ -1136,6 +1180,9 @@ async function patchOrg(req, res, next) {
  * @returns {object} Response object with deleted org ID.
  */
 async function deleteOrg(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1200,6 +1247,9 @@ async function deleteOrg(req, res, next) {
  * @returns {object} Response object with projects' public data
  */
 async function getAllProjects(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1260,7 +1310,7 @@ async function getAllProjects(req, res, next) {
     }
 
     const publicProjectData = sani.html(
-      projects.map(p => publicData.getPublicData(p, 'project', options))
+      projects.map(p => publicData.getPublicData(req.user, p, 'project', options))
     );
 
     // Format JSON
@@ -1292,6 +1342,9 @@ async function getAllProjects(req, res, next) {
  * @returns {object} Response object with projects' public data
  */
 async function getProjects(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options and ids
   // Note: Undefined if not set
   let ids;
@@ -1371,7 +1424,7 @@ async function getProjects(req, res, next) {
     }
 
     const publicProjectData = sani.html(
-      projects.map(p => publicData.getPublicData(p, 'project', options))
+      projects.map(p => publicData.getPublicData(req.user, p, 'project', options))
     );
 
     // Format JSON
@@ -1402,6 +1455,9 @@ async function getProjects(req, res, next) {
  * @returns {object} Response object with created projects.
  */
 async function postProjects(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1455,7 +1511,7 @@ async function postProjects(req, res, next) {
     const projects = await ProjectController.create(req.user, req.params.orgid, projectData,
       options);
     const publicProjectData = sani.html(
-      projects.map(p => publicData.getPublicData(p, 'project', options))
+      projects.map(p => publicData.getPublicData(req.user, p, 'project', options))
     );
 
     // Format JSON
@@ -1487,6 +1543,9 @@ async function postProjects(req, res, next) {
  * @returns {object} Response object with created/replaced projects.
  */
 async function putProjects(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1540,7 +1599,7 @@ async function putProjects(req, res, next) {
     const projects = await ProjectController.createOrReplace(req.user, req.params.orgid,
       projectData, options);
     const publicProjectData = sani.html(
-      projects.map(p => publicData.getPublicData(p, 'project', options))
+      projects.map(p => publicData.getPublicData(req.user, p, 'project', options))
     );
 
     // Format JSON
@@ -1571,6 +1630,9 @@ async function putProjects(req, res, next) {
  * @returns {object} Response object with updated projects.
  */
 async function patchProjects(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1624,7 +1686,7 @@ async function patchProjects(req, res, next) {
     const projects = await ProjectController.update(req.user, req.params.orgid,
       projectData, options);
     const publicProjectData = sani.html(
-      projects.map(p => publicData.getPublicData(p, 'project', options))
+      projects.map(p => publicData.getPublicData(req.user, p, 'project', options))
     );
 
     // Format JSON
@@ -1657,6 +1719,9 @@ async function patchProjects(req, res, next) {
  * @returns {object} Response object with deleted project IDs.
  */
 async function deleteProjects(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1664,6 +1729,7 @@ async function deleteProjects(req, res, next) {
 
   // Define valid option and its parsed type
   const validOptions = {
+    ids: 'array',
     minified: 'boolean'
   };
 
@@ -1680,10 +1746,11 @@ async function deleteProjects(req, res, next) {
     return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
-  // If req.body contains objects, grab the project IDs from the objects
-  if (Array.isArray(req.body) && req.body.every(s => typeof s === 'object')) {
-    req.body = req.body.map(p => p.id);
-  }
+  // Extract IDs from request
+  const ids = utils.parseRequestIDs(req, options);
+
+  // Remove option IDs
+  delete options.ids;
 
   // Check options for minified
   if (options.hasOwnProperty('minified')) {
@@ -1693,8 +1760,7 @@ async function deleteProjects(req, res, next) {
 
   try {
     // Remove the specified projects
-    const projectIDs = await ProjectController.remove(req.user, req.params.orgid,
-      req.body, options);
+    const projectIDs = await ProjectController.remove(req.user, req.params.orgid, ids, options);
     const parsedIDs = projectIDs.map(p => utils.parseID(p).pop());
 
     // Format JSON
@@ -1725,6 +1791,9 @@ async function deleteProjects(req, res, next) {
  * @returns {object} Response object with project's public data
  */
 async function getProject(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1770,7 +1839,7 @@ async function getProject(req, res, next) {
     }
 
     const publicProjectData = sani.html(
-      projects.map(p => publicData.getPublicData(p, 'project', options))
+      projects.map(p => publicData.getPublicData(req.user, p, 'project', options))
     );
 
     // Format JSON
@@ -1802,6 +1871,9 @@ async function getProject(req, res, next) {
  * @returns {object} Response object with created project.
  */
 async function postProject(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1855,7 +1927,7 @@ async function postProject(req, res, next) {
     // NOTE: create() sanitizes req.params.orgid and req.body
     const projects = await ProjectController.create(req.user, req.params.orgid, req.body, options);
     const publicProjectData = sani.html(
-      projects.map(p => publicData.getPublicData(p, 'project', options))
+      projects.map(p => publicData.getPublicData(req.user, p, 'project', options))
     );
 
     // Format JSON
@@ -1887,6 +1959,9 @@ async function postProject(req, res, next) {
  * @returns {object} Response object with created project.
  */
 async function putProject(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -1941,7 +2016,7 @@ async function putProject(req, res, next) {
     const projects = await ProjectController.createOrReplace(req.user, req.params.orgid,
       req.body, options);
     const publicProjectData = sani.html(
-      projects.map(p => publicData.getPublicData(p, 'project', options))
+      projects.map(p => publicData.getPublicData(req.user, p, 'project', options))
     );
 
     // Format JSON
@@ -1972,6 +2047,9 @@ async function putProject(req, res, next) {
  * @returns {object} Response object with updated project.
  */
 async function patchProject(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2026,7 +2104,7 @@ async function patchProject(req, res, next) {
     const projects = await ProjectController.update(req.user, req.params.orgid,
       req.body, options);
     const publicProjectData = sani.html(
-      projects.map(p => publicData.getPublicData(p, 'project', options))
+      projects.map(p => publicData.getPublicData(req.user, p, 'project', options))
     );
 
     // Format JSON
@@ -2058,6 +2136,9 @@ async function patchProject(req, res, next) {
  * @returns {object} Response object with deleted project ID.
  */
 async function deleteProject(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2123,6 +2204,9 @@ async function deleteProject(req, res, next) {
  * @returns {object} Response object with users' public data
  */
 async function getUsers(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2190,11 +2274,8 @@ async function getUsers(req, res, next) {
     // NOTE: find() sanitizes req.usernames
     const users = await UserController.find(req.user, usernames, options);
 
-    // Set the failedlogins parameter to true if the requesting user is an admin
-    if (req.user.admin) options.failedlogins = true;
-
     const publicUserData = sani.html(
-      users.map(u => publicData.getPublicData(u, 'user', options))
+      users.map(u => publicData.getPublicData(req.user, u, 'user', options))
     );
 
     // Verify users public data array is not empty
@@ -2231,6 +2312,9 @@ async function getUsers(req, res, next) {
  * @returns {object} Response object with users' public data
  */
 async function postUsers(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2283,7 +2367,7 @@ async function postUsers(req, res, next) {
     // NOTE: create() sanitizes userData
     const users = await UserController.create(req.user, userData, options);
     const publicUserData = sani.html(
-      users.map(u => publicData.getPublicData(u, 'user', options))
+      users.map(u => publicData.getPublicData(req.user, u, 'user', options))
     );
 
     // Format JSON
@@ -2315,6 +2399,9 @@ async function postUsers(req, res, next) {
  * @returns {object} Response object with users' public data
  */
 async function putUsers(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2367,7 +2454,7 @@ async function putUsers(req, res, next) {
     // NOTE: createOrReplace() sanitizes userData
     const users = await UserController.createOrReplace(req.user, userData, options);
     const publicUserData = sani.html(
-      users.map(u => publicData.getPublicData(u, 'user', options))
+      users.map(u => publicData.getPublicData(req.user, u, 'user', options))
     );
 
     // Format JSON
@@ -2399,6 +2486,9 @@ async function putUsers(req, res, next) {
  * @returns {object} Response object with users' public data
  */
 async function patchUsers(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2451,7 +2541,7 @@ async function patchUsers(req, res, next) {
     // NOTE: update() sanitizes userData
     const users = await UserController.update(req.user, userData, options);
     const publicUserData = sani.html(
-      users.map(u => publicData.getPublicData(u, 'user', options))
+      users.map(u => publicData.getPublicData(req.user, u, 'user', options))
     );
 
     // Format JSON
@@ -2484,6 +2574,9 @@ async function patchUsers(req, res, next) {
  * @returns {object} Response object with usernames
  */
 async function deleteUsers(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2491,6 +2584,7 @@ async function deleteUsers(req, res, next) {
 
   // Define valid option and its parsed type
   const validOptions = {
+    ids: 'array',
     minified: 'boolean'
   };
 
@@ -2507,6 +2601,12 @@ async function deleteUsers(req, res, next) {
     return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
+  // Extract IDs from request
+  const ids = utils.parseRequestIDs(req, options, true);
+
+  // Remove option IDs
+  delete options.ids;
+
   // Check options for minified
   if (options.hasOwnProperty('minified')) {
     minified = options.minified;
@@ -2516,7 +2616,7 @@ async function deleteUsers(req, res, next) {
   try {
     // Remove the specified users
     // NOTE: remove() sanitizes req.body
-    const usernames = await UserController.remove(req.user, req.body, options);
+    const usernames = await UserController.remove(req.user, ids, options);
     // Format JSON
     const json = formatJSON(usernames, minified);
 
@@ -2545,6 +2645,9 @@ async function deleteUsers(req, res, next) {
  * @returns {object} Response object with user's public data
  */
 async function getUser(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2588,11 +2691,8 @@ async function getUser(req, res, next) {
       );
     }
 
-    // Set the failedlogins parameter to true if the requesting user is an admin
-    if (req.user.admin) options.failedlogins = true;
-
     const publicUserData = sani.html(
-      users.map(u => publicData.getPublicData(u, 'user', options))
+      users.map(u => publicData.getPublicData(req.user, u, 'user', options))
     );
 
     // Format JSON
@@ -2624,6 +2724,9 @@ async function getUser(req, res, next) {
  * @returns {object} Response object with created user
  */
 async function postUser(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2677,7 +2780,7 @@ async function postUser(req, res, next) {
     // NOTE: create() sanitizes req.body
     const users = await UserController.create(req.user, req.body, options);
     const publicUserData = sani.html(
-      users.map(u => publicData.getPublicData(u, 'user', options))
+      users.map(u => publicData.getPublicData(req.user, u, 'user', options))
     );
 
     // Format JSON
@@ -2709,6 +2812,9 @@ async function postUser(req, res, next) {
  * @returns {object} Response object with created user
  */
 async function putUser(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2762,7 +2868,7 @@ async function putUser(req, res, next) {
     // NOTE: createOrReplace() sanitizes req.body
     const users = await UserController.createOrReplace(req.user, req.body, options);
     const publicUserData = sani.html(
-      users.map(u => publicData.getPublicData(u, 'user', options))
+      users.map(u => publicData.getPublicData(req.user, u, 'user', options))
     );
 
     // Format JSON
@@ -2794,6 +2900,9 @@ async function putUser(req, res, next) {
  * @returns {object} Response object with updated user
  */
 async function patchUser(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2847,7 +2956,7 @@ async function patchUser(req, res, next) {
     // NOTE: update() sanitizes req.body
     const users = await UserController.update(req.user, req.body, options);
     const publicUserData = sani.html(
-      users.map(u => publicData.getPublicData(u, 'user', options))
+      users.map(u => publicData.getPublicData(req.user, u, 'user', options))
     );
 
     // Format JSON
@@ -2879,6 +2988,9 @@ async function patchUser(req, res, next) {
  * @returns {object} Response object with deleted username
  */
 async function deleteUser(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2948,6 +3060,9 @@ async function deleteUser(req, res, next) {
  * @returns {object} Response object with user's public data
  */
 async function whoami(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -2978,7 +3093,7 @@ async function whoami(req, res, next) {
   }
 
   const publicUserData = sani.html(
-    publicData.getPublicData(req.user, 'user', options)
+    publicData.getPublicData(req.user, req.user, 'user', options)
   );
 
   // Format JSON
@@ -3004,6 +3119,9 @@ async function whoami(req, res, next) {
  * @returns {object} Response object with found users
  */
 async function searchUsers(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options and query
   // Note: Undefined if not set
   let options;
@@ -3056,11 +3174,8 @@ async function searchUsers(req, res, next) {
       throw new M.NotFoundError('No users found.', 'warn');
     }
 
-    // Set the failedlogins parameter to true if the requesting user is an admin
-    if (req.user.admin) options.failedlogins = true;
-
     const usersPublicData = sani.html(
-      users.map(u => publicData.getPublicData(u, 'user', options))
+      users.map(u => publicData.getPublicData(req.user, u, 'user', options))
     );
 
     // Format JSON
@@ -3091,6 +3206,9 @@ async function searchUsers(req, res, next) {
  * @returns {object} Response object with updated user public data.
  */
 async function patchPassword(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -3104,10 +3222,15 @@ async function patchPassword(req, res, next) {
   // Sanity Check: there should always be a user in the request
   if (!req.user) return noUserError(req, res, next);
 
-  // Ensure old password was provided
+  // Ensure old password was provided if user is changing their own password
   if (!req.body.oldPassword) {
-    const error = new M.DataFormatError('Old password not in request body.', 'warn');
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+    if (req.user._id !== req.params.username) {
+      req.body.oldPassword = null;
+    }
+    else {
+      const error = new M.DataFormatError('Old password not in request body.', 'warn');
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+    }
   }
 
   // Ensure new password was provided
@@ -3119,12 +3242,6 @@ async function patchPassword(req, res, next) {
   // Ensure confirmed password was provided
   if (!req.body.confirmPassword) {
     const error = new M.DataFormatError('Confirmed password not in request body.', 'warn');
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Ensure user is not trying to change another user's password
-  if (req.user._id !== req.params.username) {
-    const error = new M.OperationError('Cannot change another user\'s password.', 'warn');
     return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
@@ -3146,10 +3263,10 @@ async function patchPassword(req, res, next) {
 
   try {
     // Update the password
-    const user = await UserController.updatePassword(req.user, req.body.oldPassword,
-      req.body.password, req.body.confirmPassword);
+    const user = await UserController.updatePassword(req.user, req.params.username,
+      req.body.oldPassword, req.body.password, req.body.confirmPassword);
     const publicUserData = sani.html(
-      publicData.getPublicData(user, 'user', options)
+      publicData.getPublicData(req.user, user, 'user', options)
     );
 
     // Format JSON
@@ -3181,6 +3298,9 @@ async function patchPassword(req, res, next) {
  * @returns {object} Response object with elements' public data
  */
 async function getElements(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options and ids
   // Note: Undefined if not set
   let elemIDs;
@@ -3194,6 +3314,7 @@ async function getElements(req, res, next) {
     archived: 'boolean',
     includeArchived: 'boolean',
     subtree: 'boolean',
+    depth: 'number',
     fields: 'array',
     limit: 'number',
     skip: 'number',
@@ -3274,7 +3395,7 @@ async function getElements(req, res, next) {
     const elements = await ElementController.find(req.user, req.params.orgid, req.params.projectid,
       req.params.branchid, elemIDs, options);
     const elementsPublicData = sani.html(
-      elements.map(e => publicData.getPublicData(e, 'element', options))
+      elements.map(e => publicData.getPublicData(req.user, e, 'element', options))
     );
 
     // Verify elements public data array is not empty
@@ -3282,38 +3403,15 @@ async function getElements(req, res, next) {
       throw new M.NotFoundError('No elements found.', 'warn');
     }
 
-    const retData = elementsPublicData;
+    // Defaults to JMI type 1 (plain element public data)
+    let retData = elementsPublicData;
 
     // Check for JMI conversion
-    if (format) {
-      // Convert data to correct JMI format
-      try {
-        let jmiData = [];
-
-        // If JMI type 1, return plain element public data
-        if (format === 'jmi1') {
-          jmiData = elementsPublicData;
-        }
-        else if (format === 'jmi2') {
-          jmiData = jmi.convertJMI(1, 2, elementsPublicData, 'id');
-        }
-        else if (format === 'jmi3') {
-          jmiData = jmi.convertJMI(1, 3, elementsPublicData, 'id');
-        }
-
-        // Format JSON
-        const json = formatJSON(jmiData, minified);
-
-        // Send a 200: OK and public JMI type 3 element data
-        res.locals = {
-          message: json,
-          statusCode: 200
-        };
-        next();
-      }
-      catch (err) {
-        throw err;
-      }
+    if (format === 'jmi2') {
+      retData = jmi.convertJMI(1, 2, elementsPublicData, 'id');
+    }
+    else if (format === 'jmi3') {
+      retData = jmi.convertJMI(1, 3, elementsPublicData, 'id');
     }
 
     // Format JSON
@@ -3344,6 +3442,9 @@ async function getElements(req, res, next) {
  * @returns {object} Response object with created elements
  */
 async function postElements(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -3398,7 +3499,7 @@ async function postElements(req, res, next) {
     const elements = await ElementController.create(req.user, req.params.orgid,
       req.params.projectid, req.params.branchid, elementData, options);
     const elementsPublicData = sani.html(
-      elements.map(e => publicData.getPublicData(e, 'element', options))
+      elements.map(e => publicData.getPublicData(req.user, e, 'element', options))
     );
 
     // Format JSON
@@ -3430,6 +3531,9 @@ async function postElements(req, res, next) {
  * @returns {object} Response object with created/replaced elements
  */
 async function putElements(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -3483,7 +3587,7 @@ async function putElements(req, res, next) {
     const elements = await ElementController.createOrReplace(req.user, req.params.orgid,
       req.params.projectid, req.params.branchid, elementData, options);
     const elementsPublicData = sani.html(
-      elements.map(e => publicData.getPublicData(e, 'element', options))
+      elements.map(e => publicData.getPublicData(req.user, e, 'element', options))
     );
 
     // Format JSON
@@ -3514,6 +3618,9 @@ async function putElements(req, res, next) {
  * @returns {object} Response object with updated elements
  */
 async function patchElements(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -3567,7 +3674,7 @@ async function patchElements(req, res, next) {
     const elements = await ElementController.update(req.user, req.params.orgid,
       req.params.projectid, req.params.branchid, elementData, options);
     const elementsPublicData = sani.html(
-      elements.map(e => publicData.getPublicData(e, 'element', options))
+      elements.map(e => publicData.getPublicData(req.user, e, 'element', options))
     );
 
     // Format JSON
@@ -3589,8 +3696,8 @@ async function patchElements(req, res, next) {
 /**
  * DELETE /api/orgs/:orgid/projects/:projectid/branches/:branchid/elements
  *
- * @description Deletes multiple elements from an array of element IDs or array
- * of element objects.
+ * @description Deletes multiple elements from an array of element IDs, an array
+ * of element objects, or from a comma separated list of element IDs.
  *
  * @param {object} req - Request express object
  * @param {object} res - Response express object
@@ -3599,6 +3706,9 @@ async function patchElements(req, res, next) {
  * @returns {object} Response object with element ids.
  */
 async function deleteElements(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -3606,6 +3716,7 @@ async function deleteElements(req, res, next) {
 
   // Define valid option and its parsed type
   const validOptions = {
+    ids: 'array',
     minified: 'boolean'
   };
 
@@ -3622,6 +3733,12 @@ async function deleteElements(req, res, next) {
     return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
+  // Extract IDs from request
+  const ids = utils.parseRequestIDs(req, options);
+
+  // Remove option IDs
+  delete options.ids;
+
   // Check options for minified
   if (options.hasOwnProperty('minified')) {
     minified = options.minified;
@@ -3632,7 +3749,7 @@ async function deleteElements(req, res, next) {
     // Remove the specified elements
     // NOTE: remove() sanitizes input params
     const elements = await ElementController.remove(req.user, req.params.orgid,
-      req.params.projectid, req.params.branchid, req.body, options);
+      req.params.projectid, req.params.branchid, ids, options);
     const parsedIDs = elements.map(e => utils.parseID(e).pop());
 
     // Format JSON
@@ -3663,6 +3780,9 @@ async function deleteElements(req, res, next) {
  * @returns {object} Response object with elements
  */
 async function searchElements(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options and query
   // Note: Undefined if not set
   let options;
@@ -3696,7 +3816,12 @@ async function searchElements(req, res, next) {
     Object.keys(req.query).forEach((k) => {
       // If the key starts with custom., add it to the validOptions object
       if (k.startsWith('custom.')) {
-        validOptions[k] = 'string';
+        if (req.query[k] === 'true' || req.query[k] === 'false') {
+          validOptions[k] = 'boolean';
+        }
+        else {
+          validOptions[k] = 'string';
+        }
       }
     });
   }
@@ -3737,7 +3862,7 @@ async function searchElements(req, res, next) {
     }
 
     const elementsPublicData = sani.html(
-      elements.map(e => publicData.getPublicData(e, 'element', options))
+      elements.map(e => publicData.getPublicData(req.user, e, 'element', options))
     );
 
     // Format JSON
@@ -3768,6 +3893,9 @@ async function searchElements(req, res, next) {
  * @returns {object} Response object with element's public data
  */
 async function getElement(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -3778,6 +3906,7 @@ async function getElement(req, res, next) {
     populate: 'array',
     includeArchived: 'boolean',
     subtree: 'boolean',
+    depth: 'number',
     fields: 'array',
     minified: 'boolean',
     rootpath: 'boolean'
@@ -3815,7 +3944,7 @@ async function getElement(req, res, next) {
     }
 
     let elementsPublicData = sani.html(
-      elements.map(e => publicData.getPublicData(e, 'element', options))
+      elements.map(e => publicData.getPublicData(req.user, e, 'element', options))
     );
 
     // If the subtree option was not provided, return only the first element
@@ -3851,6 +3980,9 @@ async function getElement(req, res, next) {
  * @returns {object} Response object with created element
  */
 async function postElement(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -3905,7 +4037,7 @@ async function postElement(req, res, next) {
     const elements = await ElementController.create(req.user, req.params.orgid,
       req.params.projectid, req.params.branchid, req.body, options);
     const elementsPublicData = sani.html(
-      elements.map(e => publicData.getPublicData(e, 'element', options))
+      elements.map(e => publicData.getPublicData(req.user, e, 'element', options))
     );
 
     // Format JSON
@@ -3937,6 +4069,9 @@ async function postElement(req, res, next) {
  * @returns {object} Response object with created/replaced element
  */
 async function putElement(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -3991,7 +4126,7 @@ async function putElement(req, res, next) {
     const elements = await ElementController.createOrReplace(req.user, req.params.orgid,
       req.params.projectid, req.params.branchid, req.body, options);
     const elementsPublicData = sani.html(
-      elements.map(e => publicData.getPublicData(e, 'element', options))
+      elements.map(e => publicData.getPublicData(req.user, e, 'element', options))
     );
 
     // Format JSON
@@ -4022,6 +4157,9 @@ async function putElement(req, res, next) {
  * @returns {object} Response object with updated element
  */
 async function patchElement(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -4076,7 +4214,7 @@ async function patchElement(req, res, next) {
     const elements = await ElementController.update(req.user, req.params.orgid,
       req.params.projectid, req.params.branchid, req.body, options);
     const elementsPublicData = sani.html(
-      elements.map(e => publicData.getPublicData(e, 'element', options))
+      elements.map(e => publicData.getPublicData(req.user, e, 'element', options))
     );
 
     // Format JSON
@@ -4107,6 +4245,9 @@ async function patchElement(req, res, next) {
  * @returns {object} Response object with deleted element id.
  */
 async function deleteElement(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -4172,6 +4313,9 @@ async function deleteElement(req, res, next) {
  * @returns {object} Response object with branches' public data
  */
 async function getBranches(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options and ids
   // Note: Undefined if not set
   let branchIDs;
@@ -4246,7 +4390,7 @@ async function getBranches(req, res, next) {
     const branches = await BranchController.find(req.user, req.params.orgid, req.params.projectid,
       branchIDs, options);
     const branchesPublicData = sani.html(
-      branches.map(b => publicData.getPublicData(b, 'branch', options))
+      branches.map(b => publicData.getPublicData(req.user, b, 'branch', options))
     );
 
     // Verify branches public data array is not empty
@@ -4282,6 +4426,9 @@ async function getBranches(req, res, next) {
  * @returns {object} Response object with created branches.
  */
 async function postBranches(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -4335,7 +4482,7 @@ async function postBranches(req, res, next) {
     const branches = await BranchController.create(req.user, req.params.orgid, req.params.projectid,
       branchData, options);
     const publicBranchData = sani.html(
-      branches.map(b => publicData.getPublicData(b, 'branch', options))
+      branches.map(b => publicData.getPublicData(req.user, b, 'branch', options))
     );
 
     // Format JSON
@@ -4366,6 +4513,9 @@ async function postBranches(req, res, next) {
  * @returns {object} Response object with updated branches
  */
 async function patchBranches(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -4419,7 +4569,7 @@ async function patchBranches(req, res, next) {
     const branches = await BranchController.update(req.user, req.params.orgid, req.params.projectid,
       branchData, options);
     const branchesPublicData = sani.html(
-      branches.map(b => publicData.getPublicData(b, 'branch', options))
+      branches.map(b => publicData.getPublicData(req.user, b, 'branch', options))
     );
 
     // Format JSON
@@ -4451,6 +4601,9 @@ async function patchBranches(req, res, next) {
  * @returns {object} Response object with deleted branch IDs.
  */
 async function deleteBranches(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -4458,6 +4611,7 @@ async function deleteBranches(req, res, next) {
 
   // Define valid option and its parsed type
   const validOptions = {
+    ids: 'array',
     minified: 'boolean'
   };
 
@@ -4474,10 +4628,11 @@ async function deleteBranches(req, res, next) {
     return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
-  // If req.body contains objects, grab the branch IDs from the objects
-  if (Array.isArray(req.body) && req.body.every(s => typeof s === 'object')) {
-    req.body = req.body.map(b => b.id);
-  }
+  // Extract IDs from request
+  const ids = utils.parseRequestIDs(req, options);
+
+  // Remove option IDs
+  delete options.ids;
 
   // Check options for minified
   if (options.hasOwnProperty('minified')) {
@@ -4488,7 +4643,7 @@ async function deleteBranches(req, res, next) {
   try {
     // Remove the specified branches
     const branchIDs = await BranchController.remove(req.user, req.params.orgid,
-      req.params.projectid, req.body, options);
+      req.params.projectid, ids, options);
     const parsedIDs = branchIDs.map(p => utils.parseID(p).pop());
 
     // Format JSON
@@ -4519,6 +4674,9 @@ async function deleteBranches(req, res, next) {
  * @returns {object} Response object with branch's public data
  */
 async function getBranch(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -4564,7 +4722,7 @@ async function getBranch(req, res, next) {
     }
 
     const publicBranchData = sani.html(
-      branch.map(b => publicData.getPublicData(b, 'branch', options))
+      branch.map(b => publicData.getPublicData(req.user, b, 'branch', options))
     );
 
     // Format JSON
@@ -4595,6 +4753,9 @@ async function getBranch(req, res, next) {
  * @returns {object} Response object with created branch
  */
 async function postBranch(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -4649,7 +4810,7 @@ async function postBranch(req, res, next) {
     const branch = await BranchController.create(req.user, req.params.orgid, req.params.projectid,
       req.body, options);
     const branchesPublicData = sani.html(
-      branch.map(b => publicData.getPublicData(b, 'branch', options))
+      branch.map(b => publicData.getPublicData(req.user, b, 'branch', options))
     );
 
     // Format JSON
@@ -4680,6 +4841,9 @@ async function postBranch(req, res, next) {
  * @returns {object} Response object with updated branch
  */
 async function patchBranch(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -4734,7 +4898,7 @@ async function patchBranch(req, res, next) {
     const branch = await BranchController.update(req.user, req.params.orgid, req.params.projectid,
       req.body, options);
     const branchPublicData = sani.html(
-      branch.map(b => publicData.getPublicData(b, 'branch', options))
+      branch.map(b => publicData.getPublicData(req.user, b, 'branch', options))
     );
 
     // Format JSON
@@ -4766,6 +4930,9 @@ async function patchBranch(req, res, next) {
  * @returns {object} Response object with deleted branch ID.
  */
 async function deleteBranch(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -4831,6 +4998,9 @@ async function deleteBranch(req, res, next) {
  * @returns {object} Response object with public data of found artifacts
  */
 async function getArtifacts(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let artIDs;
@@ -4908,7 +5078,7 @@ async function getArtifacts(req, res, next) {
     const artifacts = await ArtifactController.find(req.user, req.params.orgid,
       req.params.projectid, req.params.branchid, artIDs, options);
     const artifactsPublicData = sani.html(
-      artifacts.map(a => publicData.getPublicData(a, 'artifact', options))
+      artifacts.map(a => publicData.getPublicData(req.user, a, 'artifact', options))
     );
 
     // Verify artifacts public data array is not empty
@@ -4975,6 +5145,9 @@ async function getArtifacts(req, res, next) {
  * @returns {object} Response object with created artifacts
  */
 async function postArtifacts(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -5030,7 +5203,7 @@ async function postArtifacts(req, res, next) {
       req.params.projectid, req.params.branchid, artifactData, options);
 
     const artifactsPublicData = sani.html(
-      artifacts.map(a => publicData.getPublicData(a, 'artifact', options))
+      artifacts.map(a => publicData.getPublicData(req.user, a, 'artifact', options))
     );
 
     // Format JSON
@@ -5060,6 +5233,9 @@ async function postArtifacts(req, res, next) {
  * @returns {object} Response object with updated artifacts
  */
 async function patchArtifacts(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -5115,7 +5291,7 @@ async function patchArtifacts(req, res, next) {
       req.params.projectid, req.params.branchid, artifactData, options);
 
     const artifactsPublicData = sani.html(
-      artifacts.map(a => publicData.getPublicData(a, 'artifact', options))
+      artifacts.map(a => publicData.getPublicData(req.user, a, 'artifact', options))
     );
 
     // Format JSON
@@ -5147,9 +5323,11 @@ async function patchArtifacts(req, res, next) {
  * @returns {object} Response object with artifact ids.
  */
 async function deleteArtifacts(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
-  let artIDs;
   let options;
   let minified = false;
 
@@ -5173,19 +5351,11 @@ async function deleteArtifacts(req, res, next) {
     return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
-  // Check query for artifact IDs
-  if (options.ids) {
-    artIDs = options.ids;
-    delete options.ids;
-  }
-  else if (Array.isArray(req.body) && req.body.every(s => typeof s === 'string')) {
-    // No IDs included in options, check body
-    artIDs = req.body;
-  }
-  // Check artifact object in body
-  else if (Array.isArray(req.body) && req.body.every(s => typeof s === 'object')) {
-    artIDs = req.body.map(a => a.id);
-  }
+  // Extract IDs from request
+  const ids = utils.parseRequestIDs(req, options);
+
+  // Remove option IDs
+  delete options.ids;
 
   // Check options for minified
   if (options.hasOwnProperty('minified')) {
@@ -5196,7 +5366,7 @@ async function deleteArtifacts(req, res, next) {
     // Remove the specified artifacts
     // NOTE: remove() sanitizes input params
     const removedArtIDs = await ArtifactController.remove(req.user, req.params.orgid,
-      req.params.projectid, req.params.branchid, artIDs, options);
+      req.params.projectid, req.params.branchid, ids, options);
     const parsedIDs = removedArtIDs.map(a => utils.parseID(a).pop());
 
     // Format JSON
@@ -5227,6 +5397,9 @@ async function deleteArtifacts(req, res, next) {
  * @returns {object} Response object with found artifact
  */
 async function getArtifact(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -5273,7 +5446,7 @@ async function getArtifact(req, res, next) {
     }
 
     const publicArtifactData = sani.html(
-      artifact.map(a => publicData.getPublicData(a, 'artifact', options))
+      artifact.map(a => publicData.getPublicData(req.user, a, 'artifact', options))
     );
 
     // Format JSON
@@ -5304,6 +5477,9 @@ async function getArtifact(req, res, next) {
  * @returns {object} Response object with created artifact
  */
 async function postArtifact(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -5359,7 +5535,7 @@ async function postArtifact(req, res, next) {
       req.params.projectid, req.params.branchid, req.body, options);
 
     const artifactsPublicData = sani.html(
-      artifact.map(a => publicData.getPublicData(a, 'artifact', options))
+      artifact.map(a => publicData.getPublicData(req.user, a, 'artifact', options))
     );
     // Format JSON
     const json = formatJSON(artifactsPublicData[0], minified);
@@ -5388,6 +5564,9 @@ async function postArtifact(req, res, next) {
  * @returns {object} Response object with updated artifact
  */
 async function patchArtifact(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -5446,7 +5625,7 @@ async function patchArtifact(req, res, next) {
       req.params.projectid, req.params.branchid, req.body, options);
 
     const artifactsPublicData = sani.html(
-      artifact.map(a => publicData.getPublicData(a, 'artifact', options))
+      artifact.map(a => publicData.getPublicData(req.user, a, 'artifact', options))
     );
 
     // Format JSON
@@ -5477,6 +5656,9 @@ async function patchArtifact(req, res, next) {
  * @returns {object} Response object with artifact id.
  */
 async function deleteArtifact(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -5530,6 +5712,41 @@ async function deleteArtifact(req, res, next) {
 }
 
 /**
+ * GET /api/orgs/:orgid/projects/:projectid/artifacts/list
+ *
+ * @description Gets a list of artifact blobs' location and filename by org.id, project.id.
+ *
+ * @param {object} req - Request express object
+ * @param {object} res - Response express object
+ * @param {Function} next - Middleware callback to trigger the next function
+ *
+ * @returns {object[]} An array of objects that contain artifact location, filename.
+ */
+async function listBlobs(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
+  // Sanity Check: there should always be a user in the request
+  if (!req.user) return noUserError(req, res);
+
+  try {
+    const artifactList = await ArtifactController.listBlobs(req.user, req.params.orgid,
+      req.params.projectid);
+
+    // Sets the message to the public artifact data and the status code to 200
+    res.locals = {
+      message: artifactList,
+      statusCode: 200
+    };
+    next();
+  }
+  catch (error) {
+    // If an error was thrown, return it and its status
+    return utils.returnResponse(req, res, error.message, errors.getStatusCode(error));
+  }
+}
+
+/**
  * GET /api/orgs/:orgid/projects/:projectid/artifacts/blob
  *
  * @description Gets an artifact blob by org.id, project.id, location, filename.
@@ -5541,6 +5758,9 @@ async function deleteArtifact(req, res, next) {
  * @returns {Buffer} Artifact blob.
  */
 async function getBlob(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Sanity Check: there should always be a user in the request
   if (!req.user) return noUserError(req, res, next);
 
@@ -5579,6 +5799,9 @@ async function getBlob(req, res, next) {
  * @returns {object} Posted Artifact object.
  */
 async function postBlob(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   await upload(req, res, async function(err) {
     // Sanity Check: there should always be a user in the request
     if (!req.user) return noUserError(req, res, next);
@@ -5632,6 +5855,9 @@ async function postBlob(req, res, next) {
  * @returns {object} Deleted Artifact object.
  */
 async function deleteBlob(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Sanity Check: there should always be a user in the request
   if (!req.user) return noUserError(req, res, next);
 
@@ -5671,6 +5897,9 @@ async function deleteBlob(req, res, next) {
  * @returns {Buffer} Artifact blob.
  */
 async function getBlobById(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   // Note: Undefined if not set
   let options;
@@ -5743,6 +5972,9 @@ async function getBlobById(req, res, next) {
  * @returns {object} Response object with webhooks' public data.
  */
 async function getWebhooks(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   let webhookIDs;
   let options;
@@ -5824,7 +6056,7 @@ async function getWebhooks(req, res, next) {
 
     // Get public data of webhooks
     const webhooksPublicData = sani.html(
-      webhooks.map((w) => publicData.getPublicData(w, 'webhook', options))
+      webhooks.map((w) => publicData.getPublicData(req.user, w, 'webhook', options))
     );
 
     // Verify the webhooks public data array is not empty
@@ -5860,6 +6092,9 @@ async function getWebhooks(req, res, next) {
  * @returns {object} Response object with the created webhook.
  */
 async function postWebhooks(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   let options;
   let minified = false;
@@ -5900,7 +6135,7 @@ async function postWebhooks(req, res, next) {
 
     // Get the webhooks' public data
     const webhookPublicData = sani.html(
-      webhooks.map((w) => publicData.getPublicData(w, 'webhook', options))
+      webhooks.map((w) => publicData.getPublicData(req.user, w, 'webhook', options))
     );
 
     // Format JSON
@@ -5931,6 +6166,9 @@ async function postWebhooks(req, res, next) {
  * @returns {object} Response object with the updated webhooks.
  */
 async function patchWebhooks(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   let options;
   let minified = false;
@@ -5971,7 +6209,7 @@ async function patchWebhooks(req, res, next) {
 
     // Get the webhooks' public data
     const webhookPublicData = sani.html(
-      webhooks.map((w) => publicData.getPublicData(w, 'webhook', options))
+      webhooks.map((w) => publicData.getPublicData(req.user, w, 'webhook', options))
     );
 
     // Format JSON
@@ -6002,12 +6240,16 @@ async function patchWebhooks(req, res, next) {
  * @returns {object} Response object with the deleted webhook ids.
  */
 async function deleteWebhooks(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   let options = {};
   let minified = false;
 
   // Define valid option and its parsed type
   const validOptions = {
+    ids: 'array',
     minified: 'boolean'
   };
 
@@ -6028,6 +6270,12 @@ async function deleteWebhooks(req, res, next) {
     return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
+  // Extract IDs from request
+  const ids = utils.parseRequestIDs(req, options);
+
+  // Remove option IDs
+  delete options.ids;
+
   // Check options for minified
   if (options.hasOwnProperty('minified')) {
     minified = options.minified;
@@ -6036,7 +6284,7 @@ async function deleteWebhooks(req, res, next) {
 
   try {
     // Remove the specified webhooks
-    const webhooks = await WebhookController.remove(req.user, req.body, options);
+    const webhooks = await WebhookController.remove(req.user, ids, options);
 
     // Format JSON
     const json = formatJSON(webhooks, minified);
@@ -6066,6 +6314,9 @@ async function deleteWebhooks(req, res, next) {
  * @returns {object} Response object with the webhook's public data.
  */
 async function getWebhook(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   let options;
   let minified = false;
@@ -6115,7 +6366,7 @@ async function getWebhook(req, res, next) {
 
     // Get the public data for the webhook
     const webhookPublicData = sani.html(
-      publicData.getPublicData(webhook, 'webhook', options)
+      publicData.getPublicData(req.user, webhook, 'webhook', options)
     );
 
     // Format JSON
@@ -6146,6 +6397,9 @@ async function getWebhook(req, res, next) {
  * @returns {object} Response object with the updated webhook.
  */
 async function patchWebhook(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   let options;
   let minified = false;
@@ -6203,7 +6457,7 @@ async function patchWebhook(req, res, next) {
 
     // Get the webhook public data
     const webhookPublicData = sani.html(
-      publicData.getPublicData(webhook, 'webhook', options)
+      publicData.getPublicData(req.user, webhook, 'webhook', options)
     );
 
     // Format JSON
@@ -6234,6 +6488,9 @@ async function patchWebhook(req, res, next) {
  * @returns {object} Response object with the deleted webhook id.
  */
 async function deleteWebhook(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Define options
   let options;
   let minified = false;
@@ -6298,17 +6555,18 @@ async function deleteWebhook(req, res, next) {
  * @returns {object} Notification that the trigger succeeded or failed.
  */
 async function triggerWebhook(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
   // Parse the webhook id from the base64 encoded url
-  const webhookID = Buffer.from(req.params.encodedid, 'base64').toString('ascii');
+  const webhookID = sani.db(Buffer.from(req.params.encodedid, 'base64').toString('ascii'));
 
   try {
-    const webhooks = await WebhookController.find(req.user, webhookID);
+    const webhook = await Webhook.findOne({ _id: webhookID });
 
-    if (webhooks.length < 1) {
-      throw new M.NotFoundError('No webhooks found', 'warn');
+    if (webhook === null) {
+      throw new M.NotFoundError('Webhook not found', 'warn');
     }
-
-    const webhook = webhooks[0];
 
     // Sanity check: ensure the webhook is incoming and has a token and tokenLocation field
     if (webhook.type !== 'Incoming') {
@@ -6321,13 +6579,13 @@ async function triggerWebhook(req, res, next) {
       throw new M.ServerError(`Webhook [${webhook._id}] does not have a token`, 'warn');
     }
 
-    // Get the token from an arbitrary depth of key nesting
-    let token = req;
+    // Get the raw token from an arbitrary depth of key nesting
+    let rawToken = req;
     try {
       const tokenPath = webhook.tokenLocation.split('.');
       for (let i = 0; i < tokenPath.length; i++) {
         const key = tokenPath[i];
-        token = token[key];
+        rawToken = rawToken[key];
       }
     }
     catch (error) {
@@ -6335,18 +6593,29 @@ async function triggerWebhook(req, res, next) {
       throw new M.DataFormatError('Token could not be found in the request.', 'warn');
     }
 
-    if (typeof token !== 'string') {
+    if (typeof rawToken !== 'string') {
       throw new M.DataFormatError('Token is not a string', 'warn');
     }
 
-    // Parse data from request
-    const data = req.body.data ? req.body.data : null;
+    // Get the user and the original token value from the raw token
+    const decodedToken = Buffer.from(rawToken, 'base64').toString('ascii');
+    const decomposedToken = decodedToken.split(':');
+    const username = sani.db(decomposedToken[0]);
 
-    Webhook.verifyAuthority(webhook, token);
+    // Get the user
+    const user = await User.findOne({ _id: username });
+    if (user === null) {
+      throw new M.DataFormatError('Invalid token', 'warn');
+    }
+
+    // Parse data from request
+    const data = req.body.data ? req.body.data : req.body;
+
+    Webhook.verifyAuthority(webhook, decodedToken);
 
     webhook.triggers.forEach((trigger) => {
-      if (Array.isArray(data)) EventEmitter.emit(trigger, ...data);
-      else EventEmitter.emit(trigger, data);
+      if (Array.isArray(data)) EventEmitter.emit(trigger, user, ...data);
+      else EventEmitter.emit(trigger, user, data);
     });
 
     // Sets the message to "success" and the status code to 200
@@ -6354,6 +6623,9 @@ async function triggerWebhook(req, res, next) {
       message: 'success',
       statusCode: 200
     };
+
+    // Set a mock user object to be used in the response logging middleware
+    req.user = { _id: `Trigger of webhook ${webhook._id}` };
     next();
   }
   catch (error) {

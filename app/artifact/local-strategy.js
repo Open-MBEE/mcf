@@ -11,9 +11,22 @@
  *
  * @author Phillip Lee
  *
- * @description This implements an artifact strategy for local
- * artifact storage. This should be the default artifact strategy for MBEE.
+ * @description Implements an artifact strategy for local artifact storage. This
+ * should be the default artifact strategy for MBEE.
  */
+
+// Define the root storage path for blobs
+const rootStoragePath = '/storage';
+
+// Node modules
+const path = require('path');    // Find directory paths
+const fs = require('fs');        // Access the filesystem
+const assert = require('assert');
+const fsExtra = require('fs-extra');
+
+// MBEE modules
+const utils = M.require('lib.utils');
+const errors = M.require('lib.errors');
 
 // Validator regex for this strategy
 const validator = {
@@ -23,24 +36,49 @@ const validator = {
   extension: '^[^!\\<>:"\'|?*]+[.][\\w]+$'
 };
 
-// Define the root storage path for blobs
-const rootStoragePath = '/storage';
+/**
+ * @description List all blobs under a project.
+ *
+ * @param {object} artMetadata - Artifact metadata.
+ * @param {string} artMetadata.org - The org of the artifact blob.
+ * @param {string} artMetadata.project - The project of the artifact blob.
+ *
+ * @returns {object[]} Array of objects that contain blob location and filename.
+ */
+function listBlobs(artMetadata) {
+  try {
+    // Define blob name array
+    const blobList = [];
 
-// Node modules
-const path = require('path');    // Find directory paths
-const fs = require('fs');        // Access the filesystem
-const assert = require('assert');
-const { execSync } = require('child_process');
+    // Get project id
+    const projID = utils.parseID(artMetadata.project).pop();
 
-// MBEE modules
-const utils = M.require('lib.utils');
-const errors = M.require('lib.errors');
+    // Create full path
+    const fullPath = path.join(M.root, rootStoragePath, artMetadata.org, projID);
+    const files = fs.readdirSync(fullPath);
+
+    files.forEach(file => {
+      // Split filename by delimiter
+      const filePath = file.split('.');
+      // Extract location and filename
+      // Push obj into array
+      blobList.push({
+        location: filePath.slice(0, filePath.length - 2).join('/'),
+        filename: filePath.slice(-2).join('.')
+      });
+    });
+
+    return blobList;
+  }
+  catch (err) {
+    throw errors.captureError(err);
+  }
+}
 
 /**
- * @description This function gets the artifact blob file
- * from the local file system.
+ * @description Gets the artifact blob file from the local file system.
  *
- * @param {string} artMetadata - Artifact metadata.
+ * @param {object} artMetadata - Artifact metadata.
  * @param {string} artMetadata.filename - The filename of the artifact.
  * @param {string} artMetadata.location - The location of the artifact.
  * @param {string} artMetadata.org - The org of the artifact blob.
@@ -66,10 +104,10 @@ function getBlob(artMetadata) {
 }
 
 /**
- * @description This function writes an artifact blob
- * to the local file system. This function does NOT overwrite existing blob.
+ * @description Saves an artifact blob to the local file system.
+ * This function does NOT overwrite existing blob.
  *
- * @param {string} artMetadata - Artifact metadata.
+ * @param {object} artMetadata - Artifact metadata.
  * @param {string} artMetadata.filename - The filename of the artifact.
  * @param {string} artMetadata.location - The location of the artifact.
  * @param {string} artMetadata.org - The org of the artifact blob.
@@ -86,6 +124,7 @@ function postBlob(artMetadata, artifactBlob) {
 
     // Check if artifact file exist
     if (fs.existsSync(fullPath)) {
+      // Object Exist, throw error
       throw new M.DataFormatError('Artifact blob already exists.', 'warn');
     }
 
@@ -101,7 +140,7 @@ function postBlob(artMetadata, artifactBlob) {
  * @description This function writes an artifact blob to the local file system.
  * Existing files will be overwritten.
  *
- * @param {string} artMetadata - Artifact metadata.
+ * @param {object} artMetadata - Artifact metadata.
  * @param {string} artMetadata.filename - The filename of the artifact.
  * @param {string} artMetadata.location - The location of the artifact.
  * @param {string} artMetadata.org - The org of the artifact blob.
@@ -137,7 +176,7 @@ function putBlob(artMetadata, artifactBlob) {
  * @description This function deletes an artifact blob from the local file
  * system.
  *
- * @param {string} artMetadata - Artifact metadata.
+ * @param {object} artMetadata - Artifact metadata.
  * @param {string} artMetadata.filename - The filename of the artifact.
  * @param {string} artMetadata.location - The location of the artifact.
  * @param {string} artMetadata.org - The org of the artifact blob.
@@ -159,7 +198,7 @@ function deleteBlob(artMetadata) {
     // Note: Use sync to ensure file is removed before advancing
     fs.unlinkSync(blobPath);
 
-    // Check if project directory is empty
+    // Read the directory path
     const files = fs.readdirSync(projDirPath);
 
     // Check if no file exist
@@ -177,7 +216,7 @@ function deleteBlob(artMetadata) {
 }
 
 /**
- * @description This function recursively creates directories based on
+ * @description This helper function recursively creates directories based on
  * the input path.
  *
  * @param {string} pathString - The full directory path.
@@ -232,27 +271,13 @@ function createDirectory(pathString) {
 }
 
 /**
- * @description This function recursively deletes directories based on
- * the input path.
- *
- * @param {string} pathString - The full directory path.
- */
-function deleteDirectory(pathString) {
-  // Create the root artifact path
-  const dirToDelete = path.join(M.root, rootStoragePath, pathString);
-
-  // Remove artifacts
-  const rmd = (process.platform === 'win32') ? 'RMDIR /S /Q' : 'rm -rf';
-  execSync(`${rmd} ${dirToDelete}`);
-}
-
-/**
  * @description This function creates the blob path using the local
  * storage path, location field, and filename.
+ *
  * Handles specific cases to format path and filename consistently
  * across the artifact strategy.
  *
- * @param {string} artMetadata - Artifact metadata.
+ * @param {object} artMetadata - Artifact metadata.
  * @param {string} artMetadata.filename - The filename of the artifact.
  * @param {string} artMetadata.location - The location of the artifact.
  * @param {string} artMetadata.org - The org of the artifact blob.
@@ -275,7 +300,7 @@ function createBlobPath(artMetadata) {
 
   // Ensure location ends with separator if not present
   if (location[location.length - 1] !== path.sep) {
-    // Add separator for location and filename
+    // Add separator for location
     location += path.sep;
   }
 
@@ -296,7 +321,7 @@ function createBlobPath(artMetadata) {
  * @description This function validates the artifact object metadata.
  * Ensures fields such as 'location' and 'filename' are defined.
  *
- * @param {string} artMetadata - Artifact metadata.
+ * @param {object} artMetadata - Artifact metadata.
  * @param {string} artMetadata.filename - The filename of the artifact.
  * @param {string} artMetadata.location - The location of the artifact.
  */
@@ -327,37 +352,28 @@ function validateBlobMeta(artMetadata) {
 }
 
 /**
- * @description This function deletes multiple blobs.
+ * @description This function removes a directory and all objects/folders within it
+ * recursively.
  *
- * @param {object} clearObj - Contains meta data to clear blobs.
- * @param {string} [clearObj.orgID] - The organization ID. If provided and no
- * projectID is provided, deletes all blobs in the organization.
- * @param {string} [clearObj.projectID] - The project ID. If provided, deletes
- * all blobs in the project.
+ * @param {string} clearPath - Path to clear.
  */
-function clear(clearObj) {
-  let dirPath;
-  // Check if project id is defined
-  if (clearObj.hasOwnProperty('projectID')) {
-    // Create the Project path
-    dirPath = path.join(clearObj.orgID, clearObj.projectID);
-  }
-  else if (clearObj.hasOwnProperty('orgID')) {
-    // Create the Org path
-    dirPath = path.join(clearObj.orgID);
-  }
-  else {
-    // Skip deletion
-    return;
-  }
+function clear(clearPath) {
+  try {
+    // Create the root artifact path
+    const dirToDelete = path.join(M.root, rootStoragePath, clearPath);
 
-  // Delete the org directory
-  deleteDirectory(dirPath);
+    // Remove artifacts
+    fsExtra.removeSync(`${dirToDelete}`);
+  }
+  catch (err) {
+    throw errors.captureError(err);
+  }
 }
 
 // Expose artifact strategy functions
 module.exports = {
   getBlob,
+  listBlobs,
   postBlob,
   putBlob,
   deleteBlob,

@@ -194,8 +194,12 @@ class ArtifactForm extends Component {
     let title = 'Create Artifact';
     let artifactId = this.state.id;
     let disableUpdate = false;
+    let customInvalid = false;
+    let idInvalid = false;
+    let locationInvalid = false;
+    let filenameInvalid = false;
 
-    // If user is editing an Artifact Document
+    // If user is editing an Artifact Document use ID from props
     if (this.props.artifactId) {
       title = 'Edit Artifact';
       artifactId = this.props.artifactId;
@@ -204,9 +208,23 @@ class ArtifactForm extends Component {
       disableUpdate = (!this.state.file);
     }
 
-    // Validate input
-    const idInvalid = (artifactId.length > 0) ? (!RegExp(validators.id).test(artifactId)) : false;
-    let customInvalid;
+    // Only validate if ID has been entered
+    if (artifactId !== 0) {
+      const validatorsArtifactId = validators.artifact.id.split(validators.ID_DELIMITER).pop();
+      const maxLength = validators.artifact.idLength - validators.branch.idLength - 1;
+      const validLength = (artifactId.length <= maxLength);
+      idInvalid = (!validLength) && (!RegExp(validatorsArtifactId).test(artifactId));
+    }
+
+    const { location, file, filename } = this.state;
+
+    // Validate if location is entered or file has been selected
+    if (location.length !== 0 || file || filename.length !== 0) {
+      const validatorLocation = validators.artifact.locationRegEx;
+      const validatorFilename = validators.artifact.filenameRegEx;
+      locationInvalid = (!RegExp(validatorLocation).test(location));
+      filenameInvalid = (!RegExp(validatorFilename).test(filename));
+    }
 
     // Verify custom data is valid
     try {
@@ -215,6 +233,8 @@ class ArtifactForm extends Component {
     catch (err) {
       customInvalid = true;
     }
+
+    const disableSubmit = (idInvalid || locationInvalid || filenameInvalid || customInvalid);
 
     // Error alert
     const error = (this.state.error)
@@ -267,13 +287,14 @@ class ArtifactForm extends Component {
               </FormGroup>
               {/* Form section for artifact location */}
               <FormGroup>
-                <Label for="location">Location</Label>
+                <Label for="location">Location*</Label>
                 <Input type="location"
                        name="location"
                        id="location"
                        placeholder="Location"
                        disabled={disableUpdate}
                        value={this.state.location || ''}
+                       invalid={locationInvalid}
                        onChange={this.handleChange}/>
               </FormGroup>
               {/* Form section for artifact filename */}
@@ -285,6 +306,7 @@ class ArtifactForm extends Component {
                        placeholder="Filename"
                        disabled={disableUpdate}
                        value={this.state.filename || ''}
+                       invalid={filenameInvalid}
                        onChange={this.handleChange}/>
               </FormGroup>
               {/* Radio Buttons for file browser */}
@@ -339,9 +361,10 @@ class ArtifactForm extends Component {
                   Archive
                 </Label>
               </FormGroup>
+              <div className='required-fields'>* required fields.</div>
               {/* Button to submit changes */}
               <Button color='primary'
-                      disabled={idInvalid || customInvalid}
+                      disabled={disableSubmit}
                       onClick={this.onSubmit}>
                 Submit
               </Button>

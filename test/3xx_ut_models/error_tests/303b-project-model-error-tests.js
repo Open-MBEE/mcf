@@ -88,7 +88,7 @@ async function idTooLong() {
 
     // Change id to be too long.
     projData._id = '012345678901234567890123456789012345:01234567890123456789'
-      + '01234567890123456';
+      + '01234567890123456789012123';
     delete projData.id;
 
     // Expect insertMany() to fail with specific error message

@@ -26,57 +26,55 @@ const MongoStore = require('connect-mongo')(session);
 
 /**
  * @description Create connection to database.
+ * @async
  *
  * @returns {Promise} Resolved promise.
  */
-function connect() {
-  return new Promise((resolve, reject) => {
-    // Declare variables for mongoose connection
-    const dbName = M.config.db.name;
-    const url = M.config.db.url;
-    const dbPort = M.config.db.port;
-    const dbUsername = M.config.db.username;
-    const dbPassword = M.config.db.password;
-    let connectURL = 'mongodb://';
+async function connect() {
+  // Declare variables for mongoose connection
+  const dbName = M.config.db.name;
+  const url = M.config.db.url;
+  const dbPort = M.config.db.port;
+  const dbUsername = M.config.db.username;
+  const dbPassword = M.config.db.password;
+  let connectURL = 'mongodb://';
 
-    // If username/password provided
-    if (dbUsername !== '' && dbPassword !== '' && dbUsername && dbPassword) {
-      // Append username/password to connection URL
-      connectURL = `${connectURL + dbUsername}:${dbPassword}@`;
-    }
-    connectURL = `${connectURL + url}:${dbPort}/${dbName}`;
+  // If username/password provided
+  if (dbUsername !== '' && dbPassword !== '' && dbUsername && dbPassword) {
+    // Append username/password to connection URL
+    connectURL = `${connectURL + dbUsername}:${dbPassword}@`;
+  }
+  connectURL = `${connectURL + url}:${dbPort}/${dbName}`;
 
-    const options = {};
+  const options = {};
 
-    // Configure an SSL connection
-    if (M.config.db.ssl) {
-      connectURL += '?ssl=true';
-      // Retrieve CA file
-      const caPath = path.join(M.root, M.config.db.ca);
-      options.sslCA = fs.readFileSync(caPath, 'utf8');
-    }
+  // Configure an SSL connection
+  if (M.config.db.ssl) {
+    connectURL += '?ssl=true';
+    // Retrieve CA file
+    const caPath = path.join(M.root, M.config.db.ca);
+    options.sslCA = fs.readFileSync(caPath, 'utf8');
+  }
 
-    // Remove mongoose deprecation warnings
-    mongoose.set('useFindAndModify', false);
-    mongoose.set('useNewUrlParser', true);
-    mongoose.set('useCreateIndex', true);
-    mongoose.set('useUnifiedTopology', true);
+  // Remove mongoose deprecation warnings
+  mongoose.set('useFindAndModify', false);
+  mongoose.set('useNewUrlParser', true);
+  mongoose.set('useCreateIndex', true);
+  mongoose.set('useUnifiedTopology', true);
 
-    // Database debug logs
-    // Additional arguments may provide too much information
-    mongoose.set('debug', function(collectionName, methodName) {
-      M.log.debug(`DB OPERATION: ${collectionName}, ${methodName}`);
-    });
-
-    // Connect to database
-    mongoose.connect(connectURL, options, (err) => {
-      if (err) {
-        // If error, reject it
-        return reject(err);
-      }
-      return resolve();
-    });
+  // Database debug logs
+  // Additional arguments may provide too much information
+  mongoose.set('debug', function(collectionName, methodName) {
+    M.log.debug(`DB OPERATION: ${collectionName}, ${methodName}`);
   });
+
+  // Connect to database
+  try {
+    await mongoose.connect(connectURL, options);
+  }
+  catch (error) {
+    throw error;
+  }
 }
 
 /**

@@ -93,6 +93,7 @@ describe(M.getModuleName(module.filename), () => {
   it('should GET multiple artifacts', getArtifacts);
   it('should POST an artifact blob', postBlob);
   it('should GET an artifact blob', getBlob);
+  it('should list all artifact blobs', listBlobs);
   it('should GET an artifact blob by ID', getBlobById);
   it('should DELETE an artifact', deleteBlob);
   it('should PATCH an artifact', patchArtifact);
@@ -470,8 +471,7 @@ function getBlob(done) {
   // Create request params
   const params = {
     orgid: orgID,
-    projectid: projID,
-    branchid: branchID
+    projectid: projID
   };
 
   const query = {
@@ -507,6 +507,41 @@ function getBlob(done) {
   };
   // GET a blob
   apiController.getBlob(req, res, next(req, res));
+}
+
+/**
+ * @description Verifies mock GET request to get a list of blobs.
+ *
+ * @param {Function} done - The mocha callback.
+ */
+function listBlobs(done) {
+  // Create request params
+  const params = {
+    orgid: orgID,
+    projectid: projID
+  };
+
+  const method = 'GET';
+  const req = testUtils.createRequest(adminUser, params, {}, method);
+
+  // Set response as empty object
+  const res = {};
+
+  // Verifies status code and headers
+  testUtils.createResponse(res);
+
+  // Verifies the response data
+  res.send = function send(_data) {
+    // Expect the statusCode to be 200
+    chai.expect(res.statusCode).to.equal(200);
+
+    // Validate return data
+    chai.expect(_data[0].location).to.equal(testData.artifacts[0].location);
+    chai.expect(_data[0].filename).to.equal(testData.artifacts[0].filename);
+    done();
+  };
+  // GET blob list
+  apiController.listBlobs(req, res, next(req, res));
 }
 
 /**
@@ -551,7 +586,6 @@ function getBlobById(done) {
 
     // Expect the statusCode to be 200
     chai.expect(res.statusCode).to.equal(200);
-
     done();
   };
   // GET a blob
@@ -769,7 +803,7 @@ function deleteArtifact(done) {
   const artData = testData.artifacts[0];
 
   // Create request body
-  const body = artData.id;
+  const body = [artData.id];
 
   // Create request params
   const params = {
@@ -814,6 +848,11 @@ function deleteArtifacts(done) {
     testData.artifacts[2].id
   ];
 
+  const ids = artIDs.join(',');
+
+  const body = {};
+  const query = { ids: ids };
+
   // Create request params
   const params = {
     orgid: orgID,
@@ -821,7 +860,7 @@ function deleteArtifacts(done) {
     branchid: branchID
   };
   const method = 'DELETE';
-  const req = testUtils.createRequest(adminUser, params, artIDs, method);
+  const req = testUtils.createRequest(adminUser, params, body, method, query);
 
   // Set response as empty object
   const res = {};

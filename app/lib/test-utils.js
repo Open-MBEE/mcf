@@ -120,7 +120,8 @@ module.exports.createTestAdmin = async function() {
         _id: testData.adminUser.username,
         password: testData.adminUser.password,
         provider: 'local',
-        admin: true
+        admin: true,
+        changePassword: false
       };
 
       User.hashPassword(user);
@@ -277,9 +278,8 @@ module.exports.removeTestOrg = async function() {
   // Delete any artifacts in the org
   await Artifact.deleteMany({ project: { $in: projectIDs } });
 
-  ArtifactStrategy.clear({
-    orgID: testData.orgs[0].id
-  });
+  // Clear blobs
+  await ArtifactStrategy.clear(testData.orgs[0].id);
 
   // Delete any elements in the found projects
   await Element.deleteMany({ project: { $in: projectIDs } });
@@ -491,10 +491,10 @@ module.exports.importTestData = function(filename) {
 module.exports.createRequest = function(user, params, body, method, query = {}) {
   // Error-Check
   if (typeof params !== 'object') {
-    throw M.DataFormatError('params is not of type object.', 'warn');
+    throw new M.DataFormatError('params is not of type object.', 'warn');
   }
-  if (typeof params !== 'object') {
-    throw M.DataFormatError('body is not of type object.', 'warn');
+  if (typeof body !== 'object') {
+    throw new M.DataFormatError('body is not of type object.', 'warn');
   }
 
   return {
@@ -556,6 +556,8 @@ module.exports.createReadStreamRequest = function(user, params, body, method, qu
  * @param {object} res - Response Object.
  */
 module.exports.createResponse = function(res) {
+  // By default, status code starts out as 200
+  res.statusCode = 200;
   // Verifies the response code: 200 OK
   res.status = function status(code) {
     res.statusCode = code;

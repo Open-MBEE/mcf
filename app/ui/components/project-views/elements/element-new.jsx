@@ -51,7 +51,7 @@ class ElementNew extends Component {
       id: rndID,
       name: '',
       type: '',
-      parent: this.props.parent,
+      parent: this.props.parent || 'model',
       target: null,
       targetNamespace: null,
       source: null,
@@ -194,8 +194,10 @@ class ElementNew extends Component {
     let idInvalid;
     let disableSubmit;
 
-    // Verify if user's first name is valid
-    if (!RegExp(validators.id).test(this.state.id)) {
+    // Verify element id is valid
+    const validatorsElementId = validators.element.id.split(validators.ID_DELIMITER).pop();
+    const validLen = validators.element.idLength - validators.branch.idLength - 1;
+    if (!RegExp(validatorsElementId).test(this.state.id) || validLen < this.state.id.length) {
       // Set invalid fields
       idInvalid = true;
       disableSubmit = true;
@@ -236,7 +238,7 @@ class ElementNew extends Component {
                    onChange={this.handleChange}/>
               {/* If invalid id, notify user */}
               <FormFeedback >
-                Invalid: A id may only contain lower case letters, numbers, or dashes.
+                Invalid: An id may only contain letters, numbers, or dashes.
               </FormFeedback>
             </Col>
           </FormGroup>
@@ -263,7 +265,7 @@ class ElementNew extends Component {
             </Col>
           </FormGroup>
           <FormGroup row>
-            <Label for="parent" sm={2}>Parent</Label>
+            <Label for="parent" sm={2}>Parent*</Label>
             <Col sm={10}>
               <div id="parent" className={'selector-value'}>
                 {this.state.parent || 'Select an element.'}
@@ -276,6 +278,7 @@ class ElementNew extends Component {
                   selectedHandler={this.parentSelectHandler} />
               </div>
             </Col>
+            {(!this.state.parent) && (<div className='warning-label'>*Parent cannot be null.</div>)}
           </FormGroup>
           <FormGroup row>
             <Label for='name' sm={2}>Source</Label>
@@ -312,9 +315,10 @@ class ElementNew extends Component {
               : ''
             }
           </FormGroup>
+          <div className='required-fields'>* required fields.</div>
           <Button className='btn btn'
                   outline color="primary"
-                  disabled={disableSubmit}
+                  disabled={disableSubmit || !this.state.parent}
                   onClick={this.onSubmit}>
             Submit
           </Button>

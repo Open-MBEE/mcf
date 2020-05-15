@@ -146,7 +146,7 @@ describe(M.getModuleName(module.filename), () => {
   it('should reject an attempt to create a webhook by an unauthorized user at the branch level', unauthorizedTest('branch', 'create'));
   it('should reject an attempt to create a webhook with an invalid key', createInvalidKey);
   it('should reject an attempt to create a webhook with a null value', createNull);
-  it('should reject an attempt to create a webhook with a boolena value', createBoolean);
+  it('should reject an attempt to create a webhook with a boolean value', createBoolean);
   it('should reject an attempt to create a webhook with a string value', createString);
   it('should reject an attempt to create a webhook with an array that does not contain objects', createInvalidArray);
   it('should reject an attempt to create a webhook with an undefined value', createUndefined);
@@ -164,13 +164,9 @@ describe(M.getModuleName(module.filename), () => {
   it('should reject an attempt to change a webhook\'s reference id', updateReference);
   it('should reject an update array with duplicate _ids', updateDuplicate);
   it('should reject an attempt to update a webhook that doesn\'t exist', updateNotFound);
-  it('should reject an attempt to add a response field to an incoming webhook', updateAddResponse);
   it('should reject an attempt to remove the token from the incoming field', updateInvalidToken);
   it('should reject an attempt to remove the tokenLocation from the incoming field', updateInvalidTokenLocation);
-  it('should reject an attempt to add a token to an outgoing webhook', updateAddToken);
   it('should reject an attempt to add a tokenLocation to an outgoing webhook', updateAddTokenLocation);
-  it('should reject an attempt to add a non-object response field', updateInvalidResponse);
-  it('should reject an attempt to add a response field that does not contain a url', updateNoUrlInResponse);
   // ------------- Remove -------------
   it('should reject an attempt to delete a webhook that doesn\'t exist', deleteNotFound);
   it('should reject an attempt to delete a webhook on an archived org', archivedTest(Organization, 'remove'));
@@ -603,28 +599,6 @@ async function updateNotFound() {
 
 /**
  * @description Validates that the webhook controller will reject an update to an incoming
- * webhook that attempts to add a response field.
- */
-async function updateAddResponse() {
-  try {
-    // Create update for an incoming webhook
-    const webhookData = {
-      id: incomingWebhookID,
-      response: { url: 'test' }
-    };
-
-    await WebhookController.update(adminUser, webhookData)
-    .should.eventually.be.rejectedWith(`Webhook ${incomingWebhookID} validation failed: `
-        + 'An incoming webhook cannot have a response field.');
-  }
-  catch (error) {
-    M.log.error(error);
-    should.not.exist(error);
-  }
-}
-
-/**
- * @description Validates that the webhook controller will reject an update to an incoming
  * webhook attempting to set the token to null.
  */
 async function updateInvalidToken() {
@@ -672,28 +646,6 @@ async function updateInvalidTokenLocation() {
  * @description Validates that the webhook controller will reject an update to an outgoing
  * webhook attempting to add a token.
  */
-async function updateAddToken() {
-  try {
-    // Create update for an outgoing webhook
-    const webhookData = {
-      id: webhookID,
-      token: 'test'
-    };
-
-    await WebhookController.update(adminUser, webhookData)
-    .should.eventually.be.rejectedWith(`Webhook ${webhookID} validation failed: `
-      + 'An outgoing webhook cannot have a token.');
-  }
-  catch (error) {
-    M.log.error(error);
-    should.not.exist(error);
-  }
-}
-
-/**
- * @description Validates that the webhook controller will reject an update to an outgoing
- * webhook attempting to add a token.
- */
 async function updateAddTokenLocation() {
   try {
     // Create update for an outgoing webhook
@@ -705,50 +657,6 @@ async function updateAddTokenLocation() {
     await WebhookController.update(adminUser, webhookData)
     .should.eventually.be.rejectedWith(`Webhook ${webhookID} validation failed: `
       + 'An outgoing webhook cannot have a tokenLocation.');
-  }
-  catch (error) {
-    M.log.error(error);
-    should.not.exist(error);
-  }
-}
-
-/**
- * @description Validates that the webhook controller will reject an update to an outgoing
- * webhook changing the response to an invalid format.
- */
-async function updateInvalidResponse() {
-  try {
-    // Create invalid update for an outgoing webhook
-    const webhookData = {
-      id: webhookID,
-      response: []
-    };
-
-    await WebhookController.update(adminUser, webhookData)
-    .should.eventually.be.rejectedWith(`Webhook ${webhookID} validation failed: `
-      + 'Invalid response: []');
-  }
-  catch (error) {
-    M.log.error(error);
-    should.not.exist(error);
-  }
-}
-
-/**
- * @description Validates that the webhook controller will reject an update to an outgoing
- * webhook removing the url from the response field.
- */
-async function updateNoUrlInResponse() {
-  try {
-    // Create invalid update for an outgoing webhook
-    const webhookData = {
-      id: webhookID,
-      response: { method: 'test' } // This is wrong because a response must have a url
-    };
-
-    await WebhookController.update(adminUser, webhookData)
-    .should.eventually.be.rejectedWith(`Webhook ${webhookID} validation failed: `
-      + 'Invalid response: [[object Object]]');
   }
   catch (error) {
     M.log.error(error);

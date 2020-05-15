@@ -1,6 +1,5 @@
 config/dev*.json*
 config/dev*.cfg*
-config/default*.cfg*
 config/Dockerfile
 config/production.Dockerfile
 ./db
@@ -18,3 +17,4 @@ package-lock.json
 build/
 data/
 storage/
+certs/

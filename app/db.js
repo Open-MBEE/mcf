@@ -43,6 +43,7 @@ async function connect() {
     return await DBModule.connect();
   }
   catch (error) {
+    M.log.critical('Failed to connect to the database.');
     throw new M.DatabaseError(error.message, 'critical');
   }
 }
@@ -192,8 +193,8 @@ class Schema extends DBModule.Schema {
    * only return a single document. If false, the virtual will be an array of
    * documents.
    *
-   * @returns {Function} Calls super on the virtual function of the implemented
-   * database strategy's schema.
+   * @returns {object} Returns the virtual object, containing the path (ref),
+   * getters, setters and options.
    */
   virtual(name, options) {
     return super.virtual(name, options);

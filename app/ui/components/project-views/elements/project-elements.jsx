@@ -82,19 +82,11 @@ class ProjectElements extends Component {
     $('.element-tree').removeClass('tree-selected');
     $(`#tree-${id}`).addClass('tree-selected');
 
-    if (this.state.sidePanel === 'addElement') {
-      // Only set the refresh function
-      // The ID is not set here to avoid updating the 'parent' field on the
-      // add element panel. That parent field should only be passed in when
-      // the addElement panel is first opened.
-    }
-    else {
-      // Toggle the element side panel
-      this.setState({
-        id: id,
-        sidePanel: 'elementInfo'
-      });
-    }
+    // Toggle the element side panel
+    this.setState({
+      id: id,
+      sidePanel: 'elementInfo'
+    });
 
     // Get the sidebar html element and toggle it
     document.getElementById('side-panel').classList.add('side-panel-expanded');

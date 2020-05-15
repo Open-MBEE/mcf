@@ -132,39 +132,29 @@ class Create extends Component {
     // Initialize validators
     let title;
     let header;
-    let idInvalid;
-    let nameInvalid;
-    let customInvalid;
-    let disableSubmit;
+    let idInvalid = false;
+    let customInvalid = false;
+    let validatorId;
+    let validLen;
 
     if (this.props.project) {
       title = (this.props.org) ? `New Project in ${this.props.org.name}` : 'New Project';
       header = 'Project';
+      validatorId = validators.project.id.split(validators.ID_DELIMITER).pop();
+      // Calculate project ID sans delimiter
+      validLen = validators.project.idLength - validators.org.idLength - 1;
     }
     else {
+      validatorId = validators.org.id;
+      validLen = validators.org.idLength;
       title = 'New Organization';
       header = 'Organization';
     }
 
-    // Verify if project id is valid
-    if (this.state.id.length !== 0) {
-      if (!RegExp(validators.id).test(this.state.id)) {
-        // Set invalid fields
-        idInvalid = true;
-        disableSubmit = true;
-      }
-    }
+    const { id, name } = this.state;
 
-    // Verify if project name is valid
-    if (!RegExp(validators.project.name).test(this.state.name)) {
-      // Set invalid fields
-      nameInvalid = true;
-      disableSubmit = true;
-    }
-
-    // Verify if the user input a name and length
-    if ((this.state.id.length === 0) || (this.state.name.length === 0)) {
-      disableSubmit = true;
+    if (id.length !== 0) {
+      idInvalid = (id.length > validLen || (!RegExp(validatorId).test(id)));
     }
 
     // Verify custom data is valid
@@ -174,8 +164,9 @@ class Create extends Component {
     catch (err) {
       // Set invalid fields
       customInvalid = true;
-      disableSubmit = true;
     }
+
+    const disableSubmit = (customInvalid || idInvalid || name.length === 0 || id.length === 0);
 
     // Return the form to create a project
     return (
@@ -219,7 +210,7 @@ class Create extends Component {
                      onChange={this.handleChange}/>
               {/* If invalid id, notify user */}
               <FormFeedback >
-                Invalid: A id may only contain lower case letters, numbers, or dashes.
+                Invalid: An id may only contain letters, numbers, or dashes.
               </FormFeedback>
             </FormGroup>
             {/* Create an input for project name */}
@@ -230,7 +221,6 @@ class Create extends Component {
                      id="name"
                      placeholder="Name"
                      value={this.state.name || ''}
-                     invalid={nameInvalid}
                      onChange={this.handleChange}/>
               {/* If invalid name, notify user */}
               <FormFeedback >

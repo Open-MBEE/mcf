@@ -572,12 +572,15 @@ function deleteOrgs(done) {
     testData.orgs[2],
     testData.orgs[3]
   ];
+
+  const orgIDs = orgData.map(o => o.id);
+  const ids = orgIDs.join(',');
+
   request({
-    url: `${test.url}/api/orgs`,
+    url: `${test.url}/api/orgs?ids=${ids}`,
     headers: testUtils.getHeaders(),
     ca: testUtils.readCaFile(),
-    method: 'DELETE',
-    body: JSON.stringify(orgData)
+    method: 'DELETE'
   },
   function(err, response, body) {
     // Expect no error
@@ -588,7 +591,7 @@ function deleteOrgs(done) {
     const deletedIDs = JSON.parse(body);
 
     // Verify correct orgs deleted
-    chai.expect(deletedIDs).to.have.members(orgData.map(p => p.id));
+    chai.expect(deletedIDs).to.have.members(orgIDs);
 
     done();
   });

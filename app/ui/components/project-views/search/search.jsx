@@ -117,6 +117,7 @@ class Search extends Component {
     this.onChange = this.onChange.bind(this);
     this.doSearch = this.doSearch.bind(this);
     this.handleChange = this.handleChange.bind(this);
+    this.handleOnEnterKey = this.handleOnEnterKey.bind(this);
     this.handlePageChange = this.handlePageChange.bind(this);
     this.filterSelected = this.filterSelected.bind(this);
   }
@@ -146,6 +147,13 @@ class Search extends Component {
     const rows = this.state.rows;
     rows[i][name] = value;
     this.setState({ rows: rows });
+  }
+
+  // Handle when enter key pressed to begin search.
+  handleOnEnterKey(event) {
+    if (event.key === 'Enter') {
+      this.doSearch();
+    }
   }
 
   // Handle filter checkbox changes
@@ -261,8 +269,9 @@ class Search extends Component {
       <AdvancedRow idx={id} key={id}
                    criteria={row.criteria || opts[0]}
                    val={row.value}
-                   options ={ options }
+                   options={options}
                    handleChange={this.handleChange}
+                   onKeyDown={this.handleOnEnterKey}
                    deleteRow={this.removeRow}/>
     ));
   }
@@ -349,7 +358,9 @@ class Search extends Component {
                          id="search-query-input"
                          placeholder="Search"
                          value={this.state.basicQuery || ''}
-                         onChange={this.onChange}/>
+                         onChange={this.onChange}
+                         onKeyDown={this.handleOnEnterKey}
+                  />
                   <Button id='btn-search' onClick={this.doSearch}>
                     <span>
                       <i className='fas fa-search' style={{ fontSize: '15px' }}/>

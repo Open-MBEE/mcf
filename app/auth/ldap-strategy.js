@@ -402,7 +402,8 @@ async function ldapSync(ldapUserObj) {
         preferredName: ldapUserObj[ldapConfig.attributes.preferredName],
         lname: ldapUserObj[ldapConfig.attributes.lastName],
         email: ldapUserObj[ldapConfig.attributes.email],
-        provider: 'ldap'
+        provider: 'ldap',
+        changePassword: false
       };
 
       // Save ldap user

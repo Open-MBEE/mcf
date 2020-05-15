@@ -1,6 +1,6 @@
 {
   "name": "mbee",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "build": "NO_BUILD_NUMBER",
   "description": "Model-Based Engineering Environment",
   "main": "mbee.js",
@@ -9,7 +9,7 @@
   "license": "MIT",
   "private": true,
   "dependencies": {
-    "aws-sdk": "^2.534.0",
+    "aws-sdk": "^2.577.0",
     "body-parser": "^1.18.3",
     "compression": "^1.7.3",
     "connect-mongo": "^3.0.0",
@@ -19,12 +19,15 @@
     "express-ejs-layouts": "^2.4.0",
     "express-flash": "^0.0.2",
     "express-session": "^1.15.6",
+    "fs-extra": "8.1.0",
     "gulp-rename": "^1.4.0",
     "ldapjs": "^1.0.2",
     "mongoose": "^5.7.11",
     "multer": "^1.4.2",
+    "proxy-agent": "^3.1.1",
     "randexp": "0.5.3",
     "request": "^2.86.0",
+    "spdy": "^4.0.1",
     "swagger-jsdoc": "^3.4.0",
     "swagger-ui-express": "2.0.15",
     "uuid": "^3.3.3",
@@ -61,9 +64,10 @@
     "react": "^16.8.2",
     "react-dom": "^16.8.2",
     "react-router-dom": "^5.0.1",
-    "reactstrap": "^8.0.1",
+    "reactstrap": "^8.4.0",
     "sinon": "^7.5.0",
-    "webpack": "^4.41.3"
+    "webpack": "^4.41.3",
+    "webpack-cli": "^3.3.11"
   },
   "scripts": {
     "build": "node mbee build",
@@ -74,7 +78,8 @@
     "postinstall": "test $NOPOSTINSTALL || node mbee build",
     "preinstall": "test $NOPREINSTALL || node ./scripts/clean.js --all",
     "start": "node mbee start",
-    "test": "node mbee test"
+    "test": "node mbee test",
+    "watch": "./node_modules/.bin/webpack --watch --config scripts/webpack-dev.config.js"
   },
   "engines": {
     "node": ">=10.15.0"

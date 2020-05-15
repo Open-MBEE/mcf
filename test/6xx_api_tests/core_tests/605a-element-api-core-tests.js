@@ -756,12 +756,15 @@ function deleteElements(done) {
     testData.elements[5],
     testData.elements[6]
   ];
+
+  const elemIDs = elemData.map(e => e.id);
+  const ids = elemIDs.join(',');
+
   request({
-    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements`,
+    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements?ids=${ids}`,
     headers: testUtils.getHeaders(),
     ca: testUtils.readCaFile(),
-    method: 'DELETE',
-    body: JSON.stringify(elemData.map(e => e.id))
+    method: 'DELETE'
   },
   (err, response, body) => {
     // Expect no error
@@ -771,7 +774,7 @@ function deleteElements(done) {
 
     // Verify response body
     const deletedElementIDs = JSON.parse(body);
-    chai.expect(deletedElementIDs).to.have.members(elemData.map(p => p.id));
+    chai.expect(deletedElementIDs).to.have.members(elemIDs);
     done();
   });
 }

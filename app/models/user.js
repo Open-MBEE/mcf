@@ -72,6 +72,8 @@ const extensions = M.require('models.plugin.extensions');
  * @property {object} failedlogins - Stores the history of failed login attempts.
  * @property {object} oldPasswords - Stores previous passwords; used to prevent users
  * from re-using recent passwords.
+ * @property {boolean} [changePassword=true] - A boolean which if true, blocks
+ * users from making requests until they change their password.
  *
  */
 const UserSchema = new db.Schema({
@@ -158,6 +160,10 @@ const UserSchema = new db.Schema({
   },
   oldPasswords: {
     type: 'Object'
+  },
+  changePassword: {
+    type: 'Boolean',
+    default: true
   }
 });
 

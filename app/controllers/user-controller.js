@@ -948,8 +948,9 @@ async function search(requestingUser, query, options) {
  * currently stored password.
  *
  * @param {object} requestingUser - The object containing the requesting user.
- * This is the users whose password is being changed.
- * @param {string} oldPassword - The old password to confirm.
+ * @param {string} targetUser - The object containing the user whose password
+ * is to be changed.
+ * @param {string|null} oldPassword - The old password to confirm.
  * @param {string} newPassword - THe new password the user would like to set.
  * @param {string} confirmPassword - The new password entered a second time
  * to confirm they match.
@@ -965,7 +966,8 @@ async function search(requestingUser, query, options) {
  *   M.log.error(error);
  * });
  */
-async function updatePassword(requestingUser, oldPassword, newPassword, confirmPassword) {
+async function updatePassword(requestingUser, targetUser, oldPassword, newPassword,
+  confirmPassword) {
   try {
     // Ensure input parameters are correct type
     try {
@@ -973,9 +975,13 @@ async function updatePassword(requestingUser, oldPassword, newPassword, confirmP
       assert.ok(requestingUser !== null, 'Requesting user cannot be null.');
       // Ensure that requesting user has an _id field
       assert.ok(requestingUser._id, 'Requesting user is not populated.');
+      assert.ok(typeof targetUser === 'string', 'Target username is not a string.');
 
-      // Ensure all provided passwords are strings
-      assert.ok(typeof oldPassword === 'string', 'Old Password is not a string.');
+      // Ensure all provided passwords are strings (oldPassword is only validated if a user is
+      // trying to set their own password)
+      if (requestingUser._id === targetUser) {
+        assert.ok(typeof oldPassword === 'string', 'Old Password is not a string.');
+      }
       assert.ok(typeof newPassword === 'string', 'New Password is not a string.');
       assert.ok(typeof confirmPassword === 'string', 'Confirm password is not a string');
       assert.ok(confirmPassword === newPassword, 'Passwords do not match.');
@@ -986,9 +992,10 @@ async function updatePassword(requestingUser, oldPassword, newPassword, confirmP
 
     // Sanitize input parameters and create function-wide variables
     const reqUser = JSON.parse(JSON.stringify(requestingUser));
+    const tarUser = JSON.parse(JSON.stringify(targetUser));
 
-    // Find the requesting user
-    const userQuery = { _id: reqUser._id };
+    // Find the target user
+    const userQuery = { _id: tarUser };
     const foundUser = await User.findOne(userQuery);
 
     // Ensure the user was found
@@ -996,12 +1003,18 @@ async function updatePassword(requestingUser, oldPassword, newPassword, confirmP
       throw new M.NotFoundError('User not found.', 'warn');
     }
 
-    // Verify the old password matches
-    const verified = await User.verifyPassword(foundUser, oldPassword);
+    // Check if requesting and target user are the same, and requesting user is not an admin
+    if (reqUser._id !== tarUser && !reqUser.admin) {
+      throw new M.PermissionError('Cannot set another user\'s password.', 'warn');
+    }
+    else if (reqUser._id === tarUser) {
+      // Verify the old password matches
+      const verified = await User.verifyPassword(foundUser, oldPassword);
 
-    // Ensure old password was verified
-    if (!verified) {
-      throw new M.AuthorizationError('Old password is incorrect.', 'warn');
+      // Ensure old password was verified
+      if (!verified) {
+        throw new M.AuthorizationError('Old password is incorrect.', 'warn');
+      }
     }
 
     // Verify that the new password has not been used in the previous stored passwords
@@ -1013,8 +1026,11 @@ async function updatePassword(requestingUser, oldPassword, newPassword, confirmP
     User.hashPassword(foundUser);
 
     // Save the user with the updated password
-    await User.updateOne(userQuery, { password: foundUser.password,
-      oldPasswords: oldPasswords });
+    await User.updateOne(userQuery, {
+      password: foundUser.password,
+      oldPasswords: oldPasswords,
+      changePassword: reqUser._id !== tarUser
+    });
 
     // Find and return the updated user
     return await User.findOne(userQuery);

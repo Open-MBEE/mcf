@@ -113,13 +113,13 @@ const WebhookSchema = new db.Schema({
     immutable: true,
     validate: [{
       validator: validators.webhook.type.outgoing,
-      message: props => 'An outgoing webhook must have a response field and '
-        + 'cannot have a token or tokenLocation.'
+      message: props => 'An outgoing webhook must have a url field and '
+        + 'cannot have a tokenLocation.'
     },
     {
       validator: validators.webhook.type.incoming,
       message: props => 'An incoming webhook must have a token and a '
-        + 'tokenLocation and cannot have a response field.'
+        + 'tokenLocation and cannot have a url field.'
     }]
   },
   description: {
@@ -133,38 +133,11 @@ const WebhookSchema = new db.Schema({
       message: props => 'The triggers field must be an array of strings.'
     }]
   },
-  response: {
-    type: 'Object',
+  url: {
+    type: 'String',
     validate: [{
-      validator: validators.webhook.response.object,
-      message: props => 'Response field cannot be an array or null.'
-    }, {
-      validator: validators.webhook.response.url,
-      message: props => 'The response field must have a url.'
-    }, {
-      validator: validators.webhook.response.method,
-      message: props => 'Invalid method in response field.'
-    }, {
-      validator: validators.webhook.response.headers,
-      message: props => 'Invalid headers in response field.'
-    }, {
-      validator: validators.webhook.response.token,
-      message: props => 'Invalid token in response field.'
-    }, {
-      validator: validators.webhook.response.ca,
-      message: props => 'Invalid ca in response field.'
-    }, {
-      validator: validators.webhook.response.data,
-      message: props => 'Invalid data field in response field.'
-    }, {
-      validator: validators.webhook.response.validFields,
-      message: props => {
-        const keys = Object.keys(props.value);
-        const validKeys = ['url', 'method', 'headers', 'token', 'ca', 'data'];
-        for (let i = 0; i < keys.length; i++) {
-          if (!(validKeys.includes(keys[i]))) return `Invalid field [${keys[i]}] in response field.`;
-        }
-      }
+      validator: validators.webhook.url,
+      message: props => 'The url field must be a string.'
     }]
   },
   token: {
@@ -208,16 +181,17 @@ WebhookSchema.plugin(extensions);
  */
 WebhookSchema.static('sendRequest', function(webhook, data) {
   const options = {
-    url: webhook.response.url,
-    headers: webhook.response.headers || { 'Content-Type': 'application/json' },
-    method: webhook.response.method || 'POST',
-    body: webhook.response.data || data || undefined
+    url: webhook.url,
+    headers: { 'Content-Type': 'application/json' },
+    method: 'POST',
+    body: data || undefined
   };
   if (options.body) options.json = true;
-  if (webhook.response.ca) options.ca = webhook.response.ca;
-  if (webhook.response.token) options.token = webhook.response.token;
+  if (webhook.token) options.token = webhook.token;
   // Send an HTTP request to given URL
-  request(options);
+  request(options, (err) => {
+    if (err) M.log.warn(`Webhook ${webhook._id} request error: ${err.message}`);
+  });
 });
 
 /**
@@ -235,8 +209,8 @@ WebhookSchema.static('verifyAuthority', function(webhook, value) {
  * @memberOf WebhookSchema
  */
 WebhookSchema.static('getValidUpdateFields', function() {
-  return ['name', 'description', 'triggers', 'response', 'token', 'tokenLocation',
-    'archived'];
+  return ['name', 'description', 'triggers', 'url', 'token', 'tokenLocation',
+    'archived', 'custom'];
 });
 
 /**

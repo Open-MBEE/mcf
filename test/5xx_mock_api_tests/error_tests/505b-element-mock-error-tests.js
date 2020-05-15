@@ -136,11 +136,23 @@ function noReqUser(endpoint) {
   const method = testUtils.parseMethod(endpoint);
   const params = {};
   const body = {};
+  const query = {};
+
+  // Build "query" for batch DELETE
+  if (endpoint === 'deleteElements') {
+    const elemIDs = [
+      testData.elements[3].id,
+      testData.elements[4].id,
+      testData.elements[5].id
+    ];
+
+    query.ids = elemIDs.join(',');
+  }
 
   // Create the customized mocha function
   return function(done) {
     // Create request object
-    const req = testUtils.createRequest(null, params, body, method);
+    const req = testUtils.createRequest(null, params, body, method, query);
 
     // Create response object
     const res = {};
@@ -174,11 +186,23 @@ function invalidOptions(endpoint) {
   const method = testUtils.parseMethod(endpoint);
   const params = {};
   const body = {};
+  const query = {};
+
+  // Build "query" for batch DELETE
+  if (endpoint === 'deleteElements') {
+    const elemIDs = [
+      testData.elements[3].id,
+      testData.elements[4].id,
+      testData.elements[5].id
+    ];
+
+    query.ids = elemIDs.join(',');
+  }
 
   // Create the customized mocha function
   return function(done) {
     // Create request object
-    const req = testUtils.createRequest(adminUser, params, body, method);
+    const req = testUtils.createRequest(adminUser, params, body, method, query);
     req.query = { invalid: 'invalid option' };
 
     // Create response object
@@ -249,21 +273,39 @@ function conflictingIDs(endpoint) {
  */
 function notFound(endpoint) {
   return function(done) {
-    // Get an unused element id
-    const id = testData.elements[3].id;
+    // Get unused element ids
+    const elemIDs = [
+      testData.elements[3].id,
+      testData.elements[4].id,
+      testData.elements[5].id
+    ];
+
+    const id = elemIDs[0];
+
+    // For batch GET/DELETE
+    const ids = elemIDs.join(',');
+
     // Parse the method
     const method = testUtils.parseMethod(endpoint);
+
+    let body = { id: id };
+    let query = {};
+
     // Body must be an array of ids for get and delete; key-value pair for anything else
-    const body = (endpoint === 'deleteElements' || endpoint === 'getElements')
-      ? [id] : { id: id };
+    if (endpoint === 'deleteElements' || endpoint === 'getElements') {
+      body = [];
+      query = { ids: ids };
+    }
+
     const params = { orgid: org._id, projectid: projID, branchid: branchID };
+
     // Add in a params field for singular element endpoints
     if (!endpoint.includes('Elements') && endpoint.includes('Element')) {
       params.elementid = id;
     }
 
     // Create request object
-    const req = testUtils.createRequest(adminUser, params, body, method);
+    const req = testUtils.createRequest(adminUser, params, body, method, query);
 
     // Create response object
     const res = {};

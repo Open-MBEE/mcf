@@ -22,10 +22,6 @@
 // NPM modules
 const chai = require('chai');
 
-// Node.js Modules
-const { execSync } = require('child_process');
-const path = require('path');
-
 // MBEE modules
 const Artifact = M.require('models.artifact');
 const Branch = M.require('models.branch');
@@ -36,6 +32,7 @@ const ServerData = M.require('models.server-data');
 const User = M.require('models.user');
 const Webhook = M.require('models.webhook');
 const db = M.require('db');
+const ArtifactStrategy = M.require(`artifact.${M.config.artifact.strategy}`);
 
 /* --------------------( Main )-------------------- */
 /**
@@ -51,7 +48,7 @@ describe(M.getModuleName(module.filename), function() {
   it('clean database', cleanDB);
   it('should initialize the models', initModels);
   it('should create the default org if it doesn\'t exist', createDefaultOrg);
-  it('should clear local artifact storage folder', clearArtifactStorage);
+  it('should clear artifact storage', clearArtifactStorage);
 });
 
 /* --------------------( Tests )-------------------- */
@@ -127,9 +124,14 @@ async function createDefaultOrg() {
 /**
  * @description Clears the local artifact storage folder.
  */
-function clearArtifactStorage() {
-  const artifactPath = path.join(M.root, '/storage');
-  // Remove artifacts
-  const rmd = (process.platform === 'win32') ? 'RMDIR /S /Q' : 'rm -rf';
-  execSync(`${rmd} ${artifactPath}/*`);
+async function clearArtifactStorage() {
+  try {
+    // Remove artifacts
+    await ArtifactStrategy.clear('');
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error.message).to.equal(null);
+  }
 }

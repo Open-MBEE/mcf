@@ -216,16 +216,7 @@ async function find(requestingUser, webhooks, options) {
  * the webhook.
  * @param {object} webhooks.triggers - An array of strings referencing the events that trigger
  * outgoing webhooks and events that incoming webhooks will emit.
- * @param {object} [webhooks.response] - An object containing data used to send an http request upon
- * the webhook triggering. Outgoing webhooks must have a response field.
- * @param {object[]} [webhooks.response.url] - The url to send an http request to.
- * @param {object[]} [webhooks.response.method] - The method of the http request to send.
- * @param {object[]} [webhooks.response.headers] - The headers to send with the http request.
- * @param {object[]} [webhooks.response.token] - An optional token for additional security with
- * the http request.
- * @param {object[]} [webhooks.response.ca] - An optional ca for additional security with the
- * http request.
- * @param {object[]} [webhooks.response.data] - Optional data to send with the http request.
+ * @param {object} [webhooks.url] - The url to send an http request to.
  * @param {string} [webhooks.token] - An optional field used to validate an external request and
  * trigger a webhook.
  * @param {string} [webhooks.tokenLocation] - A dot-delimited string that represents the location
@@ -278,8 +269,8 @@ async function create(requestingUser, webhooks, options) {
     }
 
     // Create a list of valid keys
-    const validWebhookKeys = ['name', 'type', 'description', 'triggers', 'response', 'token',
-      'tokenLocation', 'reference'];
+    const validWebhookKeys = ['name', 'type', 'description', 'triggers', 'url', 'token',
+      'tokenLocation', 'reference', 'custom'];
 
     // Check that user has permission to create webhooks
     await checkPermissions(reqUser, webhooksToCreate, 'createWebhook');
@@ -324,6 +315,10 @@ async function create(requestingUser, webhooks, options) {
         webhookObj.reference = '';
       }
 
+      if (webhookObj.hasOwnProperty('token')) {
+        webhookObj.token = `${reqUser._id}:${webhookObj.token}`;
+      }
+
       webhookObj.lastModifiedBy = reqUser._id;
       webhookObj.createdBy = reqUser._id;
       webhookObj.updatedOn = Date.now();
@@ -364,15 +359,7 @@ async function create(requestingUser, webhooks, options) {
  * @param {string} [webhooks.name] - The updated name of the webhook.
  * @param {string} [webhooks.description] - The updated description of the webhook.
  * @param {string[]} [webhooks.triggers] - The updated list of triggers for the webhook.
- * @param {object[]} [webhooks.response] - The updated response object for an outgoing webhook.
- * @param {object[]} [webhooks.response.url] - The url to send an http request to.
- * @param {object[]} [webhooks.response.method] - The method of the http request to send.
- * @param {object[]} [webhooks.response.headers] - The headers to send with the http request.
- * @param {object[]} [webhooks.response.token] - An optional token for additional security with
- * the http request.
- * @param {object[]} [webhooks.response.ca] - An optional ca for additional security with the
- * http request.
- * @param {object[]} [webhooks.response.data] - Optional data to send with the http request.
+ * @param {object[]} [webhooks.url] - The updated url to send an http request to.
  * @param {string} [webhooks.token] - A key that external requests to trigger the webhook must
  * provide in order to verify the request.
  * @param {string} [webhooks.tokenLocation] - A dot-delimited string that represents the location
@@ -464,7 +451,7 @@ async function update(requestingUser, webhooks, options) {
 
       // An archived webhook cannot be updated
       if (webhook.archived && (webhookUpdate.archived === undefined
-        || webhookUpdate.archived !== false || webhookUpdate.archived !== 'false')) {
+        || !(webhookUpdate.archived === false || webhookUpdate.archived === 'false'))) {
         throw new M.OperationError(`The Webhook [${webhook._id}] is archived. `
           + 'It must first be unarchived before performing this operation.', 'warn');
       }
@@ -531,18 +518,14 @@ async function update(requestingUser, webhooks, options) {
 
       // --- Incoming Webhook specific checks ---
       if (webhook.type === 'Incoming') {
-        if (webhookUpdate.response !== undefined) {
+        if (webhookUpdate.url !== undefined) {
           throw new M.DataFormatError(`Webhook ${webhook._id} validation failed: `
-            + 'An incoming webhook cannot have a response field.', 'warn');
+            + 'An incoming webhook cannot have a url field.', 'warn');
         }
       }
 
       // --- Outgoing Webhook specific checks ---
       else if (webhook.type === 'Outgoing') {
-        if (webhookUpdate.token !== undefined) {
-          throw new M.DataFormatError(`Webhook ${webhook._id} validation failed: `
-            + 'An outgoing webhook cannot have a token.', 'warn');
-        }
         if (webhookUpdate.tokenLocation !== undefined) {
           throw new M.DataFormatError(`Webhook ${webhook._id} validation failed: `
             + 'An outgoing webhook cannot have a tokenLocation.', 'warn');

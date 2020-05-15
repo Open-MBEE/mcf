@@ -87,7 +87,7 @@ module.exports.render = function(req, res, name, params) {
   opts.pluginNames = (M.config.server.plugins.enabled)
     ? require(path.join(M.root, 'plugins', 'routes.js')).loadedPlugins : []; // eslint-disable-line global-require
   opts.ui = opts.ui || M.config.server.ui;
-  opts.user = opts.user || ((req.user) ? publicData.getPublicData(req.user, 'user') : '');
+  opts.user = opts.user || ((req.user) ? publicData.getPublicData(req.user, req.user, 'user', {}) : '');
   opts.title = opts.title || 'Model-Based Engineering Environment';
   return res.render(name, opts);
 };
@@ -389,6 +389,22 @@ module.exports.validateOptions = function(options, validOptions, model) {
       validatedOptions.subtree = val;
     }
 
+    // Handle the depth option
+    if (opt === 'depth') {
+      // Ensure value is a number
+      if (typeof options.depth !== 'number') {
+        throw new M.DataFormatError('The option \'depth\' is not a number.', 'warn');
+      }
+      // Ensure depth and rootpath are not both enabled at the same time
+      if (options.rootpath) {
+        throw new M.DataFormatError('Options \'depth\' and \'rootpath\' cannot be'
+          + ' applied simultaneously', 'warn');
+      }
+
+      // Set the subtree option in the returnObject
+      validatedOptions.depth = val;
+    }
+
     // Handle the rootpath option
     if (opt === 'rootpath') {
       // Ensure value is a boolean
@@ -611,4 +627,33 @@ module.exports.formatResponse = function formatResponse(req, res, message, statu
   // Calling next() allows post-APIController middleware to log the response. next should only
   // be passed in to this function when this function is called due to an error.
   if (next !== null) next();
+};
+
+/**
+ * @description This is a utility function that parses IDs from a request body or query parameters.
+ *
+ * @param {object} req - The request object.
+ * @param {object} options - The query parameter options from the request.
+ * @param {boolean} users - Indicates whether usernames (T) or IDs (F) are parsed.
+ *
+ * @returns {string[]} An array of ids.
+ */
+module.exports.parseRequestIDs = function parseRequestIDs(req, options, users = false) {
+  let ids = [];
+  const field = (users) ? 'usernames' : 'id';
+
+  // Check parsed query options for IDs
+  if (options.ids) {
+    ids = options.ids;
+  }
+  // If req.body contains array of IDs
+  else if (Array.isArray(req.body) && req.body.every(s => typeof s === 'string')) {
+    ids = req.body;
+  }
+  // If req.body contains objects, grab the IDs from the objects
+  else if (Array.isArray(req.body) && req.body.every(s => typeof s === 'object')) {
+    ids = req.body.map(id => id[field]);
+  }
+
+  return ids;
 };

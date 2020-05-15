@@ -30,7 +30,8 @@ import {
 /* eslint-enable no-unused-vars */
 
 function ElementTextarea(props) {
-  const { name, label, value, id, placeholder, onChange } = props;
+  const { name, label, value, id, placeholder, onChange, invalid } = props;
+  const _invalid = (invalid.length > 0 && name === 'customData');
   return (
     <React.Fragment>
       <Col sm={2} style={{ paddingRight: 1 }}>
@@ -46,6 +47,7 @@ function ElementTextarea(props) {
           id={id}
           placeholder={placeholder}
           onChange={onChange}
+          invalid={_invalid}
           style={{ fontSize: 14, height: 150 }}/>
       </Col>
     </React.Fragment>

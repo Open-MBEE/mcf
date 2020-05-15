@@ -31,6 +31,7 @@ import UserListItem from '../shared-views/list-items/user-list-item.jsx';
 import CreateUser from './create-user.jsx';
 import DeleteUser from './delete-user.jsx';
 import EditUser from '../profile-views/profile-edit.jsx';
+import PasswordEdit from '../profile-views/password-edit.jsx';
 
 // Define component
 class UserList extends Component {
@@ -49,6 +50,7 @@ class UserList extends Component {
       modalDelete: false,
       modalEdit: false,
       selectedUser: null,
+      editPasswordModal: false,
       error: null
     };
 
@@ -59,6 +61,7 @@ class UserList extends Component {
     this.handleEditToggle = this.handleEditToggle.bind(this);
     this.handleCreateToggle = this.handleCreateToggle.bind(this);
     this.handleDeleteToggle = this.handleDeleteToggle.bind(this);
+    this.togglePasswordModal = this.togglePasswordModal.bind(this);
   }
 
   handleDeleteToggle(username) {
@@ -153,6 +156,13 @@ class UserList extends Component {
     this.setState({ width: this.ref.current.clientWidth });
   }
 
+  // Define toggle function
+  togglePasswordModal() {
+    // Open or close modal
+    this.setState((prevState) => ({ editPasswordModal: !prevState.editPasswordModal }));
+  }
+
+
   render() {
     let users;
 
@@ -204,7 +214,14 @@ class UserList extends Component {
             <EditUser user={this.state.selectedUser}
                       onAdminPage={true}
                       viewingUser={{ admin: true }}
+                      togglePasswordModal={this.togglePasswordModal}
                       toggle={this.handleEditToggle}/>
+          </ModalBody>
+        </Modal>
+        <Modal isOpen={this.state.editPasswordModal} toggle={this.togglePasswordModal}>
+          <ModalBody>
+            <PasswordEdit user={this.state.selectedUser}
+                          toggle={this.togglePasswordModal}/>
           </ModalBody>
         </Modal>
         {/* Display the list of users */}
