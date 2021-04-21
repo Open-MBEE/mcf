@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
@@ -73,41 +73,24 @@ describe(M.getModuleName(module.filename), () => {
   /* Execute tests */
   // ------------- No Requesting User -------------
   it('should reject a GET orgs request with no requesting user', noReqUser('getOrgs'));
-  it('should reject a GET org request with no requesting user', noReqUser('getOrg'));
   it('should reject a POST orgs request with no requesting user', noReqUser('postOrgs'));
-  it('should reject a POST org request with no requesting user', noReqUser('postOrg'));
   it('should reject a PATCH orgs request with no requesting user', noReqUser('patchOrgs'));
-  it('should reject a PATCH org request with no requesting user', noReqUser('patchOrg'));
   it('should reject a PUT orgs request with no requesting user', noReqUser('putOrgs'));
-  it('should reject a PUT org request with no requesting user', noReqUser('putOrg'));
   it('should reject a DELETE orgs request with no requesting user', noReqUser('deleteOrgs'));
-  it('should reject a DELETE org request with no requesting user', noReqUser('deleteOrg'));
   // ------------- Invalid options -------------
   it('should reject a GET orgs request with invalid options', invalidOptions('getOrgs'));
-  it('should reject a GET org request with invalid options', invalidOptions('getOrg'));
   it('should reject a POST orgs request with invalid options', invalidOptions('postOrgs'));
-  it('should reject a POST org request with invalid options', invalidOptions('postOrg'));
   it('should reject a PATCH orgs request with invalid options', invalidOptions('patchOrgs'));
-  it('should reject a PATCH org request with invalid options', invalidOptions('patchOrg'));
   it('should reject a PUT orgs request with invalid options', invalidOptions('putOrgs'));
-  it('should reject a PUT org request with invalid options', invalidOptions('putOrg'));
   it('should reject a DELETE orgs request with invalid options', invalidOptions('deleteOrgs'));
-  it('should reject a DELETE org request with invalid options', invalidOptions('deleteOrg'));
   // ------- Non matching ids in body vs url -------
-  it('should reject a POST org request with conflicting ids in the body and url', conflictingIDs('postOrg'));
-  it('should reject a PATCH org request with conflicting ids in the body and url', conflictingIDs('patchOrg'));
-  it('should reject a PUT org request with conflicting ids in the body and url', conflictingIDs('putOrg'));
+  it('should reject a POST org request with conflicting ids in the body and url', conflictingIDs('postOrgs'));
+  it('should reject a PATCH org request with conflicting ids in the body and url', conflictingIDs('patchOrgs'));
+  it('should reject a PUT org request with conflicting ids in the body and url', conflictingIDs('putOrgs'));
   // ------------- 404 Not Found -------------
   it('should return 404 for a GET orgs request that returned no results', notFound('getOrgs'));
-  it('should return 404 for a GET org request for a nonexistent org', notFound('getOrg'));
   it('should return 404 for a PATCH orgs request for nonexistent orgs', notFound('patchOrgs'));
-  it('should return 404 for a PATCH org request for a nonexistent org', notFound('patchOrg'));
   it('should return 404 for a DELETE orgs request for nonexistent orgs', notFound('deleteOrgs'));
-  it('should return 404 for a DELETE org request for a nonexistent org', notFound('deleteOrg'));
-  // ------------- No arrays in singular endpoints -------------
-  it('should reject a POST singular org request containing an array in the body', noArrays('postOrg'));
-  it('should reject a PATCH singular org request containing an array in the body', noArrays('patchOrg'));
-  it('should reject a PUT singular org request containing an array in the body', noArrays('putOrg'));
 });
 
 /* --------------------( Tests )-------------------- */
@@ -260,43 +243,6 @@ function notFound(endpoint) {
     res.send = function send(_data) {
       // Expect the statusCode to be 404
       res.statusCode.should.equal(404);
-
-      done();
-    };
-
-    // Sends the mock request
-    APIController[endpoint](req, res, next(req, res));
-  };
-}
-
-/**
- * @description A test factory function that generates a mocha-compatible test function that can
- * test the response of singular api endpoints given an array in the body.
- *
- * @param {string} endpoint - The particular api endpoint to test.
- * @returns {Function} A function for mocha to use to test a specific api endpoint.
- */
-function noArrays(endpoint) {
-  // Parse the method
-  const method = testUtils.parseMethod(endpoint);
-  const body = [];
-  const params = {};
-
-  return function(done) {
-    // Create request object
-    const req = testUtils.createRequest(adminUser, params, body, method);
-
-    // Create response object
-    const res = {};
-    testUtils.createResponse(res);
-
-    // Verifies the response data
-    res.send = function send(_data) {
-      // Expect an error message
-      _data.should.equal('Input cannot be an array');
-
-      // Expect the statusCode to be 400
-      res.statusCode.should.equal(400);
 
       done();
     };

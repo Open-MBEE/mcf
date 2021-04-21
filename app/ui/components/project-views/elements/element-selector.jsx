@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner James Eckstein
  *
@@ -17,9 +17,10 @@
  */
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
+/* eslint-disable jsdoc/require-jsdoc */
 
 // React modules
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Button,
   Modal,
@@ -32,261 +33,232 @@ import {
 
 // MBEE modules
 import ElementTree from './element-tree.jsx';
+import { useApiClient } from '../../context/ApiClientProvider';
 
 /* eslint-enable no-unused-vars */
 
-class ElementSelector extends React.Component {
+function usePrevious(value) {
+  const ref = useRef();
+  useEffect(() => {
+    ref.current = value;
+  });
+  return ref.current;
+}
 
-  constructor(props) {
-    // Initialize parent props
-    super(props);
+function ElementSelector(props) {
+  const { orgService } = useApiClient();
+  const [modal, setModal] = useState(false);
+  const [projects, setProjects] = useState([]);
+  const [projectID, setProjectID] = useState(props.project.id);
+  // eslint-disable-next-line no-unused-vars
+  const [selectedElement, setSelectedElement] = useState('');
+  const [selectedElementPreview, setSelectedElementPreview] = useState(props.currentSelection || '');
+  const [selectDisabled, setSelectDisabled] = useState(false);
+  const [error, setError] = useState(null);
 
-    // Initialize state props
-    this.state = {
-      modal: false,
-      projects: [],
-      project: props.project.id,
-      selectedElement: '',
-      selectedElementPreview: '',
-      error: null
-    };
-
-    // Verify currentSelection is in props
-    if (props.currentSelection) {
-      // Set selectedElementPreview to the currentSelection
-      this.state.selectedElementPreview = props.currentSelection;
-    }
-
-    // Bind the functions
-    this.toggle = this.toggle.bind(this);
-    this.handleChange = this.handleChange.bind(this);
-    this.selectElementHandler = this.selectElementHandler.bind(this);
-    this.select = this.select.bind(this);
-    this.clear = this.clear.bind(this);
-  }
-
-  componentDidUpdate(prevProps) {
-    // Verify if currentSelection prop updated
-    if (prevProps.currentSelection !== this.props.currentSelection) {
-      // Update selectedElementPreview state
-      this.setState({ selectedElementPreview: this.props.currentSelection });
-    }
-
-    if ((prevProps.differentProject !== this.props.differentProject)
-      && (this.props.differentProject)) {
-      this.setState({ project: this.props.differentProject.project });
-    }
-  }
+  const prevSelection = usePrevious(props.currentSelection);
+  const prevDifferentProject = usePrevious(props.differentProject);
 
   /**
    * @description Toggle the state of the modal.
    */
-  toggle() {
-    this.setState(prevState => ({
-      modal: !prevState.modal
-    }));
-  }
+  const toggle = () => {
+    setModal((prevState) => !prevState);
+  };
+
+  /**
+   * @description Changes the project.
+   *
+   * @param {object} e - The event trigger.
+   */
+  const handleChange = (e) => {
+    setProjectID(e.target.value);
+  };
 
   /**
    * @description This is the click handler used to select an element.
    *
    * @param {string} id - The id of the selected element.
    */
-  selectElementHandler(id) {
+  const selectElementHandler = (id) => {
     // Verify id is not self
-    if (id === this.props.self && this.state.project === this.props.project.id) {
+    if (id === props.self && projectID === props.project.id) {
       // Display error
-      this.setState({
-        selectedElementPreview: null,
-        selectDisabled: true,
-        error: 'Element cannot select self.'
-      });
+      setSelectedElementPreview(null);
+      setSelectDisabled(true);
+      setError('Element cannot select self.');
       return;
     }
     // Otherwise, reset error to null and set selected state
-    this.setState({
-      selectedElementPreview: id,
-      error: null,
-      selectDisabled: false
-    });
-  }
+    setSelectedElementPreview(id);
+    setSelectDisabled(false);
+    setError(null);
+  };
 
   /**
    * @description Confirms and finalizes the element selection. Then closes the modal.
    */
-  select() {
-    this.setState({ selectedElement: this.state.selectedElementPreview });
-    this.toggle();
+  const select = () => {
+    setSelectedElement(selectedElementPreview);
+    toggle();
 
     // Using preview here because it appears setState is async.
     // When using this.state.selectedElement here is is not yet set when it
     // is passed into the selectedHandler
     // Verify if the element is being referenced in a different project
-    if (this.state.project !== this.props.project.id) {
+    if (projectID !== props.project.id) {
       // Grab the project that it is referencing and pass it back to parent
       // to update namespace field.
-      this.state.projects.forEach((project) => {
-        if (project.id === this.state.project) {
-          this.props.selectedHandler(this.state.selectedElementPreview, project);
+      projects.forEach((p) => {
+        if (p.id === projectID) {
+          props.selectedHandler(selectedElementPreview, p);
         }
       });
     }
     else {
-      this.props.selectedHandler(this.state.selectedElementPreview);
+      props.selectedHandler(selectedElementPreview);
     }
-  }
+  };
 
   /**
    * @description Resets the selectedElementPreview state.
    */
-  clear() {
-    this.setState({
-      selectedElementPreview: null
-    });
-  }
+  const clear = () => {
+    setSelectedElementPreview(null);
+  };
 
-  /**
-   * @description Changes the project.
-   *
-   * @param {object} event - The event trigger.
-   */
-  handleChange(event) {
-    this.setState({ project: event.target.value });
-  }
+  // Reset if selection is changed
+  useEffect(() => {
+    // Verify if currentSelection prop updated
+    if (prevSelection !== props.currentSelection) {
+      // Update selectedElementPreview state
+      setSelectedElementPreview(props.currentSelection);
+    }
 
-  componentDidMount() {
-    // Initialize variables
-    const orgid = this.props.project.org;
-    const url = `/api/orgs?ids=${orgid},default&populate=projects&fields=projects&minified=true`;
+    if ((prevDifferentProject !== props.differentProject)
+      && (props.differentProject)) {
+      setProjectID(props.differentProject.project);
+    }
+  }, [props.currentSelection, props.differentProject]);
 
+  // on mount
+  useEffect(() => {
     // Get projects from current org and default org
-    $.ajax({
-      method: 'GET',
-      url: url,
-      statusCode: {
-        200: (orgs) => {
-          // Initialize array
-          let projects = [];
+    const options = {
+      ids: `${props.project.org},default`,
+      populate: 'projects',
+      fields: 'projects'
+    };
 
-          // For each org push projects to array
-          orgs.forEach((org) => {
-            // Concatenate the arrays
-            projects = projects.concat(org.projects);
-          });
+    orgService.get(options)
+    .then(([err, orgs]) => {
+      if (err) {
+        setError(err);
+      }
+      else if (orgs) {
+        let projectList = [];
+        orgs.forEach((org) => {
+          projectList = projectList.concat(org.projects);
+        });
+        setProjects(projectList);
+      }
+    });
+  }, []);
 
-          // Set the projects state
-          this.setState({ projects: projects });
-        },
-        401: (err) => {
-          // Throw error and set state
-          this.setState({ error: err.responseText });
 
-          // Refresh when session expires
-          window.location.reload();
-        },
-        404: (err) => {
-          this.setState({ error: err.responseText });
+  // Initialize Variables
+  let errorMsg = '';
+  const defaultOrgOpts = [];
+  const currentOrgOpts = [];
+  let projObj = props.project;
+
+  // Verify error
+  if (error) {
+    // Display error
+    errorMsg = <span className={'text-danger'}>{error}</span>;
+  }
+
+  // Verify there are projects
+  if (projects.length > 0) {
+    // Loop through all projects
+    projects.forEach((p) => {
+      // Verify project has internal visibility or is the current project
+      if (p.visibility === 'internal' || (p.id === props.project.id)) {
+        // Verify if project is current project
+        if (p.id === projectID) {
+          // Set new project object
+          projObj = p;
+        }
+
+        // Create an option element
+        const projOpt = (<option value={p.id} key={`proj-${p.id}`}> {p.name} </option>);
+        // If org is default
+        if (p.org === 'default') {
+          // Push to default org array
+          defaultOrgOpts.push(projOpt);
+        }
+        else {
+          // Else, push to current org array
+          currentOrgOpts.push(projOpt);
         }
       }
     });
   }
 
-  render() {
-    // Initialize Variables
-    let error = '';
-    const defaultOrgOpts = [];
-    const currentOrgOpts = [];
-    let projObj = this.props.project;
-
-    // Verify error
-    if (this.state.error) {
-      // Display error
-      error = <span className={'text-danger'}>{this.state.error}</span>;
-    }
-
-    // Verify there are projects
-    if (this.state.projects.length > 0) {
-      // Loop through all projects
-      this.state.projects.forEach((project) => {
-        // Verify project has internal visibility or is the current project
-        if (project.visibility === 'internal' || (project.id === this.props.project.id)) {
-          // Verify if project is current project
-          if (project.id === this.state.project) {
-            // Set new project object
-            projObj = project;
+  return (
+    <div className='element-selector'>
+      <i className='fas fa-caret-square-down' onClick={toggle}/>
+      <Modal size="lg"
+             isOpen={modal}
+             toggle={toggle}
+             className='element-selector-modal element-tree-container'>
+        <ModalHeader toggle={toggle}>Select an element</ModalHeader>
+        <ModalBody>
+          {/* Verify if element selector is for the parent */}
+          {(props.parent)
+            ? ''
+            : (<div className='element-selector-project'>
+                <InputGroup size='sm'>
+                  <span className='project-label'>Projects:</span>
+                  <Input type='select'
+                         name='project'
+                         id='project'
+                         className='project-input'
+                         value={projectID}
+                         onChange={handleChange}>
+                    <option key='opt-default-org'
+                            disabled={true}>Default Org</option>
+                    {defaultOrgOpts}
+                    <option key='opt-current-org'
+                            disabled={true}>Current Org</option>
+                    {currentOrgOpts}
+                  </Input>
+                </InputGroup>
+              </div>)
           }
-
-          // Create an option element
-          const projOpt = (<option value={project.id} key={`proj-${project.id}`}> {project.name} </option>);
-          // If org is default
-          if (project.org === 'default') {
-            // Push to default org array
-            defaultOrgOpts.push(projOpt);
-          }
-          else {
-            // Else, push to current org array
-            currentOrgOpts.push(projOpt);
-          }
-        }
-      });
-    }
-
-    return (
-      <div className='element-selector'>
-        <i className='fas fa-caret-square-down' onClick={this.toggle}/>
-        <Modal size="lg"
-               isOpen={this.state.modal}
-               toggle={this.toggle}
-               className='element-selector-modal element-tree-container'>
-          <ModalHeader toggle={this.toggle}>Select an element</ModalHeader>
-          <ModalBody>
-            {/* Verify if element selector is for the parent */}
-            {(this.props.parent)
-              ? ''
-              : (<div className='element-selector-project'>
-                  <InputGroup size='sm'>
-                    <span className='project-label'>Projects:</span>
-                    <Input type='select'
-                           name='project'
-                           id='project'
-                           className='project-input'
-                           value={this.state.project}
-                           onChange={this.handleChange}>
-                      <option key='opt-default-org'
-                              disabled={true}>Default Org</option>
-                      {defaultOrgOpts}
-                      <option key='opt-current-org'
-                              disabled={true}>Current Org</option>
-                      {currentOrgOpts}
-                    </Input>
-                  </InputGroup>
-                </div>)
+          <ElementTree project={projObj}
+                       displayIds={true}
+                       linkElements={false}
+                       branchID={props.branchID}
+                       clickHandler={selectElementHandler}/>
+        </ModalBody>
+        <ModalFooter style={{ overflow: 'hidden' }}>
+          <p style={{ overflow: 'scroll' }}>
+            Selected: {selectedElementPreview}
+            {(selectedElementPreview)
+              ? <i className='fas fa-times-circle clear-btn' onClick={clear}/>
+              : 'null'
             }
-            <ElementTree project={projObj}
-                         displayIds={true}
-                         linkElements={false}
-                         branch={this.props.branch}
-                         clickHandler={this.selectElementHandler}/>
-          </ModalBody>
-          <ModalFooter style={{ overflow: 'hidden' }}>
-            <p style={{ overflow: 'scroll' }}>
-              Selected: {this.state.selectedElementPreview}
-              {(this.state.selectedElementPreview)
-                ? <i className='fas fa-times-circle clear-btn' onClick={this.clear}/>
-                : 'null'
-              }
-            </p>
-              {error}
-            <Button color="primary"
-                    disabled={this.state.selectDisabled}
-                    onClick={this.select}>Select</Button>
-            <Button color="secondary" onClick={this.toggle}>Cancel</Button>
-          </ModalFooter>
-        </Modal>
-      </div>
-    );
-  }
-
+          </p>
+            {errorMsg}
+          <Button color="primary"
+                  disabled={selectDisabled}
+                  onClick={select}>Select</Button>
+          <Button color="secondary" onClick={toggle}>Cancel</Button>
+        </ModalFooter>
+      </Modal>
+    </div>
+  );
 }
 
 // Export component

@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
@@ -102,10 +102,10 @@ module.exports.validate = function(config) {
         if (typeof ca !== 'string') {
           throw new Error('Configuration file: One or more items in "auth.ldap.ca" is not a string.');
         }
-        const caFile = fs.readdirSync(path.join(M.root, 'certs'))
+        const caFile = fs.readdirSync(path.isAbsolute(ca) ? path.dirname(ca) : path.join(M.root, 'certs'))
         .filter((file) => ca.includes(file));
         if (caFile.length === 0) {
-          throw new Error(`Configuration file: CA file ${ca} not found in certs directory.`);
+          throw new Error(`Configuration file: CA file ${ca} not found in specified directory.`);
         }
       });
     }
@@ -151,8 +151,13 @@ module.exports.validate = function(config) {
 
   // Test supported database
   if (config.db.strategy === 'mongoose-mongodb-strategy') {
-    test(config, 'db.url', 'string');
-    test(config, 'db.port', 'number');
+    if (typeof config.db.seedList !== 'undefined') {
+      test(config, 'db.seedList', 'Array');
+    }
+    else {
+      test(config, 'db.url', 'string');
+      test(config, 'db.port', 'number');
+    }
     test(config, 'db.name', 'string');
 
     // Test optional fields
@@ -163,7 +168,7 @@ module.exports.validate = function(config) {
     // If ssl is enabled, validate the ca file
     if (config.db.ssl) {
       test(config, 'db.ca', 'string');
-      const caFile = fs.readdirSync(path.join(M.root, 'certs'))
+      const caFile = fs.readdirSync(path.isAbsolute(config.db.ca) ? path.dirname(config.db.ca) : path.join(M.root, 'certs'))
       .filter((file) => config.db.ca.includes(file));
       if (caFile.length === 0) {
         throw new Error(`Configuration file: CA file ${config.db.ca} not found in certs directory.`);
@@ -402,7 +407,7 @@ module.exports.validate = function(config) {
     if (config.artifact.s3.ca) {
       // Validate the ca file
       test(config, 'artifact.s3.ca', 'string');
-      const caFile = fs.readdirSync(path.join(M.root, 'certs'))
+      const caFile = fs.readdirSync(path.isAbsolute(config.artifact.s3.ca) ? path.dirname(config.artifact.s3.ca) : path.join(M.root, 'certs'))
       .filter((file) => config.artifact.s3.ca.includes(file));
       if (caFile.length === 0) {
         throw new Error(`Configuration file: CA file ${config.artifact.s3.ca} not found in certs directory.`);

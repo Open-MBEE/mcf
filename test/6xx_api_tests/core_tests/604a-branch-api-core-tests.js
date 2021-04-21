@@ -5,11 +5,12 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
  * @author Leah De Laurell
+ * @author Phillip Lee
  *
  * @description This tests the branch API controller functionality:
  * GET, POST, PATCH, and DELETE of a branch.
@@ -17,7 +18,7 @@
 
 // NPM modules
 const chai = require('chai');
-const request = require('request');
+const axios = require('axios');
 
 // MBEE modules
 const utils = M.require('lib.utils');
@@ -88,25 +89,24 @@ describe(M.getModuleName(module.filename), () => {
  * @description Verifies POST
  * /api/orgs/:orgid/projects/:projectid/branches/:branchid
  * creates a single branch.
- *
- * @param {Function} done - The mocha callback.
  */
-function postBranch(done) {
-  const branchData = testData.branches[1];
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/${branchData.id}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'POST',
-    body: JSON.stringify(branchData)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function postBranch() {
+  try {
+    const branchData = testData.branches[1];
+    const options = {
+      method: 'post',
+      url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/${branchData.id}`,
+      headers: testUtils.getHeaders(),
+      data: branchData
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const createdBranch = JSON.parse(body);
+    const createdBranch = res.data[0];
 
     // Verify branch created properly
     chai.expect(createdBranch.id).to.equal(branchData.id);
@@ -125,39 +125,41 @@ function postBranch(done) {
     // Verify specific fields not returned
     chai.expect(createdBranch).to.not.have.any.keys('archivedOn', 'archivedBy',
       '__v', '_id');
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies POST /api/orgs/:orgid/projects/:projectid/branches
  * creates multiple branches.
- *
- * @param {Function} done - The mocha callback.
  */
-function postBranches(done) {
-  const branchData = [
-    testData.branches[2],
-    testData.branches[3],
-    testData.branches[4],
-    testData.branches[5],
-    testData.branches[6]
-  ];
+async function postBranches() {
+  try {
+    const branchData = [
+      testData.branches[2],
+      testData.branches[3],
+      testData.branches[4],
+      testData.branches[5],
+      testData.branches[6]
+    ];
+    const options = {
+      method: 'post',
+      url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches`,
+      headers: testUtils.getHeaders(),
+      data: branchData
+    };
 
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'POST',
-    body: JSON.stringify(branchData)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const createdBranches = JSON.parse(body);
+    const createdBranches = res.data;
 
     // Expect foundBranches not to be empty
     chai.expect(createdBranches.length).to.equal(branchData.length);
@@ -186,32 +188,35 @@ function postBranches(done) {
       chai.expect(createdBranch).to.not.have.any.keys('archivedOn', 'archivedBy',
         '__v', '_id');
     });
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies GET
  * /api/orgs/:orgid/projects/:projectid/branches/:branchid
  * finds a single branch.
- *
- * @param {Function} done - The mocha callback.
  */
-function getBranch(done) {
-  const branchData = testData.branches[0];
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/${branchData.id}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'GET'
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function getBranch() {
+  try {
+    const branchData = testData.branches[0];
+    const options = {
+      method: 'get',
+      url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/${branchData.id}`,
+      headers: testUtils.getHeaders()
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const foundBranch = JSON.parse(body);
+    const foundBranch = res.data[0];
 
     // Verify branch found properly
     chai.expect(foundBranch.id).to.equal(branchData.id);
@@ -230,34 +235,40 @@ function getBranch(done) {
     // Verify specific fields not returned
     chai.expect(foundBranch).to.not.have.any.keys('archivedOn', 'archivedBy',
       '__v', '_id');
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies GET /api/orgs/:orgid/projects/:projectid/branches
  * finds multiple branches.
- *
- * @param {Function} done - The mocha callback.
  */
-function getBranches(done) {
-  const branchData = [
-    testData.branches[0]
-  ];
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'GET',
-    body: JSON.stringify(branchData.map(b => b.id))
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function getBranches() {
+  try {
+    const branchData = [
+      testData.branches[1],
+      testData.branches[2]
+    ];
+    const options = {
+      method: 'get',
+      url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches`,
+      headers: testUtils.getHeaders(),
+      params: {
+        ids: branchData.map(b => b.id).toString()
+      }
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const foundBranches = JSON.parse(body);
+    const foundBranches = res.data;
 
     // Expect foundBranches not to be empty
     chai.expect(foundBranches.length).to.equal(branchData.length);
@@ -277,7 +288,7 @@ function getBranches(done) {
 
       // Verify additional properties
       chai.expect(foundBranch.createdBy).to.equal(adminUser._id);
-      chai.expect(foundBranch.lastModifiedBy).to.equal(null);
+      chai.expect(foundBranch.lastModifiedBy).to.equal(adminUser._id);
       chai.expect(foundBranch.createdOn).to.not.equal(null);
       chai.expect(foundBranch.updatedOn).to.not.equal(null);
       chai.expect(foundBranch.archived).to.equal(false);
@@ -286,37 +297,40 @@ function getBranches(done) {
       chai.expect(foundBranch).to.not.have.any.keys('archivedOn', 'archivedBy',
         '__v', '_id');
     });
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies PATCH
  * /api/orgs/:orgid/projects/:projectid/branches/:branchid
  * updates a single branch.
- *
- * @param {Function} done - The mocha callback.
  */
-function patchBranch(done) {
-  const branchData = testData.branches[1];
-  const updateObj = {
-    id: branchData.id,
-    name: `${branchData.name}_edit`
-  };
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/${branchData.id}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'PATCH',
-    body: JSON.stringify(updateObj)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function patchBranch() {
+  try {
+    const branchData = testData.branches[1];
+    const updateObj = {
+      id: branchData.id,
+      name: `${branchData.name}_edit`
+    };
+    const options = {
+      method: 'patch',
+      url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/${branchData.id}`,
+      headers: testUtils.getHeaders(),
+      data: updateObj
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const updatedBranch = JSON.parse(body);
+    const updatedBranch = res.data[0];
 
     // Verify branch updated properly
     chai.expect(updatedBranch.id).to.equal(branchData.id);
@@ -335,42 +349,46 @@ function patchBranch(done) {
     // Verify specific fields not returned
     chai.expect(updatedBranch).to.not.have.any.keys('archivedOn', 'archivedBy',
       '__v', '_id');
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies PATCH /api/orgs/:orgid/projects/:projectid/branches
  * updates multiple branches.
  *
- * @param {Function} done - The mocha callback.
  */
-function patchBranches(done) {
-  const branchData = [
-    testData.branches[2],
-    testData.branches[3],
-    testData.branches[4],
-    testData.branches[5],
-    testData.branches[6]
-  ];
-  const updateObj = branchData.map(b => ({
-    id: b.id,
-    name: `${b.name}_edit`
-  }));
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'PATCH',
-    body: JSON.stringify(updateObj)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function patchBranches() {
+  try {
+    const branchData = [
+      testData.branches[2],
+      testData.branches[3],
+      testData.branches[4],
+      testData.branches[5],
+      testData.branches[6]
+    ];
+    const updateObj = branchData.map(b => ({
+      id: b.id,
+      name: `${b.name}_edit`
+    }));
+    const options = {
+      method: 'patch',
+      url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches`,
+      headers: testUtils.getHeaders(),
+      data: updateObj
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const updatedBranches = JSON.parse(body);
+    const updatedBranches = res.data;
 
     // Expect updatedBranches not to be empty
     chai.expect(updatedBranches.length).to.equal(branchData.length);
@@ -399,71 +417,81 @@ function patchBranches(done) {
       chai.expect(updatedBranch).to.not.have.any.keys('archivedOn',
         'archivedBy', '__v', '_id');
     });
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies DELETE
  * /api/orgs/:orgid/projects/:projectid/branches/:branchid
  * deletes a single branch.
- *
- * @param {Function} done - The mocha callback.
  */
-function deleteBranch(done) {
-  const branchData = testData.branches[1];
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/${branchData.id}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'DELETE'
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function deleteBranch() {
+  try {
+    const branchData = testData.branches[1];
+    const options = {
+      method: 'delete',
+      url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/${branchData.id}`,
+      headers: testUtils.getHeaders(),
+      ca: testUtils.readCaFile()
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const deleteBranchID = JSON.parse(body);
+    const deleteBranchID = res.data[0];
 
     // Verify correct branch deleted
     chai.expect(deleteBranchID).to.equal(branchData.id);
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies DELETE /api/orgs/:orgid/projects/:projectid/branches
  * deletes multiple branches.
- *
- * @param {Function} done - The mocha callback.
  */
-function deleteBranches(done) {
-  const branchData = [
-    testData.branches[2],
-    testData.branches[3],
-    testData.branches[4],
-    testData.branches[5],
-    testData.branches[6]
-  ];
+async function deleteBranches() {
+  try {
+    const branchData = [
+      testData.branches[2],
+      testData.branches[3],
+      testData.branches[4],
+      testData.branches[5],
+      testData.branches[6]
+    ];
 
-  const branchIDs = branchData.map(b => b.id);
-  const ids = branchIDs.join(',');
+    const branchIDs = branchData.map(b => b.id);
+    const ids = branchIDs.join(',');
+    const options = {
+      method: 'delete',
+      url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches?ids=${ids}`,
+      headers: testUtils.getHeaders()
+    };
 
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches?ids=${ids}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'DELETE'
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const deletedBranchIDs = JSON.parse(body);
+    const deletedBranchIDs = res.data;
     chai.expect(deletedBranchIDs).to.have.members(branchIDs);
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }

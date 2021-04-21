@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
@@ -35,6 +35,7 @@ async function connect() {
   const dbName = M.config.db.name;
   const url = M.config.db.url;
   const dbPort = M.config.db.port;
+  const dbSeedList = M.config.db.seedList;
   const dbUsername = M.config.db.username;
   const dbPassword = M.config.db.password;
   let connectURL = 'mongodb://';
@@ -44,15 +45,32 @@ async function connect() {
     // Append username/password to connection URL
     connectURL = `${connectURL + dbUsername}:${dbPassword}@`;
   }
-  connectURL = `${connectURL + url}:${dbPort}/${dbName}`;
 
-  const options = {};
+  if (typeof dbSeedList !== 'undefined' && dbSeedList) {
+    for (let i = 0; i < dbSeedList.length; i++) {
+      if (i === 0) {
+        connectURL = `${connectURL + dbSeedList[i]}`;
+      }
+      else {
+        connectURL = `${connectURL},${dbSeedList[i]}`;
+      }
+    }
+    connectURL = `${connectURL}/${dbName}`;
+  }
+  else {
+    connectURL = `${connectURL + url}:${dbPort}/${dbName}`;
+  }
+
+  const options = {
+    auto_reconnect: true
+  };
 
   // Configure an SSL connection
   if (M.config.db.ssl) {
     connectURL += '?ssl=true';
     // Retrieve CA file
-    const caPath = path.join(M.root, M.config.db.ca);
+    const caPath = path.isAbsolute(M.config.db.ca)
+      ? M.config.db.ca : path.join(M.root, M.config.db.ca);
     options.sslCA = fs.readFileSync(caPath, 'utf8');
   }
 
@@ -70,6 +88,39 @@ async function connect() {
 
   // Connect to database
   try {
+    // Set up mongo events
+    mongoose.connection.on('error', async function(e) {
+      M.log.info(`DB: mongodb error ${e}`);
+      // reconnecting
+      await mongoose.connect(connectURL, options);
+    });
+
+    mongoose.connection.on('connected', function(e) {
+      M.log.info('DB: mongodb is connected');
+    });
+
+    mongoose.connection.on('disconnecting', function() {
+      M.log.info('DB: mongodb is disconnecting');
+    });
+
+    mongoose.connection.on('disconnected', function() {
+      M.log.info('DB: mongodb is disconnected');
+    });
+
+    mongoose.connection.on('reconnected', function() {
+      M.log.info('DB: mongodb is reconnected');
+    });
+
+    mongoose.connection.on('timeout', async function(e) {
+      M.log.info(`DB: mongodb timeout ${e}`);
+      // reconnecting
+      await mongoose.connect(connectURL, options);
+    });
+
+    mongoose.connection.on('close', function() {
+      M.log.info('DB: mongodb connection closed');
+    });
+
     await mongoose.connect(connectURL, options);
   }
   catch (error) {

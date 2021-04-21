@@ -5,12 +5,13 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
  * @author Leah De Laurell
  * @author Austin Bieber
+ * @author Phillip Lee
  *
  * @description This tests the project API controller functionality:
  * GET, POST, PATCH, and DELETE of a project.
@@ -18,7 +19,7 @@
 
 // NPM modules
 const chai = require('chai');
-const request = require('request');
+const axios = require('axios');
 
 // MBEE modules
 const jmi = M.require('lib.jmi-conversions');
@@ -90,25 +91,24 @@ describe(M.getModuleName(module.filename), () => {
 /**
  * @description Verifies POST /api/orgs/:orgid/projects/:projectid creates a
  * project.
- *
- * @param {Function} done - The mocha callback.
  */
-function postProject(done) {
-  const projData = testData.projects[0];
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects/${projData.id}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'POST',
-    body: JSON.stringify(projData)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function postProject() {
+  try {
+    const projData = testData.projects[0];
+    const options = {
+      method: 'post',
+      url: `${test.url}/api/orgs/${org._id}/projects/${projData.id}`,
+      headers: testUtils.getHeaders(),
+      data: projData
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const createdProj = JSON.parse(body);
+    const createdProj = res.data[0];
 
     // Verify project created properly
     chai.expect(createdProj.id).to.equal(projData.id);
@@ -128,36 +128,39 @@ function postProject(done) {
     // Verify specific fields not returned
     chai.expect(createdProj).to.not.have.any.keys('archivedOn', 'archivedBy',
       '__v', '_id');
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies POST /api/orgs/:orgid/projects creates multiple
  * projects.
- *
- * @param {Function} done - The mocha callback.
  */
-function postProjects(done) {
-  const projData = [
-    testData.projects[1],
-    testData.projects[2],
-    testData.projects[3]
-  ];
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'POST',
-    body: JSON.stringify(projData)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function postProjects() {
+  try {
+    const projData = [
+      testData.projects[1],
+      testData.projects[2],
+      testData.projects[3]
+    ];
+    const options = {
+      method: 'post',
+      url: `${test.url}/api/orgs/${org._id}/projects`,
+      headers: testUtils.getHeaders(),
+      data: projData
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const createdProjects = JSON.parse(body);
+    const createdProjects = res.data;
     chai.expect(createdProjects.length).to.equal(projData.length);
 
     // Convert createdProjects to JMI type 2 for easier lookup
@@ -185,32 +188,35 @@ function postProjects(done) {
       chai.expect(createdProj).to.not.have.any.keys('archivedOn', 'archivedBy',
         '__v', '_id');
     });
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies PUT /api/orgs/:orgid/projects/:projectid creates or
  * replaces a project.
- *
- * @param {Function} done - The mocha callback.
  */
-function putProject(done) {
-  const projData = testData.projects[0];
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects/${projData.id}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'PUT',
-    body: JSON.stringify(projData)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function putProject() {
+  try {
+    const projData = testData.projects[0];
+    const options = {
+      method: 'put',
+      url: `${test.url}/api/orgs/${org._id}/projects/${projData.id}`,
+      headers: testUtils.getHeaders(),
+      data: projData
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const replacedProj = JSON.parse(body);
+    const replacedProj = res.data[0];
 
     // Verify project created/replaced properly
     chai.expect(replacedProj.id).to.equal(projData.id);
@@ -230,37 +236,40 @@ function putProject(done) {
     // Verify specific fields not returned
     chai.expect(replacedProj).to.not.have.any.keys('archivedOn', 'archivedBy',
       '__v', '_id');
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies PUT /api/orgs/:orgid/projects creates or replaces
  * multiple projects.
- *
- * @param {Function} done - The mocha callback.
  */
-function putProjects(done) {
-  const projData = [
-    testData.projects[1],
-    testData.projects[2],
-    testData.projects[3],
-    testData.projects[4]
-  ];
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'PUT',
-    body: JSON.stringify(projData)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function putProjects() {
+  try {
+    const projData = [
+      testData.projects[1],
+      testData.projects[2],
+      testData.projects[3],
+      testData.projects[4]
+    ];
+    const options = {
+      method: 'put',
+      url: `${test.url}/api/orgs/${org._id}/projects`,
+      headers: testUtils.getHeaders(),
+      data: projData
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const replacedProjects = JSON.parse(body);
+    const replacedProjects = res.data;
     chai.expect(replacedProjects.length).to.equal(projData.length);
 
     // Convert replacedProjects to JMI type 2 for easier lookup
@@ -288,31 +297,34 @@ function putProjects(done) {
       chai.expect(replacedProj).to.not.have.any.keys('archivedOn', 'archivedBy',
         '__v', '_id');
     });
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies GET /api/orgs/:orgid/projects/:projectid finds a
  * project.
- *
- * @param {Function} done - The mocha callback.
  */
-function getProject(done) {
-  const projData = testData.projects[0];
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects/${projData.id}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'GET'
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
-    // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+async function getProject() {
+  try {
+    const projData = testData.projects[0];
+    const options = {
+      method: 'get',
+      url: `${test.url}/api/orgs/${org._id}/projects/${projData.id}`,
+      headers: testUtils.getHeaders()
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
+    // / Expect response status: 200 OK
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const foundProj = JSON.parse(body);
+    const foundProj = res.data[0];
 
     // Verify project created properly
     chai.expect(foundProj.id).to.equal(projData.id);
@@ -332,38 +344,41 @@ function getProject(done) {
     // Verify specific fields not returned
     chai.expect(foundProj).to.not.have.any.keys('archivedOn', 'archivedBy',
       '__v', '_id');
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
-
 
 /**
  * @description Verifies GET /api/orgs/:orgid/projects finds multiple
  * projects.
- *
- * @param {Function} done - The mocha callback.
  */
-function getProjects(done) {
-  const projData = [
-    testData.projects[1],
-    testData.projects[2],
-    testData.projects[3],
-    testData.projects[4]
-  ];
-  const projIDs = projData.map(p => p.id).join(',');
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects?ids=${projIDs}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'GET'
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function getProjects() {
+  try {
+    const projData = [
+      testData.projects[1],
+      testData.projects[2],
+      testData.projects[3],
+      testData.projects[4]
+    ];
+    const projIDs = projData.map(p => p.id).join(',');
+
+    const options = {
+      method: 'get',
+      url: `${test.url}/api/orgs/${org._id}/projects?ids=${projIDs}`,
+      headers: testUtils.getHeaders()
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const foundProjects = JSON.parse(body);
+    const foundProjects = res.data;
     chai.expect(foundProjects.length).to.equal(projData.length);
 
     // Convert foundProjects to JMI type 2 for easier lookup
@@ -391,37 +406,40 @@ function getProjects(done) {
       chai.expect(foundProj).to.not.have.any.keys('archivedOn', 'archivedBy',
         '__v', '_id');
     });
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies GET /api/orgs/:orgid/projects finds all projects in
  * an org when no body or query parameters are provided.
- *
- * @param {Function} done - The mocha callback.
  */
-function getAllProjectsOnOrg(done) {
-  const projData = [
-    testData.projects[0],
-    testData.projects[1],
-    testData.projects[2],
-    testData.projects[3],
-    testData.projects[4]
-  ];
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'GET'
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function getAllProjectsOnOrg() {
+  try {
+    const projData = [
+      testData.projects[0],
+      testData.projects[1],
+      testData.projects[2],
+      testData.projects[3],
+      testData.projects[4]
+    ];
+    const options = {
+      method: 'get',
+      url: `${test.url}/api/orgs/${org._id}/projects`,
+      headers: testUtils.getHeaders()
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const foundProjects = JSON.parse(body);
+    const foundProjects = res.data;
     chai.expect(foundProjects.length).to.equal(projData.length);
 
     // Convert foundProjects to JMI type 2 for easier lookup
@@ -449,37 +467,41 @@ function getAllProjectsOnOrg(done) {
       chai.expect(foundProj).to.not.have.any.keys('archivedOn', 'archivedBy',
         '__v', '_id');
     });
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies GET /api/projects finds all projects a user has access
  * to.
- *
- * @param {Function} done - The mocha callback.
  */
-function getAllProjects(done) {
-  const projData = [
-    testData.projects[0],
-    testData.projects[1],
-    testData.projects[2],
-    testData.projects[3],
-    testData.projects[4]
-  ];
-  request({
-    url: `${test.url}/api/projects`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'GET'
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function getAllProjects() {
+  try {
+    const projData = [
+      testData.projects[0],
+      testData.projects[1],
+      testData.projects[2],
+      testData.projects[3],
+      testData.projects[4]
+    ];
+
+    const options = {
+      method: 'get',
+      url: `${test.url}/api/projects`,
+      headers: testUtils.getHeaders()
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const foundProjects = JSON.parse(body);
+    const foundProjects = res.data;
     chai.expect(foundProjects.length).to.equal(projData.length);
 
     // Convert foundProjects to JMI type 2 for easier lookup
@@ -507,36 +529,40 @@ function getAllProjects(done) {
       chai.expect(foundProj).to.not.have.any.keys('archivedOn', 'archivedBy',
         '__v', '_id');
     });
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies PATCH /api/orgs/:orgid/projects/:projectid updates a
  * project.
- *
- * @param {Function} done - The mocha callback.
  */
-function patchProject(done) {
-  const projData = testData.projects[0];
-  const updateObj = {
-    id: projData.id,
-    name: 'Updated Name'
-  };
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects/${projData.id}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'PATCH',
-    body: JSON.stringify(updateObj)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function patchProject() {
+  try {
+    const projData = testData.projects[0];
+    const updateObj = {
+      id: projData.id,
+      name: 'Updated Name'
+    };
+
+    const options = {
+      method: 'patch',
+      url: `${test.url}/api/orgs/${org._id}/projects/${projData.id}`,
+      headers: testUtils.getHeaders(),
+      data: updateObj
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const updatedProj = JSON.parse(body);
+    const updatedProj = res.data[0];
 
     // Verify project updated properly
     chai.expect(updatedProj.id).to.equal(projData.id);
@@ -556,42 +582,45 @@ function patchProject(done) {
     // Verify specific fields not returned
     chai.expect(updatedProj).to.not.have.any.keys('archivedOn', 'archivedBy',
       '__v', '_id');
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies PATCH /api/orgs/:orgid/projects updates multiple
  * projects.
- *
- * @param {Function} done - The mocha callback.
  */
-function patchProjects(done) {
-  const projData = [
-    testData.projects[1],
-    testData.projects[2],
-    testData.projects[3],
-    testData.projects[4]
-  ];
-  // Update each project name
-  const updateObj = projData.map((p) => ({
-    id: p.id,
-    name: 'Updated Name'
-  }));
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'PATCH',
-    body: JSON.stringify(updateObj)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function patchProjects() {
+  try {
+    const projData = [
+      testData.projects[1],
+      testData.projects[2],
+      testData.projects[3],
+      testData.projects[4]
+    ];
+    // Update each project name
+    const updateObj = projData.map((p) => ({
+      id: p.id,
+      name: 'Updated Name'
+    }));
+    const options = {
+      method: 'patch',
+      url: `${test.url}/api/orgs/${org._id}/projects`,
+      headers: testUtils.getHeaders(),
+      data: updateObj
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const updatedProjects = JSON.parse(body);
+    const updatedProjects = res.data;
     chai.expect(updatedProjects.length).to.equal(projData.length);
 
     // Convert updatedProjects to JMI type 2 for easier lookup
@@ -619,73 +648,80 @@ function patchProjects(done) {
       chai.expect(updatedProj).to.not.have.any.keys('archivedOn', 'archivedBy',
         '__v', '_id');
     });
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies DELETE /api/orgs/:orgid/projects/:projectid deletes a
  * project.
- *
- * @param {Function} done - The mocha callback.
  */
-function deleteProject(done) {
-  const projData = testData.projects[0];
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects/${projData.id}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'DELETE'
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function deleteProject() {
+  try {
+    const projData = testData.projects[0];
+    const options = {
+      method: 'delete',
+      url: `${test.url}/api/orgs/${org._id}/projects/${projData.id}`,
+      headers: testUtils.getHeaders()
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const deletedID = JSON.parse(body);
+    const deletedID = res.data[0];
 
     // Verify correct project deleted
     chai.expect(deletedID).to.equal(projData.id);
-
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies DELETE /api/orgs/:orgid/projects deletes multiple
  * projects.
- *
- * @param {Function} done - The mocha callback.
  */
-function deleteProjects(done) {
-  const projData = [
-    testData.projects[1],
-    testData.projects[2],
-    testData.projects[3],
-    testData.projects[4]
-  ];
+async function deleteProjects() {
+  try {
+    const projData = [
+      testData.projects[1],
+      testData.projects[2],
+      testData.projects[3],
+      testData.projects[4]
+    ];
 
-  const projIDs = projData.map(p => p.id);
-  const ids = projIDs.join(',');
+    const projIDs = projData.map(p => p.id);
+    const ids = projIDs.join(',');
+    const options = {
+      method: 'delete',
+      url: `${test.url}/api/orgs/${org._id}/projects?ids=${ids}`,
+      headers: testUtils.getHeaders()
+    };
 
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects?ids=${ids}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'DELETE'
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const deletedIDs = JSON.parse(body);
+    const deletedIDs = res.data;
 
     // Verify correct project deleted
     chai.expect(deletedIDs).to.have.members(projIDs);
-
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }

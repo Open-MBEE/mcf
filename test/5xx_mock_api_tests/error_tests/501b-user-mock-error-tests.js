@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
@@ -73,49 +73,30 @@ describe(M.getModuleName(module.filename), () => {
   /* Execute tests */
   // ------------- No Requesting User -------------
   it('should reject a GET users request with no requesting user', noReqUser('getUsers'));
-  it('should reject a GET user request with no requesting user', noReqUser('getUser'));
   it('should reject a POST users request with no requesting user', noReqUser('postUsers'));
-  it('should reject a POST user request with no requesting user', noReqUser('postUser'));
   it('should reject a PATCH users request with no requesting user', noReqUser('patchUsers'));
-  it('should reject a PATCH user request with no requesting user', noReqUser('patchUser'));
   it('should reject a PUT users request with no requesting user', noReqUser('putUsers'));
-  it('should reject a PUT user request with no requesting user', noReqUser('putUser'));
   it('should reject a PATCH password request with no requesting user', noReqUser('patchPassword'));
   it('should reject a DELETE users request with no requesting user', noReqUser('deleteUsers'));
-  it('should reject a DELETE user request with no requesting user', noReqUser('deleteUser'));
   it('should reject a GET whoami user request with no requesting user', noReqUser('whoami'));
   it('should reject a GET search user request with no requesting user', noReqUser('searchUsers'));
   // ------------- Invalid options -------------
   it('should reject a GET users request with invalid options', invalidOptions('getUsers'));
-  it('should reject a GET user request with invalid options', invalidOptions('getUser'));
   it('should reject a POST users request with invalid options', invalidOptions('postUsers'));
-  it('should reject a POST user request with invalid options', invalidOptions('postUser'));
   it('should reject a PATCH users request with invalid options', invalidOptions('patchUsers'));
-  it('should reject a PATCH user request with invalid options', invalidOptions('patchUser'));
   it('should reject a PUT users request with invalid options', invalidOptions('putUsers'));
-  it('should reject a PUT user request with invalid options', invalidOptions('putUser'));
   it('should reject a DELETE users request with invalid options', invalidOptions('deleteUsers'));
-  it('should reject a DELETE user request with invalid options', invalidOptions('deleteUser'));
   it('should reject a GET whoami request with invalid options', invalidOptions('whoami'));
   it('should reject a GET search user request with invalid options', invalidOptions('searchUsers'));
   // ------- Non matching ids in body vs url -------
-  it('should reject a POST user request with conflicting ids in the body and url', conflictingIDs('postUser'));
-  it('should reject a PATCH user request with conflicting ids in the body and url', conflictingIDs('patchUser'));
-  it('should reject a PUT user request with conflicting ids in the body and url', conflictingIDs('putUser'));
+  it('should reject a POST user request with conflicting ids in the body and url', conflictingIDs('postUsers'));
+  it('should reject a PATCH user request with conflicting ids in the body and url', conflictingIDs('patchUsers'));
+  it('should reject a PUT user request with conflicting ids in the body and url', conflictingIDs('putUsers'));
   // ------------- 404 Not Found -------------
   it('should return 404 for a GET users request that returned no results', notFound('getUsers'));
-  it('should return 404 for a GET user request for a nonexistent user', notFound('getUser'));
   it('should return 404 for a PATCH users request for a nonexistent user', notFound('patchUsers'));
-  it('should return 404 for a PATCH user request for a nonexistent user', notFound('patchUser'));
   it('should return 404 for a DELETE users request for a nonexistent user', notFound('deleteUsers'));
-  it('should return 404 for a DELETE user request for a nonexistent user', notFound('deleteUser'));
-  it('should return 404 for a PATCH password request for a nonexistent user', noReqUser('patchPassword'));
   it('should return 404 for a GET search users request that returned no results', notFound('searchUsers'));
-  // ------------- No arrays in singular endpoints -------------
-  it('should reject a POST singular user request containing an array in the body', noArrays('postUser'));
-  it('should reject a PATCH singular user request containing an array in the body', noArrays('patchUser'));
-  it('should reject a PUT singular user request containing an array in the body', noArrays('putUser'));
-  it('should reject a DELETE singular user request containing an array in the body', noArrays('deleteUser'));
   //  ------------- Passwords -------------
   it('should reject a PATCH request to patchPassword if the old password is not provided in the body',
     badPasswordInput('Old'));
@@ -274,43 +255,6 @@ function notFound(endpoint) {
     res.send = function send(_data) {
       // Expect the statusCode to be 404
       res.statusCode.should.equal(404);
-
-      done();
-    };
-
-    // Sends the mock request
-    APIController[endpoint](req, res, next(req, res));
-  };
-}
-
-/**
- * @description A constructor for a dynamic mocha-compatible function that tests singular user api
- * endpoints given an array in the body.
- *
- * @param {string} endpoint - The particular api endpoint to test.
- * @returns {Function} A function for mocha to use to test a specific api endpoint.
- */
-function noArrays(endpoint) {
-  // Parse the method
-  const method = testUtils.parseMethod(endpoint);
-  const body = [];
-  const params = {};
-
-  return function(done) {
-    // Create request object
-    const req = testUtils.createRequest(adminUser, params, body, method);
-
-    // Create response object
-    const res = {};
-    testUtils.createResponse(res);
-
-    // Verifies the response data
-    res.send = function send(_data) {
-      // Expect an error message
-      _data.should.equal('Input cannot be an array');
-
-      // Expect the statusCode to be 400
-      res.statusCode.should.equal(400);
 
       done();
     };

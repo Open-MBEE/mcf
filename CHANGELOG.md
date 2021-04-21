@@ -1,6 +1,74 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [2.1.0] - 2021-03-09
+### Bug Fixes and Other Changes
+* Reworked Login Worflow to make it more smooth
+* Fixed a security vulnerability where a JS Alert was used for a confirmation
+
+### Configuration Changes
+* Reworking the login workflow adds a "delay" timer for needing to click through the banner in the UI Login Modal configuration.
+```json
+{
+  "ui": {
+    "loginModal": {
+        "hideFor": "480m"
+  }
+}
+```
+## [2.0.0] - 2021-02-08
+### Major Features and Improvements
+* Added Redis datastore for session management
+* Added Reconnect logic for Mongo
+* Added support for DIS (Dynamic Integration Service) so that external services
+  can integrate authentication within MCF and store auth tokens in session.
+* Updated Node version to 12.18.3 or higher.
+### Bug Fixes and Other Changes
+* Separated MongoDB from the MCF docker file for a more mircoservice architecture.
+* Added updates to the dockerfile.
+* Fixed broken UI tests.
+* Added 404 error page.
+### Configuration Changes
+* With the addition of redis as the session store, there are new session
+  configuration options.
+```json
+{
+  "session": {
+    "redis_host": "REDIS_URL",
+    "redis_port": "REDIS_PORT",
+    "redis_db": "REDIS_DATABASE_NUMBER",
+    "cookie": {
+      "secure": false, // true for HTTPS, false for HTTP
+      "httpOnly": true, // true for HTTP, false for HTTPS
+      "sameSite": "lax"
+    }
+  }
+}
+```
+* Added the commitURL configuration option for the mms-adapter commit
+  functionality.
+```json
+{
+  "server": {
+    "commitURL": "127.0.0.1" // This is the same host as MCF
+  }
+}
+```
+* Added the corsAllowList configuration option for cross origin resource
+  sharing.
+```json
+{
+  "server": {
+    "corsAllowList": [
+      "http://localhost:9080",
+      "http://127.0.0.1:9080",
+      "http://127.0.0.1",
+      "http://localhost"
+    ]
+  }
+}
+```
+
 ## [1.1.0] - 2020-04-28
 ### Bug Fixes and Other Changes
 * Fixed a bug where webhook custom data could not be updated
@@ -12,7 +80,7 @@ All notable changes to this project will be documented in this file.
 ## [1.0.4] - 2020-03-13
 ### Bug Fixes and Other Changes
 * Fixed a bug preventing Webhook creation with custom data
-* Added `scripts/webpack-dev.config.js` to support hot reload for React 
+* Added `scripts/webpack-dev.config.js` to support hot reload for React
   development. Running `yarn watch` in a separate terminal will transpile
   updates made to React component JSX files
 
@@ -21,7 +89,7 @@ All notable changes to this project will be documented in this file.
 * Refactored outgoing webhooks to simplify response input
 
 ### Bug Fixes and Other Changes
-* Fixed a bug causing elements with cross-references to not render properly 
+* Fixed a bug causing elements with cross-references to not render properly
   in the UI
 * Added "depth" option to the `getElements()` endpoint
 
@@ -38,7 +106,7 @@ All notable changes to this project will be documented in this file.
 * Added the ability for system wide admins to reset a users password
 * Added support for temporary passwords. Whenever a local user is created or
   has their password reset, they must change their password upon first login
-  
+
 ### Bug Fixes and Other Changes
 * Fixed a bug causing the cursor to flicker while hovering over buttons in the
   UI

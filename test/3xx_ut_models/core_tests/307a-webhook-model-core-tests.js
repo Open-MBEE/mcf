@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
@@ -20,7 +20,7 @@
 const chai = require('chai');
 const chaiAsPromised = require('chai-as-promised');
 const uuidv4 = require('uuid/v4');
-const request = require('request');
+const axios = require('axios');
 
 // Use async chai
 chai.use(chaiAsPromised);
@@ -257,28 +257,25 @@ async function validPopulateFields() {
  */
 async function sendRequest() {
   // First check that the api is up
-  const options = {
-    url: `${M.config.test.url}/api/test`,
-    method: 'GET'
-  };
-  const apiUp = await new Promise((resolve) => {
-    request(options, (err, response) => {
-      if (err) resolve(false);
-      if (response && response.statusCode === 200) resolve(true);
-      else resolve(false);
-    });
+  const res = await axios({
+    method: 'get',
+    url: `${M.config.test.url}/api/test`
   });
+
+  let isApiUp = false;
+  if (res && res.status === 200) {
+    isApiUp = true;
+  }
+
   // Skip the test if the api isn't up
-  if (!apiUp) this.skip();
+  if (!isApiUp) this.skip();
 
   try {
     // Create a mock outgoing webhook object
     const webhook = {
       type: 'Outgoing',
-      response: {
-        url: `${M.config.test.url}/api/test`,
-        method: 'GET'
-      }
+      url: `${M.config.test.url}/api/test`,
+      method: 'GET'
     };
 
     // Test the sendRequest function with no data

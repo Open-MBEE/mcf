@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Phillip Lee
  *
@@ -164,26 +164,26 @@ function pluginPre(endpoint) {
     // eslint-disable-next-line global-require
     const { pluginFunctions } = require(path.join(M.root, 'plugins', 'routes.js'));
 
-    return async function(req, res, next) {
-      try {
-        for (let i = 0; i < pluginFunctions[endpoint].pre.length; i++) {
-          // eslint-disable-next-line no-await-in-loop
-          await pluginFunctions[endpoint].pre[i](req, res);
+    if (pluginFunctions[endpoint]) {
+      return async function(req, res, next) {
+        try {
+          for (let i = 0; i < pluginFunctions[endpoint].pre.length; i++) {
+            // eslint-disable-next-line no-await-in-loop
+            await pluginFunctions[endpoint].pre[i](req, res);
+          }
+          next();
         }
-        next();
-      }
-      catch (error) {
-        M.log.warn(error);
-        const statusCode = errors.getStatusCode(error);
-        utils.formatResponse(req, res, error.message, statusCode, next);
-      }
-    };
+        catch (error) {
+          M.log.warn(error);
+          const statusCode = errors.getStatusCode(error);
+          utils.formatResponse(req, res, error.message, statusCode, next);
+        }
+      };
+    }
   }
-  else {
-    return function(req, res, next) {
-      next();
-    };
-  }
+  return function(req, res, next) {
+    next();
+  };
 }
 
 /**
@@ -258,10 +258,12 @@ function respond(req, res) {
 function expiredPassword(req, res, next) { // eslint-disable-line consistent-return
   // If the user needs to change their password
   if (req.user.changePassword) {
-    // If it is NOT an API request
-    if (!req.originalUrl.startsWith('/api')) {
+    // If it is a request to login, authenticate the user
+    if (req.originalUrl.includes('login')) {
       // Redirect user to their profile page
-      return res.redirect('/profile');
+      res.locals.message = 'User\'s password has expired.';
+      res.status(403);
+      next();
     }
     // API request, return a 401 error
     else {

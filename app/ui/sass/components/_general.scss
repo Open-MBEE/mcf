@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner James Eckstein
  *
@@ -25,10 +25,12 @@
   width: 150px;
 }
 
+// TODO: Only in stat list: consider moving it?
 .bold-name {
   font-weight: 600;
 }
 
+//TODO: Only in box list: consider moving it?
 .bolder-name {
   font-weight: 700;
 }
@@ -67,6 +69,7 @@
   display: none;
 }
 
+// TODO: Consider changing certain pages to modals with headers & footers
 .extra-padding {
   padding: 20px;
 }

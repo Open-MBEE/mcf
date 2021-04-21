@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
@@ -22,8 +22,11 @@ const path = require('path');
 // NPM modules
 const Mocha = require('mocha');
 require('@babel/register')();        // Transpile react tests to javascript
-require('@babel/polyfill');          // Transpile async await for javascript
-require(path.join(M.root, 'test', '7xx_ui_tests', 'setup.js'));
+// require('@babel/polyfill');          // Transpile async await for javascript
+require('core-js/stable');
+require('regenerator-runtime/runtime');
+
+// require(path.join(M.root, 'test', '7xx_ui_tests', 'setup.js'));
 
 
 // If the application is run directly from node, notify the user and fail
@@ -110,10 +113,24 @@ function test(_args) {
     _args.splice(removeInd, 1);
   }
 
-  // Handle the plugin option
+  // Handle the plugin / plugins options
   let plugin;
+  let plugins;
   let pluginName;
-  if (_args.includes('--plugin')) {
+  const pluginNames = Object.keys(M.config.server.plugins.plugins);
+  if (_args.includes('--plugins')) {
+    // Set flag
+    plugins = true;
+    const ind = _args.indexOf('--plugins');
+    // Remove the plugin arguments
+    _args.splice(ind, 1);
+    // Remove the grep command
+    const grepInd = _args.indexOf('--grep');
+    _args.splice(grepInd, 2);
+  }
+  else if (_args.includes('--plugin')) {
+    // Set flag
+    plugin = true;
     const ind = _args.indexOf('--plugin');
     try {
       pluginName = _args[ind + 1];
@@ -121,11 +138,9 @@ function test(_args) {
     catch (error) {
       throw new M.DataFormatError('No plugin name provided');
     }
-    const pluginNames = Object.keys(M.config.server.plugins.plugins);
     if (!pluginNames.includes(pluginName)) {
       throw new M.DataFormatError(`Plugin [${pluginName}] is not specified in the config`);
     }
-    plugin = true;
     // Remove the plugin arguments
     _args.splice(ind, 2);
     // Remove the grep command
@@ -153,11 +168,35 @@ function test(_args) {
 
   // Create mocha object with options
   const mocha = new Mocha(opts);
-  // Set the test directory
-  const testDir = plugin ? `${M.root}/plugins/${pluginName}/test` : `${M.root}/test`;
 
-  // Call the mochaWalk function to load in all of the test files
-  mochaWalk(testDir, mocha);
+  // If testing all plugins, add all plugin test directories
+  if (plugins) {
+    M.log.info('Running tests on all installed plugins.');
+    pluginNames.forEach((name) => {
+      const testDir = `${M.root}/plugins/${name}/test`;
+      if (fs.existsSync(testDir)) {
+        // Call the mochaWalk function to load in all of the test files
+        mochaWalk(testDir, mocha);
+      }
+      else {
+        M.log.info(`Plugin "${name}" does not have a test directory.`);
+      }
+    });
+  }
+  else {
+    // Set the test directory
+    let testDir = `${M.root}/test`;
+    if (plugin) {
+      testDir = `${M.root}/plugins/${pluginName}/test`;
+      if (!fs.existsSync(testDir)) {
+        M.log.warn(`Plugin "${pluginName}" does not have a test directory.`);
+        process.exit(0);
+      }
+    }
+
+    // Call the mochaWalk function to load in all of the test files
+    mochaWalk(testDir, mocha);
+  }
 
   return new Promise((resolve) => {
     // Run the tests.

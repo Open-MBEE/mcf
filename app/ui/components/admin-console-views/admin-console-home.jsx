@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner James Eckstein
  *
@@ -19,7 +19,7 @@
 
 // React modules
 import React, { Component } from 'react';
-import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
+import { Route, Switch } from 'react-router-dom';
 
 // MBEE modules
 import Sidebar from '../general/sidebar/sidebar.jsx';
@@ -62,7 +62,6 @@ class AdminConsoleHome extends Component {
       (this.state.error)
         ? (<div id='view' className="loading"> {this.state.error} </div>)
         : (
-          <Router>
             <div id='container'>
               { /* Create the sidebar with sidebar links */ }
               <Sidebar title='Admin Console'>
@@ -95,7 +94,6 @@ class AdminConsoleHome extends Component {
                 </Switch>
               }
             </div>
-          </Router>
         )
     );
   }

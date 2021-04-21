@@ -5,12 +5,13 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
  * @author Leah De Laurell
  * @author Austin Bieber
+ * @author Phillip Lee
  *
  * @description This tests the user API controller functionality:
  * GET, POST, PATCH, and DELETE a user.
@@ -18,7 +19,7 @@
 
 // NPM modules
 const chai = require('chai');
-const request = require('request');
+const axios = require('axios');
 
 // MBEE modules
 const jmi = M.require('lib.jmi-conversions');
@@ -88,53 +89,54 @@ describe(M.getModuleName(module.filename), () => {
 /**
  * @description Makes a GET request to /api/users/whoami. Verifies return of
  * requesting user from API.
- *
- * @param {Function} done - The mocha callback.
  */
-function whoami(done) {
-  const userData = testData.adminUser;
-  request({
-    url: `${test.url}/api/users/whoami`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'GET'
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
-    // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
-    // Verify response body
-    const foundUser = JSON.parse(body);
+async function whoami() {
+  try {
+    const userData = testData.adminUser;
+    const options = {
+      method: 'get',
+      url: `${test.url}/api/users/whoami`,
+      headers: testUtils.getHeaders()
+    };
 
+    // Make an API GET request
+    const res = await axios(options);
+
+    // Expect response status: 200 OK
+    chai.expect(res.status).to.equal(200);
+
+    // Verify response body
     // NOTE: Test admin does not have a name, custom data or email
-    chai.expect(foundUser.username).to.equal(userData.username);
-    chai.expect(foundUser).to.not.have.any.keys('password', '_id', '__v');
-    done();
-  });
+    chai.expect(res.data.username).to.equal(userData.username);
+    chai.expect(res.data).to.not.have.any.keys('password', '_id', '__v');
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies POST /api/users/:username creates a user.
- *
- * @param {Function} done - The mocha callback.
- */
-function postUser(done) {
-  const userData = testData.users[0];
-  request({
-    url: `${test.url}/api/users/${userData.username}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'POST',
-    body: JSON.stringify(userData)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+ * */
+async function postUser() {
+  try {
+    const userData = testData.users[0];
+    const options = {
+      method: 'post',
+      url: `${test.url}/api/users/${userData.username}`,
+      headers: testUtils.getHeaders(),
+      data: JSON.stringify(userData)
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const createdUser = JSON.parse(body);
+    const createdUser = res.data[0];
 
     // Verify expected response
     chai.expect(createdUser.username).to.equal(userData.username);
@@ -153,35 +155,38 @@ function postUser(done) {
     chai.expect(createdUser.lastModifiedBy).to.equal(adminUser._id);
     chai.expect(createdUser.archived).to.equal(false);
     chai.expect(createdUser).to.not.have.any.keys('archivedOn', 'archivedBy');
-
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies POST /api/users creates multiple users.
- *
- * @param {Function} done - The mocha callback.
  */
-function postUsers(done) {
-  const userData = [
-    testData.users[1],
-    testData.users[2]
-  ];
-  request({
-    url: `${test.url}/api/users/`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'POST',
-    body: JSON.stringify(userData)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function postUsers() {
+  try {
+    const userData = [
+      testData.users[1],
+      testData.users[2]
+    ];
+
+    const options = {
+      method: 'post',
+      url: `${test.url}/api/users/`,
+      headers: testUtils.getHeaders(),
+      data: userData
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const createdUsers = JSON.parse(body);
+    const createdUsers = res.data;
     // Expect correct number of users to be created
     chai.expect(createdUsers.length).to.equal(userData.length);
 
@@ -209,32 +214,34 @@ function postUsers(done) {
       chai.expect(createdUser.archived).to.equal(false);
       chai.expect(createdUser).to.not.have.any.keys('archivedOn', 'archivedBy');
     });
-
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies PUT /api/users/:username creates or replaces a user.
- *
- * @param {Function} done - The mocha callback.
  */
-function putUser(done) {
-  const userData = testData.users[0];
-  request({
-    url: `${test.url}/api/users/${userData.username}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'PUT',
-    body: JSON.stringify(userData)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function putUser() {
+  try {
+    const userData = testData.users[0];
+    const options = {
+      method: 'put',
+      url: `${test.url}/api/users/${userData.username}`,
+      headers: testUtils.getHeaders(),
+      data: userData
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const replacedUser = JSON.parse(body);
+    const replacedUser = res.data[0];
 
     // Verify expected response
     chai.expect(replacedUser.username).to.equal(userData.username);
@@ -253,36 +260,40 @@ function putUser(done) {
     chai.expect(replacedUser.lastModifiedBy).to.equal(adminUser._id);
     chai.expect(replacedUser.archived).to.equal(false);
     chai.expect(replacedUser).to.not.have.any.keys('archivedOn', 'archivedBy');
-
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies PUT /api/users creates or replaces multiple users.
- *
- * @param {Function} done - The mocha callback.
  */
-function putUsers(done) {
-  const userData = [
-    testData.users[1],
-    testData.users[2],
-    testData.users[3]
-  ];
-  request({
-    url: `${test.url}/api/users/`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'PUT',
-    body: JSON.stringify(userData)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function putUsers() {
+  try {
+    const userData = [
+      testData.users[1],
+      testData.users[2],
+      testData.users[3]
+    ];
+
+    const options = {
+      method: 'put',
+      url: `${test.url}/api/users/`,
+      headers: testUtils.getHeaders(),
+      data: userData
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const replacedUsers = JSON.parse(body);
+    const replacedUsers = res.data;
+
     // Expect correct number of users to be created
     chai.expect(replacedUsers.length).to.equal(userData.length);
 
@@ -310,31 +321,33 @@ function putUsers(done) {
       chai.expect(replacedUser.archived).to.equal(false);
       chai.expect(replacedUser).to.not.have.any.keys('archivedOn', 'archivedBy');
     });
-
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies GET /api/users/:username finds a user.
- *
- * @param {Function} done - The mocha callback.
  */
-function getUser(done) {
-  const userData = testData.users[0];
-  request({
-    url: `${test.url}/api/users/${userData.username}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'GET'
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function getUser() {
+  try {
+    const userData = testData.users[0];
+    const options = {
+      method: 'get',
+      url: `${test.url}/api/users/${userData.username}`,
+      headers: testUtils.getHeaders()
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const foundUser = JSON.parse(body);
+    const foundUser = res.data[0];
 
     // Verify expected response
     chai.expect(foundUser.username).to.equal(userData.username);
@@ -353,35 +366,42 @@ function getUser(done) {
     chai.expect(foundUser.lastModifiedBy).to.equal(adminUser._id);
     chai.expect(foundUser.archived).to.equal(false);
     chai.expect(foundUser).to.not.have.any.keys('archivedOn', 'archivedBy');
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies GET /api/users finds multiple users.
- *
- * @param {Function} done - The mocha callback.
  */
-function getUsers(done) {
-  const userData = [
-    testData.users[1],
-    testData.users[2],
-    testData.users[3]
-  ];
-  request({
-    url: `${test.url}/api/users`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'GET',
-    body: JSON.stringify(userData.map(u => u.username))
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function getUsers() {
+  try {
+    const userData = [
+      testData.users[1],
+      testData.users[2],
+      testData.users[3]
+    ];
+
+    const options = {
+      method: 'get',
+      url: `${test.url}/api/users`,
+      headers: testUtils.getHeaders(),
+      params: {
+        usernames: userData.map(u => u.username).toString()
+      }
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const foundUsers = JSON.parse(body);
+    const foundUsers = res.data;
+
     // Expect correct number of users to be found
     chai.expect(foundUsers.length).to.equal(userData.length);
 
@@ -409,37 +429,41 @@ function getUsers(done) {
       chai.expect(foundUser.archived).to.equal(false);
       chai.expect(foundUser).to.not.have.any.keys('archivedOn', 'archivedBy');
     });
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies GET /api/users finds all users if no ids are provided.
- *
- * @param {Function} done - The mocha callback.
  */
-function getAllUsers(done) {
-  // Create request object
-  const userData = [
-    testData.adminUser,
-    testData.users[0],
-    testData.users[1],
-    testData.users[2],
-    testData.users[3]
-  ];
-  request({
-    url: `${test.url}/api/users`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'GET'
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function getAllUsers() {
+  try {
+    // Create request object
+    const userData = [
+      testData.adminUser,
+      testData.users[0],
+      testData.users[1],
+      testData.users[2],
+      testData.users[3]
+    ];
+
+    const options = {
+      method: 'get',
+      url: `${test.url}/api/users`,
+      headers: testUtils.getHeaders()
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const foundUsers = JSON.parse(body);
+    const foundUsers = res.data;
     // Expect correct number of users to be found
     chai.expect(foundUsers.length).to.be.at.least(userData.length);
 
@@ -476,36 +500,40 @@ function getAllUsers(done) {
         chai.expect(foundUser).to.not.have.any.keys('password', '_id', '__v');
       }
     });
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies GET /api/users/search.
- *
- * @param {Function} done - The mocha callback.
  */
-function searchUsers(done) {
-  // Create request object
-  const userData = [
-    testData.users[0],
-    testData.users[1],
-    testData.users[2],
-    testData.users[3]
-  ];
-  request({
-    url: `${test.url}/api/users/search?q=${userData[0].fname}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'GET'
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function searchUsers() {
+  try {
+    // Create request object
+    const userData = [
+      testData.users[0],
+      testData.users[1],
+      testData.users[2],
+      testData.users[3]
+    ];
+
+    const options = {
+      method: 'get',
+      url: `${test.url}/api/users/search?q=${userData[0].fname}`,
+      headers: testUtils.getHeaders()
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status 200
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const foundUsers = JSON.parse(body);
+    const foundUsers = res.data;
     // Expect correct number of users to be found
     chai.expect(foundUsers.length).to.equal(userData.length);
 
@@ -535,35 +563,39 @@ function searchUsers(done) {
       chai.expect(foundUser.archived).to.equal(false);
       chai.expect(foundUser).to.not.have.any.keys('archivedOn', 'archivedBy');
     });
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies PATCH /api/users/:username updates a user.
- *
- * @param {Function} done - The mocha callback.
  */
-function patchUser(done) {
-  const userData = testData.users[0];
-  const updateObj = {
-    username: userData.username,
-    fname: 'Updated First Name'
-  };
-  request({
-    url: `${test.url}/api/users/${userData.username}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'PATCH',
-    body: JSON.stringify(updateObj)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function patchUser() {
+  try {
+    const userData = testData.users[0];
+    const updateObj = {
+      username: userData.username,
+      fname: 'Updated First Name'
+    };
+
+    const options = {
+      method: 'patch',
+      url: `${test.url}/api/users/${userData.username}`,
+      headers: testUtils.getHeaders(),
+      data: updateObj
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const updatedUser = JSON.parse(body);
+    const updatedUser = res.data[0];
 
     // Verify expected response
     chai.expect(updatedUser.username).to.equal(userData.username);
@@ -582,39 +614,43 @@ function patchUser(done) {
     chai.expect(updatedUser.lastModifiedBy).to.equal(adminUser._id);
     chai.expect(updatedUser.archived).to.equal(false);
     chai.expect(updatedUser).to.not.have.any.keys('archivedOn', 'archivedBy');
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies PATCH /api/users updates multiple users.
- *
- * @param {Function} done - The mocha callback.
  */
-function patchUsers(done) {
-  const userData = [
-    testData.users[1],
-    testData.users[2],
-    testData.users[3]
-  ];
-  const updateObj = userData.map(u => ({
-    username: u.username,
-    fname: 'Updated First Name'
-  }));
-  request({
-    url: `${test.url}/api/users`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'PATCH',
-    body: JSON.stringify(updateObj)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function patchUsers() {
+  try {
+    const userData = [
+      testData.users[1],
+      testData.users[2],
+      testData.users[3]
+    ];
+    const updateObj = userData.map(u => ({
+      username: u.username,
+      fname: 'Updated First Name'
+    }));
+
+    const options = {
+      method: 'patch',
+      url: `${test.url}/api/users`,
+      headers: testUtils.getHeaders(),
+      data: updateObj
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const updatedUsers = JSON.parse(body);
+    const updatedUsers = res.data;
     // Expect correct number of users to be updated
     chai.expect(updatedUsers.length).to.equal(userData.length);
 
@@ -642,38 +678,42 @@ function patchUsers(done) {
       chai.expect(updatedUser.archived).to.equal(false);
       chai.expect(updatedUser).to.not.have.any.keys('archivedOn', 'archivedBy');
     });
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies mock PATCH request to update a users password.
- *
- * @param {Function} done - The mocha callback.
  */
-function patchUserPassword(done) {
-  // Create request object
-  const userData = testData.users[0];
-  userData._id = userData.username;
-  const updateObj = {
-    password: 'NewPass1234?',
-    confirmPassword: 'NewPass1234?',
-    oldPassword: userData.password
-  };
-  request({
-    url: `${test.url}/api/users/${userData.username}/password`,
-    headers: testUtils.getHeaders('application/json', userData),
-    ca: testUtils.readCaFile(),
-    method: 'PATCH',
-    body: JSON.stringify(updateObj)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function patchUserPassword() {
+  try {
+    // Create request object
+    const userData = testData.users[0];
+    userData._id = userData.username;
+    const updateObj = {
+      password: 'NewPass1234?',
+      confirmPassword: 'NewPass1234?',
+      oldPassword: userData.password
+    };
+
+    const options = {
+      method: 'patch',
+      url: `${test.url}/api/users/${userData.username}/password`,
+      headers: testUtils.getHeaders('application/json', userData),
+      data: JSON.stringify(updateObj)
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const updatedUser = JSON.parse(body);
+    const updatedUser = res.data;
 
     // Verify expected response
     chai.expect(updatedUser.username).to.equal(userData.username);
@@ -692,70 +732,81 @@ function patchUserPassword(done) {
     chai.expect(updatedUser.lastModifiedBy).to.equal(adminUser._id);
     chai.expect(updatedUser.archived).to.equal(false);
     chai.expect(updatedUser).to.not.have.any.keys('archivedOn', 'archivedBy');
-
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies DELETE /api/users/:username deletes a user.
- *
- * @param {Function} done - The mocha callback.
  */
-function deleteUser(done) {
-  const userData = testData.users[0];
-  request({
-    url: `${test.url}/api/users/${userData.username}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'DELETE'
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function deleteUser() {
+  try {
+    const userData = testData.users[0];
+
+    const options = {
+      method: 'delete',
+      url: `${test.url}/api/users/${userData.username}`,
+      headers: testUtils.getHeaders(),
+      data: userData
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const deletedUsername = JSON.parse(body);
+    const deletedUsername = res.data[0];
 
     // Verify expected response
     chai.expect(deletedUsername).to.equal(userData.username);
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies DELETE /api/users/ deletes multiple users.
- *
- * @param {Function} done - The mocha callback.
  */
-function deleteUsers(done) {
-  const userData = [
-    testData.users[1],
-    testData.users[2],
-    testData.users[3]
-  ];
+async function deleteUsers() {
+  try {
+    const userData = [
+      testData.users[1],
+      testData.users[2],
+      testData.users[3]
+    ];
 
-  const userIDs = userData.map(u => u.username);
-  const ids = userIDs.join(',');
+    const userIDs = userData.map(u => u.username);
+    const ids = userIDs.join(',');
 
-  request({
-    url: `${test.url}/api/users?ids=${ids}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'DELETE'
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+    const options = {
+      method: 'delete',
+      url: `${test.url}/api/users?ids=${ids}`,
+      headers: testUtils.getHeaders()
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const deletedUsernames = JSON.parse(body);
+    const deletedUsernames = res.data;
     chai.expect(deletedUsernames.length).to.equal(userData.length);
 
     // Verify expected response
     chai.expect(deletedUsernames).to.have.members(userData.map(u => u.username));
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }

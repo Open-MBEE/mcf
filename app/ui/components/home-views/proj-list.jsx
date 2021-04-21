@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner James Eckstein
  *
@@ -64,7 +64,9 @@ class ProjList extends Component {
         {/* Modal for deleting a project */}
         <Modal isOpen={this.state.modalProjDelete} toggle={this.handleDeleteProjToggle}>
           <ModalBody>
-            <Delete project={project} toggle={this.handleDeleteProjToggle}/>
+            <Delete project={project}
+                    toggle={this.handleDeleteProjToggle}
+                    refresh={this.props.refresh}/>
           </ModalBody>
         </Modal>
         <div className='proj-list'>
@@ -72,7 +74,7 @@ class ProjList extends Component {
                            divider={true}
                            archiveProj={this.props.archiveProj}
                            project={project}
-                           href={`/orgs/${orgId}/projects/${project.id}/branches/master/elements`}/>
+                           link={`/orgs/${orgId}/projects/${project.id}/branches/master/elements`}/>
           {(!this.props.admin)
             ? ''
             : (<div className='controls-container'>

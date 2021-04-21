@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner James Eckstein
  *
@@ -20,6 +20,8 @@
 
 // React modules
 import React, { Component } from 'react';
+import { Link } from 'react-router-dom';
+
 
 // MBEE modules
 import StatsList from '../../general/stats/stats-list.jsx';
@@ -100,7 +102,7 @@ class OrgListItem extends Component {
     return (
       <div className={`stats-list-item ${this.props.className}`} ref={this.ref}>
         <div className='list-header'>
-          <a href={this.props.href} className={colorClass}>{org.name}</a>
+          <Link to={this.props.link} className={colorClass}>{org.name}</Link>
         </div>
         {/* Verify width of client, remove stats based on width */}
         {(this.state.width > 600) ? stats : ''}

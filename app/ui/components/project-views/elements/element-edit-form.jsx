@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Danny Chiu
  *
@@ -16,9 +16,10 @@
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
+/* eslint-disable jsdoc/require-jsdoc */
 
 // React modules
-import React, { Component } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Button,
   Modal,
@@ -36,300 +37,150 @@ import {
 import ElementSelector from './element-selector.jsx';
 import ElementTextbox from './element-textbox.jsx';
 import ElementTextarea from './element-textarea.jsx';
+import { useElementContext } from '../../context/ElementProvider.js';
+import { useApiClient } from '../../context/ApiClientProvider';
 
 /* eslint-enable no-unused-vars */
 
-class ElementEditForm extends Component {
+function ElementEditForm(props) {
+  const { elementID, setProvidedElement } = useElementContext();
+  const { elementService } = useApiClient();
+  const [values, setValues] = useState({
+    lastModifiedBy: '',
+    updatedOn: '',
+    name: '',
+    type: '',
+    parent: null,
+    source: null,
+    sourceNamespace: null,
+    target: null,
+    targetNamespace: null,
+    documentation: '',
+    archived: props.archived,
+    custom: {}
+  });
+  const [customInvalid, setCustomInvalid] = useState('');
+  const [error, setError] = useState(null);
 
-  constructor(props) {
-    // Initialize parent props
-    super(props);
-    this.state = {
-      lastModifiedBy: '',
-      updatedOn: '',
-      name: '',
-      type: '',
-      parent: null,
-      source: null,
-      sourceNamespace: null,
-      target: null,
-      targetNamespace: null,
-      documentation: '',
-      archived: props.archived,
-      custom: {},
-      org: null,
-      project: null,
-      error: null,
-      customInvalid: ''
-    };
+  const orgID = props.project.org;
+  const projID = props.project.id;
+  const branchID = props.branchID;
 
-    this.textboxProps = [
-      { label: 'Last Modified By', disabled: true },
-      { label: 'Updated On', disabled: true },
-      { label: 'Name', disabled: false },
-      { label: 'Type', disabled: false }
-    ];
+  const textboxProps = [
+    { label: 'Last Modified By', disabled: true },
+    { label: 'Updated On', disabled: true },
+    { label: 'Name', disabled: false },
+    { label: 'Type', disabled: false }
+  ];
 
-    this.dropdownProps = [
-      { label: 'Source', disabled: true },
-      { label: 'Target', disabled: true },
-      { label: 'Parent', disabled: true }
-    ];
+  const dropdownProps = [
+    { label: 'Source', disabled: true },
+    { label: 'Target', disabled: true },
+    { label: 'Parent', disabled: true }
+  ];
 
-    this.textareaProps = [
-      { label: 'Documentation' },
-      { label: 'Custom Data' }
-    ];
+  const textareaProps = [
+    { label: 'Documentation' },
+    { label: 'Custom Data' }
+  ];
 
-    this.handleChange = this.handleChange.bind(this);
-    this.getElement = this.getElement.bind(this);
-    this.onSubmit = this.onSubmit.bind(this);
-    this.parentSelectHandler = this.parentSelectHandler.bind(this);
-    this.sourceSelectHandler = this.sourceSelectHandler.bind(this);
-    this.targetSelectHandler = this.targetSelectHandler.bind(this);
-  }
-
-  handleChange(event) {
-    const { name, value } = event.target;
+  const handleChange = (e) => {
+    const { name, value } = e.target;
     if (name === 'archived') {
       // Change the archived state to opposite value
-      this.setState(prevState => ({ archived: !prevState.archived }));
+      setValues((prevState) => ({
+        ...prevState,
+        archived: !prevState.archived
+      }));
     }
     else if (name === 'customData') {
-      this.setState({ custom: value });
+      setValues((prevState) => ({
+        ...prevState,
+        custom: value
+      }));
       // Verify if custom data is correct JSON format
       try {
         if (value.length > 0) {
           JSON.parse(value);
         }
-        this.setState({ customInvalid: '' });
+        setCustomInvalid('');
       }
       catch (err) {
-        this.setState({ customInvalid: 'Custom data must be valid JSON.' });
+        setCustomInvalid('Custom data must be valid JSON.');
       }
     }
     else {
       // Change the state with new value
-      this.setState({ [name]: value });
-    }
-  }
-
-  /**
-   * @description This function is called when the ElementSelector for the parent field
-   * changes.
-   *
-   * @param {string} _id - The selected _id.
-   */
-  parentSelectHandler(_id) {
-    this.setState({ parent: _id });
-  }
-
-  /**
-   * @description This function is called when the ElementSelector for the source field
-   * changes.
-   *
-   * @param {string} _id - The selected _id.
-   * @param {object} project - The current project.
-   */
-  sourceSelectHandler(_id, project) {
-    // Verify if project was provided
-    if (project) {
-      // Set the sourceNamespace field
-      this.setState({
-        sourceNamespace: {
-          org: project.org,
-          project: project.id,
-          branch: 'master'
-        }
-      });
-    }
-    else {
-      // Set the sourceNamespace field to null
-      this.setState({ sourceNamespace: null });
-    }
-    this.setState({ source: _id });
-  }
-
-  /**
-   * @description This function is called when the ElementSelector for the target field
-   * changes.
-   *
-   * @param {string} _id - The selected _id.
-   * @param {object} project - The current project.
-   */
-  targetSelectHandler(_id, project) {
-    // Verify if project was provided
-    if (project) {
-      // Set the targetNamespace field
-      this.setState({
-        targetNamespace: {
-          org: project.org,
-          project: project.id,
-          branch: 'master'
-        }
-      });
-    }
-    else {
-      // Set the targetNamespace field  to null
-      this.setState({ targetNamespace: null });
+      setValues((prevState) => ({
+        ...prevState,
+        [name]: value
+      }));
     }
 
-    this.setState({ target: _id });
-  }
+    e.persist();
+  };
 
-  // eslint-disable-next-line class-methods-use-this
-  renderColumnComponents(componentList, numColumn) {
-    const style = { padding: 4, margin: 0, border: 6 };
-    const componentRows = [];
-    let dataRow = [];
-    componentList.forEach((component, index) => {
-      dataRow.push(component);
-      if ((index + 1) % numColumn === 0) {
-        componentRows.push(<FormGroup row style={style} key={`el-col-${index}`}>{dataRow}</FormGroup>);
-        dataRow = [];
-      }
-    });
-    if (dataRow.length > 0) {
-      componentRows.push(<FormGroup row style={style} key={`el-col-${componentList.length}`}>{dataRow}</FormGroup>);
-    }
-    return componentRows;
-  }
-
-  renderTextboxes(numColumn) {
-    // eslint-disable-next-line no-undef
-    const stateNames = this.textboxProps.map(propObj => toCamel(propObj.label));
-    const textboxes = this.textboxProps.map(
-      (propObj, index) => (
-        <ElementTextbox key={`el-text-${index}`}
-                        name={stateNames[index]}
-                        value={this.state[stateNames[index]]}
-                        id={`${stateNames[index]}_Id`}
-                        label={propObj.label}
-                        placeholder={this.state[stateNames[index]]}
-                        disabled={propObj.disabled}
-                        onChange={this.handleChange}/>)
-    );
-    return this.renderColumnComponents(textboxes, numColumn);
-  }
-
-  renderSelector(numColumn) {
-    // eslint-disable-next-line no-undef
-    const stateNames = this.dropdownProps.map(propObj => toCamel(propObj.label));
-    const { id, url, project, branch } = this.props;
-    const dropdowns = this.dropdownProps.map(
-      (propObj, index) => (
-        <ElementTextbox key={`el-text-${index}`}
-                        name={stateNames[index]}
-                        value={this.state[stateNames[index]]}
-                        id={`${stateNames[index]}_Id`}
-                        label={propObj.label}
-                        placeholder={this.state[stateNames[index]]}
-                        disabled={propObj.disabled}
-                        onChange={this.handleChange}>
-          <ElementSelector currentSelection={this.state[stateNames[index]]}
-                           self={id}
-                           url={url}
-                           project={project}
-                           branch={branch}
-                           selectedHandler={this[`${stateNames[index]}SelectHandler`]}
-                           parent={stateNames[index] === 'parent'}
-                           differentProject={(stateNames[index] === 'parent') ? null : this.state[`${stateNames[index]}Namespace`]}/>
-        </ElementTextbox>
-      )
-    );
-    return this.renderColumnComponents(dropdowns, numColumn);
-  }
-
-  renderTextareas(numColumn) {
-    // eslint-disable-next-line no-undef
-    const stateNames = this.textareaProps.map(propObj => toCamel(propObj.label));
-    const textareas = [];
-    this.textareaProps.forEach((propObj, index) => {
-      const value = (stateNames[index] === 'customData') ? 'custom' : 'documentation';
-      textareas.push(
-        <ElementTextarea key={`el-textarea-${index}`}
-                         name={stateNames[index]}
-                         value={this.state[value]}
-                         id={`${stateNames[index]}_Id`}
-                         label={propObj.label}
-                         placeholder={this.state[stateNames[index]]}
-                         invalid={this.state.customInvalid}
-                         onChange={this.handleChange}/>
-      );
-    });
-
-    return this.renderColumnComponents(textareas, numColumn);
-  }
-
-  getElement() {
-    // Initialize variables
-    const url = `${this.props.url}/elements/${this.props.id}?minified=true&includeArchived=true`;
+  const getElement = async () => {
     // Get element data
-    $.ajax({
-      method: 'GET',
-      url: url,
-      statusCode: {
-        200: (element) => {
-          // eslint-disable-next-line max-len
-          const { name, type, documentation, custom, org, project, archived, lastModifiedBy, updatedOn, parent, source,
-            target, targetNamespace, sourceNamespace } = element;
-          this.setState({
-            element: element,
-            name: name,
-            type: type,
-            documentation: documentation,
-            custom: JSON.stringify(custom, null, 2),
-            org: org,
-            project: project,
-            archived: archived,
-            lastModifiedBy: lastModifiedBy,
-            updatedOn: updatedOn
-          });
-          if (parent) {
-            this.setState({ parent: parent });
-          }
-          if (source) {
-            this.setState({ source: source });
-          }
-          if (target) {
-            this.setState({ target: target });
-          }
-          if (targetNamespace) {
-            this.setState({ targetNamespace: targetNamespace });
-          }
-          if (sourceNamespace) {
-            this.setState({ sourceNamespace: sourceNamespace });
-          }
+    const options = {
+      ids: elementID,
+      includeArchived: true
+    };
+    const [err, elements] = await elementService.get(orgID, projID, branchID, options);
 
-          $('textarea[name="customData"]').autoResize();
-          // Resize custom data field
-          $('textarea[name="documentation"]').autoResize();
-        },
-        401: (err) => {
-          // Throw error and set state
-          this.setState({ error: err.responseText });
-
-          // Refresh when session expires
-          window.location.reload();
-        },
-        404: (err) => {
-          this.setState({ error: err.responseText });
-        }
-      }
-    });
-  }
-
-  onSubmit() {
-    // Verify error is set to null
-    if (this.state.error) {
-      this.setState({ error: null });
+    if (err) {
+      setError(err);
     }
+    else if (elements) {
+      const element = elements[0];
+      // eslint-disable-next-line max-len
+      const { name, type, documentation, custom, org, project, archived, lastModifiedBy, updatedOn, parent, source,
+        target, targetNamespace, sourceNamespace } = element;
+      const data = {
+        element: element,
+        name: name,
+        type: type,
+        documentation: documentation,
+        custom: JSON.stringify(custom, null, 2),
+        org: org,
+        project: project,
+        archived: archived,
+        lastModifiedBy: lastModifiedBy,
+        updatedOn: updatedOn
+      };
+      if (parent) {
+        data.parent = parent;
+      }
+      if (source) {
+        data.source = source;
+      }
+      if (target) {
+        data.target = target;
+      }
+      if (targetNamespace) {
+        data.targetNamespace = targetNamespace;
+      }
+      if (sourceNamespace) {
+        data.sourceNamespace = sourceNamespace;
+      }
+
+      setValues(data);
+
+      $('textarea[name="customData"]').autoResize();
+      // Resize custom data field
+      $('textarea[name="documentation"]').autoResize();
+    }
+  };
+
+  const onSubmit = async () => {
+    // Verify error is set to null
+    if (error) setError(null);
 
     // Initialize variables
     // eslint-disable-next-line max-len
-    const { name, type, parent, archived, documentation, custom, source, target, targetNamespace, sourceNamespace } = this.state;
-    const url = `${this.props.url}/elements/${this.props.id}?minified=true`;
+    const { name, type, parent, archived, documentation, custom, source, target, targetNamespace, sourceNamespace } = values;
     const data = {
+      id: elementID,
       name: name,
       type: type,
       parent: parent,
@@ -353,82 +204,240 @@ class ElementEditForm extends Component {
       data.sourceNamespace = sourceNamespace;
     }
 
-    // Send a patch request to update element data
-    $.ajax({
-      method: 'PATCH',
-      url: url,
-      data: JSON.stringify(data),
-      contentType: 'application/json',
-      statusCode: {
-        200: () => {
-          window.location.reload();
-        },
-        401: (err) => {
-          this.setState({ error: err.responseText });
+    // send a request to update the element
+    const [err, elements] = await elementService.patch(orgID, projID, branchID, data);
 
-          // Refresh when session expires
-          window.location.reload();
-        },
-        404: (err) => {
-          this.setState({ error: err.responseText });
-        },
-        403: (err) => {
-          this.setState({ error: err.responseText });
+    if (err) {
+      setError(err);
+    }
+    else if (elements) {
+      // This will refresh the updated element in the element tree.
+      if (props.refreshFunctions.hasOwnProperty(elementID)) props.refreshFunctions[elementID]();
+      // This is used to refresh the element data in the Element.jsx component within the sidepanel.
+      setProvidedElement(elements[0]);
+      // Closes the edit modal.
+      props.toggle();
+    }
+  };
+
+  /**
+   * @description This function is called when the ElementSelector for the parent field
+   * changes.
+   *
+   * @param {string} _id - The selected _id.
+   */
+  const parentSelectHandler = (_id) => {
+    setValues((prevState) => ({
+      ...prevState,
+      parent: _id
+    }));
+  };
+
+  /**
+   * @description This function is called when the ElementSelector for the source field
+   * changes.
+   *
+   * @param {string} _id - The selected _id.
+   * @param {object} project - The current project.
+   */
+  const sourceSelectHandler = (_id, project) => {
+    // Verify if project was provided
+    if (project) {
+      // Set the sourceNamespace field
+      setValues((prevState) => ({
+        ...prevState,
+        sourceNamespace: {
+          org: project.org,
+          project: project.id,
+          branch: 'master'
         }
+      }));
+    }
+    else {
+      // Set the sourceNamespace field to null
+      setValues((prevState) => ({
+        ...prevState,
+        sourceNamespace: null
+      }));
+    }
+    setValues((prevState) => ({
+      ...prevState,
+      source: _id
+    }));
+  };
+
+  /**
+   * @description This function is called when the ElementSelector for the target field
+   * changes.
+   *
+   * @param {string} _id - The selected _id.
+   * @param {object} project - The current project.
+   */
+  const targetSelectHandler = (_id, project) => {
+    // Verify if project was provided
+    if (project) {
+      // Set the targetNamespace field
+      setValues((prevState) => ({
+        ...prevState,
+        targetNamespace: {
+          org: project.org,
+          project: project.id,
+          branch: 'master'
+        }
+      }));
+    }
+    else {
+      // Set the targetNamespace field  to null
+      setValues((prevState) => ({
+        ...prevState,
+        targetNamespace: null
+      }));
+    }
+
+    setValues((prevState) => ({
+      ...prevState,
+      target: _id
+    }));
+  };
+
+  const handlers = {
+    parentSelectHandler,
+    sourceSelectHandler,
+    targetSelectHandler
+  };
+
+  const renderColumnComponents = (componentList, numColumn) => {
+    const style = { padding: 4, margin: 0, border: 6 };
+    const componentRows = [];
+    let dataRow = [];
+    componentList.forEach((component, index) => {
+      dataRow.push(component);
+      if ((index + 1) % numColumn === 0) {
+        componentRows.push(<FormGroup row style={style} key={`el-col-${index}`}>{dataRow}</FormGroup>);
+        dataRow = [];
       }
     });
-  }
+    if (dataRow.length > 0) {
+      componentRows.push(<FormGroup row style={style} key={`el-col-${componentList.length}`}>{dataRow}</FormGroup>);
+    }
+    return componentRows;
+  };
 
-  componentDidMount() {
-    this.getElement();
-  }
-
-  render() {
-    const { modal, toggle, id } = this.props;
-    const { error, archived } = this.state;
-
-    const textareas = this.renderTextareas(1);
-    const documentation = textareas[0];
-    const customData = textareas[1];
-
-    return (
-      <Modal isOpen={modal} toggle={toggle} size={'lg'}>
-        <form>
-          <ModalHeader>Element: {id}</ModalHeader>
-          <ModalBody style={{ maxHeight: 'calc(100vh - 210px)', overflowY: 'auto' }}>
-            {(error) ? <UncontrolledAlert color='danger'>{error}</UncontrolledAlert> : ''}
-            {this.renderTextboxes(2)}
-            {documentation}
-            <hr></hr>
-            {this.renderSelector(2)}
-            <hr></hr>
-            {customData}
-            <FormGroup check style={{ paddingLeft: 35 }}>
-              <Label check for={'archived_Id'} style={{ fontSize: 13, margin: 0 }}>
-                <Input type="checkbox"
-                       name={'archived'}
-                       id={'archived_Id'}
-                       checked={archived}
-                       value={archived}
-                       onChange={this.handleChange}/>
-                {'Archived'}
-              </Label>
-            </FormGroup>
-          </ModalBody>
-          <ModalFooter>
-            <Button color="primary"
-                    onClick={this.onSubmit}
-                    disabled={this.state.customInvalid.length > 0}>
-              Update
-            </Button>{' '}
-            <Button color="secondary" onClick={toggle}>Cancel</Button>
-          </ModalFooter>
-        </form>
-      </Modal>
-
+  const renderTextboxes = (numColumn) => {
+    // eslint-disable-next-line no-undef
+    const stateNames = textboxProps.map(propObj => toCamel(propObj.label));
+    const textboxes = textboxProps.map(
+      (propObj, index) => (
+        <ElementTextbox key={`el-text-${index}`}
+                        name={stateNames[index]}
+                        value={values[stateNames[index]]}
+                        id={`${stateNames[index]}_Id`}
+                        label={propObj.label}
+                        placeholder={values[stateNames[index]]}
+                        disabled={propObj.disabled}
+                        onChange={handleChange}/>)
     );
-  }
+    return renderColumnComponents(textboxes, numColumn);
+  };
 
+  const renderSelector = (numColumn) => {
+    // eslint-disable-next-line no-undef
+    const stateNames = dropdownProps.map(propObj => toCamel(propObj.label));
+    const { id, url, project } = props;
+    const dropdowns = dropdownProps.map(
+      (propObj, index) => (
+        <ElementTextbox key={`el-text-${index}`}
+                        name={stateNames[index]}
+                        value={values[stateNames[index]]}
+                        id={`${stateNames[index]}_Id`}
+                        label={propObj.label}
+                        placeholder={values[stateNames[index]]}
+                        disabled={propObj.disabled}
+                        onChange={handleChange}>
+          <ElementSelector currentSelection={values[stateNames[index]]}
+                           self={id}
+                           url={url}
+                           project={project}
+                           branchID={branchID}
+                           selectedHandler={handlers[`${stateNames[index]}SelectHandler`]}
+                           parent={stateNames[index] === 'parent'}
+                           differentProject={(stateNames[index] === 'parent') ? null : values[`${stateNames[index]}Namespace`]}/>
+        </ElementTextbox>
+      )
+    );
+    return renderColumnComponents(dropdowns, numColumn);
+  };
+
+  const renderTextareas = (numColumn) => {
+    // eslint-disable-next-line no-undef
+    const stateNames = textareaProps.map(propObj => toCamel(propObj.label));
+    const textareas = [];
+    textareaProps.forEach((propObj, index) => {
+      const value = (stateNames[index] === 'customData') ? 'custom' : 'documentation';
+      textareas.push(
+        <ElementTextarea key={`el-textarea-${index}`}
+                         name={stateNames[index]}
+                         value={values[value]}
+                         id={`${stateNames[index]}_Id`}
+                         label={propObj.label}
+                         placeholder={values[stateNames[index]]}
+                         invalid={customInvalid}
+                         onChange={handleChange}/>
+      );
+    });
+
+    return renderColumnComponents(textareas, numColumn);
+  };
+
+  // on mount
+  useEffect(() => {
+    getElement();
+  }, []);
+
+
+  const { modal, toggle } = props;
+  const { archived } = values;
+
+  const textareas = renderTextareas(1);
+  const documentation = textareas[0];
+  const customData = textareas[1];
+
+  return (
+    <Modal isOpen={modal} toggle={toggle} size={'lg'}>
+      <form>
+        <ModalHeader>Element: {elementID}</ModalHeader>
+        <ModalBody style={{ maxHeight: 'calc(100vh - 210px)', overflowY: 'auto' }}>
+          {(error) ? <UncontrolledAlert color='danger'>{error}</UncontrolledAlert> : ''}
+          {renderTextboxes(2)}
+          {documentation}
+          <hr></hr>
+          {renderSelector(2)}
+          <hr></hr>
+          {customData}
+          <FormGroup check style={{ paddingLeft: 35 }}>
+            <Label check for={'archived_Id'} style={{ fontSize: 13, margin: 0 }}>
+              <Input type="checkbox"
+                     name={'archived'}
+                     id={'archived_Id'}
+                     checked={archived}
+                     value={archived}
+                     onChange={handleChange}/>
+              {'Archived'}
+            </Label>
+          </FormGroup>
+        </ModalBody>
+        <ModalFooter>
+          <Button color="primary"
+                  onClick={onSubmit}
+                  disabled={customInvalid.length > 0}>
+            Update
+          </Button>{' '}
+          <Button color="secondary" onClick={toggle}>Cancel</Button>
+        </ModalFooter>
+      </form>
+    </Modal>
+
+  );
 }
 
 export default ElementEditForm;
