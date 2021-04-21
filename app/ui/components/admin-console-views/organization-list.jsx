@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner James Eckstein
  *
@@ -17,9 +17,10 @@
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
+/* eslint-disable jsdoc/require-jsdoc */
 
 // React modules
-import React, { Component } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button, Modal, ModalBody } from 'reactstrap';
 
 // MBEE modules
@@ -27,161 +28,132 @@ import List from '../general/list/list.jsx';
 import OrgListItem from '../shared-views/list-items/org-list-item.jsx';
 import Create from '../shared-views/create.jsx';
 import Delete from '../shared-views/delete.jsx';
+import { useApiClient } from '../context/ApiClientProvider';
 
 /* eslint-enable no-unused-vars */
 
 // Define component
-class OrganizationList extends Component {
+function OrganizationList(props) {
+  const { orgService } = useApiClient();
+  const [width, setWidth] = useState(null);
+  const [orgs, setOrgs] = useState([]);
+  const [modalCreate, setModalCreate] = useState(false);
+  const [modalDelete, setModalDelete] = useState(false);
+  // eslint-disable-next-line no-unused-vars
+  const [error, setError] = useState(null);
 
-  constructor(props) {
-    // Initialize parent props
-    super(props);
+  const ref = useRef();
 
-    // Initialize state props
-    this.state = {
-      width: null,
-      orgs: [],
-      modalCreate: false,
-      modalDelete: false,
-      error: null
-    };
+  const handleCreateToggle = () => {
+    setModalCreate((prevState) => !prevState);
+  };
 
-    // Create reference
-    this.ref = React.createRef();
+  const handleDeleteToggle = () => {
+    setModalDelete((prevState) => !prevState);
+  };
 
-    // Bind component functions
-    this.handleCreateToggle = this.handleCreateToggle.bind(this);
-    this.handleDeleteToggle = this.handleDeleteToggle.bind(this);
-    this.handleResize = this.handleResize.bind(this);
-  }
+  const handleResize = () => {
+    // Set state to width of window
+    setWidth(ref.current.clientWidth);
+  };
 
-  componentDidMount() {
+  const refresh = () => {
     // eslint-disable-next-line no-undef
-    mbeeWhoAmI((err, data) => {
+    mbeeWhoAmI(async (err, data) => {
       // Verify if error returned
       if (err) {
         // Set error state
-        this.setState({ error: err.responseText });
+        setError(err.responseText);
       }
       else {
-        // Set user data
-        this.setState({ user: data });
-        // Initialize url data
-        const base = '/api/orgs';
-        const opt = 'populate=projects&includeArchived=true&minified=true';
-
         // Get org data
-        $.ajax({
-          method: 'GET',
-          url: `${base}?${opt}`,
-          statusCode: {
-            200: (orgs) => {
-              // Set org state
-              this.setState({ orgs: orgs });
+        const options = {
+          populate: 'projects',
+          includeArchived: true
+        };
+        const [err2, orgData] = await orgService.get(options);
 
-              // Create event listener for window resizing
-              window.addEventListener('resize', this.handleResize);
-              // Handle initial size of window
-              this.handleResize();
-            },
-            401: (error) => {
-              // Throw error and set state
-              this.setState({ error: error.responseText });
-
-              // Refresh when session expires
-              window.location.reload();
-            },
-            404: (error) => {
-              this.setState({ error: error.responseText });
-            }
-          }
-        });
+        // Set state
+        if (err2) setError(err2);
+        else if (orgData) setOrgs(orgData);
       }
     });
-  }
+  };
 
-  componentWillUnmount() {
-    // Remove event listener
-    window.removeEventListener('resize', this.handleResize);
-  }
+  // on mount
+  useEffect(() => {
+    // Create event listener for window resizing
+    window.addEventListener('resize', handleResize);
+    // Handle initial size of window
+    handleResize();
 
-  handleResize() {
-    // Set state to width of window
-    this.setState({ width: this.ref.current.clientWidth });
-  }
+    // Set initial state
+    refresh();
 
-  // Define toggle function
-  handleCreateToggle() {
-    // Set the create modal state
-    this.setState({ modalCreate: !this.state.modalCreate });
-  }
+    // clean up the event listener
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
-  // Define toggle function
-  handleDeleteToggle() {
-    // Set the delete modal state
-    this.setState({ modalDelete: !this.state.modalDelete });
-  }
 
-  render() {
-    // Loop through all orgs
-    const orgs = this.state.orgs.map(org => <OrgListItem className='hover-darken' key={`org-key-${org.id}`} org={org} href={`/orgs/${org.id}`}/>);
+  // Loop through all orgs
+  const orgList = orgs.map(org => <OrgListItem className='hover-darken' key={`org-key-${org.id}`} org={org} link={`/orgs/${org.id}`}/>);
 
-    // Return org list
-    return (
-      <React.Fragment>
-        {/* Modal for creating an org */}
-        <Modal isOpen={this.state.modalCreate} toggle={this.handleCreateToggle}>
-          <ModalBody>
-            <Create toggle={this.handleCreateToggle}/>
-          </ModalBody>
-        </Modal>
-        {/* Modal for deleting an org */}
-        <Modal isOpen={this.state.modalDelete} toggle={this.handleDeleteToggle}>
-          <ModalBody>
-            <Delete orgs={this.state.orgs} toggle={this.handleDeleteToggle}/>
-          </ModalBody>
-        </Modal>
-        {/* Display the list of orgs */}
-        <div id='workspace' ref={this.ref}>
-          <div className='workspace-header header-box-depth'>
-            <h2 className='workspace-title workspace-title-padding'>
-              Organizations
-            </h2>
-              <div className='workspace-header-button'>
-                <Button className='btn'
-                        outline color="primary"
-                        onClick={this.handleCreateToggle}>
-                  {(this.state.width > 600)
-                    ? 'Create'
-                    : (<i className='fas fa-plus add-btn'/>)
-                  }
-                </Button>
-                <Button className='btn'
-                        outline color="danger"
-                        onClick={this.handleDeleteToggle}>
-                  {(this.state.width > 600)
-                    ? 'Delete'
-                    : (<i className='fas fa-trash-alt delete-btn'/>)
-                  }
-                </Button>
-              </div>
-          </div>
-          {/* Verify there are orgs */}
-          <div id='workspace-body' className='extra-padding'>
-            {(this.state.orgs.length === 0)
-              ? (<div className='main-workspace list-item'>
-                  <h3> No organizations. </h3>
-                 </div>)
-              : (<List className='main-workspace'>
-                  {orgs}
-                 </List>)
-            }
-          </div>
+  // Return org list
+  return (
+    <React.Fragment>
+      {/* Modal for creating an org */}
+      <Modal isOpen={modalCreate} toggle={handleCreateToggle}>
+        <ModalBody>
+          <Create toggle={handleCreateToggle}/>
+        </ModalBody>
+      </Modal>
+      {/* Modal for deleting an org */}
+      <Modal isOpen={modalDelete} toggle={handleDeleteToggle}>
+        <ModalBody>
+          <Delete orgs={orgs}
+                  toggle={handleDeleteToggle}
+                  refresh={refresh}/>
+        </ModalBody>
+      </Modal>
+      {/* Display the list of orgs */}
+      <div id='workspace' ref={ref}>
+        <div className='workspace-header header-box-depth'>
+          <h2 className='workspace-title workspace-title-padding'>
+            Organizations
+          </h2>
+            <div className='workspace-header-button'>
+              <Button className='btn'
+                      outline color="primary"
+                      onClick={handleCreateToggle}>
+                {(width > 600)
+                  ? 'Create'
+                  : (<i className='fas fa-plus add-btn'/>)
+                }
+              </Button>
+              <Button className='btn'
+                      outline color="danger"
+                      onClick={handleDeleteToggle}>
+                {(width > 600)
+                  ? 'Delete'
+                  : (<i className='fas fa-trash-alt delete-btn'/>)
+                }
+              </Button>
+            </div>
         </div>
-      </React.Fragment>
-    );
-  }
-
+        {/* Verify there are orgs */}
+        <div id='workspace-body' className='extra-padding'>
+          {(orgs.length === 0)
+            ? (<div className='main-workspace list-item'>
+                <h3> No organizations. </h3>
+               </div>)
+            : (<List className='main-workspace'>
+                {orgList}
+               </List>)
+          }
+        </div>
+      </div>
+    </React.Fragment>
+  );
 }
 
 // Export component

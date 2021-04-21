@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2020, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Donte McDaniel
  *
@@ -28,6 +28,7 @@ module.exports = {
     'profile-app': path.join(rootPath, 'app', 'ui', 'components', 'apps', 'profile-app.jsx'),
     'admin-console-app': path.join(rootPath, 'app', 'ui', 'components', 'apps', 'admin-console-app.jsx')
   },
+  watch: true,
   output: {
     path: path.join(rootPath, 'build', 'public', 'js'),
     filename: '[name].js'

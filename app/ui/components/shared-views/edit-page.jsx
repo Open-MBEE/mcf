@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner James Eckstein
  *
@@ -17,9 +17,10 @@
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
+/* eslint-disable jsdoc/require-jsdoc */
 
 // React modules
-import React, { Component } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Form,
   FormGroup,
@@ -32,59 +33,66 @@ import {
 
 // MBEE modules
 import CustomEdit from '../general/custom-data/custom-edit.jsx';
+import { useApiClient } from '../context/ApiClientProvider';
 
 /* eslint-enable no-unused-vars */
 
-class EditPage extends Component {
+function EditPage(props) {
+  const { orgService, projectService, branchService } = useApiClient();
 
-  constructor(props) {
-    // Initialize parent props
-    super(props);
+  // Initialize state props
+  let _name;
+  let _custom;
+  let _visibility;
+  let _archived;
 
-    // Initialize state props
-    let name;
-    let custom;
-    let visibility;
-    let archived;
-
-    if (props.org) {
-      name = props.org.name;
-      archived = props.org.archived;
-      custom = props.org.custom;
-    }
-    else if (props.branch) {
-      name = props.branch.name;
-      archived = props.branch.archived;
-      custom = props.branch.custom;
-    }
-    else {
-      name = props.project.name;
-      archived = props.project.archived;
-      custom = props.project.custom;
-      visibility = props.project.visibility;
-    }
-
-    this.state = {
-      name: name,
-      visibility: visibility,
-      archived: archived,
-      custom: JSON.stringify(custom || {}, null, 2),
-      error: null,
-      message: ''
-    };
-
-    // Bind component function
-    this.handleChange = this.handleChange.bind(this);
-    this.onSubmit = this.onSubmit.bind(this);
-    this.customChange = this.customChange.bind(this);
+  if (props.org) {
+    _name = props.org.name;
+    _archived = props.org.archived;
+    _custom = props.org.custom;
+  }
+  else if (props.project) {
+    _name = props.project.name;
+    _archived = props.project.archived;
+    _custom = props.project.custom;
+    _visibility = props.project.visibility;
+  }
+  else if (props.branch) {
+    _name = props.branch.name;
+    _archived = props.branch.archived;
+    _custom = props.branch.custom;
   }
 
-  customChange(rows, error) {
-    const newState = { message: error };
+  const [name, setName] = useState(_name);
+  const [visibility, setVisibility] = useState(_visibility);
+  const [archived, setArchived] = useState(_archived);
+  const [custom, setCustom] = useState(JSON.stringify(_custom || {}, null, 2));
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState(null);
 
-    if (error.length === 0) {
+  const handleChange = (e) => {
+    // Verify target being changed
+    switch (e.target.name) {
+      case 'archived':
+        setArchived((prevState) => !prevState);
+        break;
+      case 'name':
+        setName(e.target.value);
+        break;
+      case 'visibility':
+        setVisibility(e.target.value);
+        break;
+      default:
+        break;
+    }
+  };
+
+  const customChange = (rows, err) => {
+    setMessage(err);
+
+    if (err.length === 0) {
       // Create custom data object from rows of key/value pairs.
-      const custom = {};
+      const obj = {};
       rows.forEach((row) => {
         let value = '';
 
@@ -92,177 +100,153 @@ class EditPage extends Component {
         try {
           value = JSON.parse(row.value);
         }
-        catch (err) {
+        catch (e) {
           // Treat input as string
           value = row.value;
         }
 
-        Object.assign(custom, { [row.key]: value });
+        Object.assign(obj, { [row.key]: value });
       });
 
-      newState.custom = JSON.stringify(custom, null, 2);
+      setCustom(JSON.stringify(obj, null, 2));
     }
+  };
 
-    this.setState(newState);
-  }
-
-  // Define handle change function
-  handleChange(event) {
-    // Verify target being changed
-    if (event.target.name === 'archived') {
-      // Change the archive state to opposite value
-      this.setState(prevState => ({ archived: !prevState.archived }));
-    }
-    else {
-      // Change the state with new value
-      this.setState({ [event.target.name]: event.target.value });
-    }
-  }
-
-  // Define the submit function
-  onSubmit() {
-    if (this.state.error) {
-      this.setState({ error: null });
+  const onSubmit = async () => {
+    if (error) {
+      setError(null);
     }
 
     // Initialize variables
-    let url;
-    const custom = JSON.parse(this.state.custom);
-    const data = { name: this.state.name, custom: custom };
+    let patch;
+    const data = {
+      name: name,
+      archived: archived,
+      custom: JSON.parse(custom)
+    };
 
-    if (this.props.org) {
-      url = `/api/orgs/${this.props.org.id}`;
+    if (props.org) {
+      patch = (d, o) => orgService.patch(d, o);
+      data.id = props.org.id;
     }
-    else if (this.props.branch) {
-      const branch = this.props.branch;
-      url = `/api/orgs/${branch.org}/projects/${branch.project}/branches/${branch.id}`;
+    else if (props.project) {
+      patch = (d, o) => projectService.patch(props.project.org, d, o);
+      data.id = props.project.id;
+      data.visibility = visibility;
     }
-    else {
-      data.visibility = this.state.visibility;
-      url = `/api/orgs/${this.props.orgid}/projects/${this.props.project.id}`;
+    else if (props.branch) {
+      patch = (d, o) => branchService.patch(props.branch.org, props.branch.project, d, o);
+      data.id = props.branch.id;
     }
-
-    data.archived = this.state.archived;
 
     // Remove blank key/value pair in custom data
     if (data.custom[''] === '') {
       delete data.custom[''];
     }
 
-    $.ajax({
-      method: 'PATCH',
-      url: `${url}?minified=true`,
-      contentType: 'application/json',
-      data: JSON.stringify(data),
-      statusCode: {
-        200: () => { window.location.reload(); },
-        401: (err) => {
-          this.setState({ error: err.responseText });
+    const [err, response] = await patch(data, {});
 
-          // Refresh when session expires
-          window.location.reload();
-        },
-        403: (err) => {
-          this.setState({ error: err.responseText });
-        }
-      }
-    });
+    if (err) {
+      setError(err);
+    }
+    else if (response) {
+      props.refresh();
+      props.toggle();
+    }
+  };
+
+
+  // Initialize variables
+  let disableSubmit = (message.length > 0);
+  let title;
+
+  if (props.org) {
+    title = 'Organization';
+  }
+  else if (props.branch) {
+    title = `[${props.branch.id}] Branch`;
+  }
+  else {
+    title = 'Project';
   }
 
-  render() {
-    // Initialize variables
-    let disableSubmit = (this.state.message.length > 0);
-    let title;
+  // Verify if custom data is correct JSON format
+  try {
+    JSON.parse(custom);
+  }
+  catch (err) {
+    // Set invalid fields
+    disableSubmit = true;
+  }
 
-    if (this.props.org) {
-      title = 'Organization';
-    }
-    else if (this.props.branch) {
-      title = `[${this.props.branch.id}] Branch`;
-    }
-    else {
-      title = 'Project';
-    }
-
-    // Verify if custom data is correct JSON format
-    try {
-      JSON.parse(this.state.custom);
-    }
-    catch (err) {
-      // Set invalid fields
-      disableSubmit = true;
-    }
-
-    // Render organization edit page
-    return (
-      <div id='workspace'>
-        <div className='workspace-header'>
-          <h2 className='workspace-title workspace-title-padding'>Edit {title}</h2>
-        </div>
-        <div id='workspace-body' className='extra-padding'>
-          <div className='main-workspace'>
-            {(!this.state.error)
+  // Render organization edit page
+  return (
+    <div id='workspace'>
+      <div className='workspace-header'>
+        <h2 className='workspace-title workspace-title-padding'>Edit {title}</h2>
+      </div>
+      <div id='workspace-body' className='extra-padding'>
+        <div className='main-workspace'>
+          {(!error)
+            ? ''
+            : (<UncontrolledAlert color="danger">
+                {error}
+              </UncontrolledAlert>)
+          }
+          {/* Create form to update org data */}
+          <Form>
+            {/* Form section for org name */}
+            <FormGroup>
+              <Label for="name">Name</Label>
+              <Input type="name"
+                     name="name"
+                     id="name"
+                     placeholder="Name"
+                     value={name || ''}
+                     onChange={handleChange}/>
+            </FormGroup>
+            {(!props.project)
               ? ''
-              : (<UncontrolledAlert color="danger">
-                  {this.state.error}
-                </UncontrolledAlert>)
+              // Form section for project visibility
+              : (<FormGroup>
+                  <Label for="visibility">Visibility</Label>
+                  <Input type="select"
+                         name="visibility"
+                         id="visibility"
+                         value={visibility}
+                         onChange={handleChange}>
+                    <option value='internal'>Internal</option>
+                    <option value='private'>Private</option>
+                  </Input>
+                 </FormGroup>)
             }
-            {/* Create form to update org data */}
-            <Form>
-              {/* Form section for org name */}
-              <FormGroup>
-                <Label for="name">Name</Label>
-                <Input type="name"
-                       name="name"
-                       id="name"
-                       placeholder="Name"
-                       value={this.state.name || ''}
-                       onChange={this.handleChange}/>
-              </FormGroup>
-              {(!this.props.project)
-                ? ''
-                // Form section for project visibility
-                : (<FormGroup>
-                    <Label for="visibility">Visibility</Label>
-                    <Input type="select"
-                           name="visibility"
-                           id="visibility"
-                           value={this.state.visibility}
-                           onChange={this.handleChange}>
-                      <option value='internal'>Internal</option>
-                      <option value='private'>Private</option>
-                    </Input>
-                   </FormGroup>)
-              }
-              {/* Form section for custom data */}
-              <FormGroup>
-                <CustomEdit data={this.state.custom}
-                            customChange={this.customChange}
-                            handleChange={this.handleChange}/>
-              </FormGroup>
-              {/* Form section for archiving */}
-              <FormGroup check className='bottom-spacing'>
-                <Label check>
-                  <Input type="checkbox"
-                         name="archived"
-                         id="archived"
-                         checked={this.state.archived}
-                         value={this.state.archived || false}
-                         onChange={this.handleChange} />
-                  Archive
-                </Label>
-              </FormGroup>
-              {/* Button to submit changes */}
-              <Button color='primary' disabled={disableSubmit} onClick={this.onSubmit}> Submit </Button>
-              {' '}
-              <Button outline onClick={this.props.toggle}> Cancel </Button>
-            </Form>
-          </div>
+            {/* Form section for custom data */}
+            <FormGroup>
+              <CustomEdit data={custom}
+                          customChange={customChange}
+                          handleChange={handleChange}/>
+            </FormGroup>
+            {/* Form section for archiving */}
+            <FormGroup check className='bottom-spacing'>
+              <Label check>
+                <Input type="checkbox"
+                       name="archived"
+                       id="archived"
+                       checked={archived}
+                       value={archived || false}
+                       onChange={handleChange} />
+                Archive
+              </Label>
+            </FormGroup>
+            {/* Button to submit changes */}
+            <Button color='primary' disabled={disableSubmit} onClick={onSubmit}> Submit </Button>
+            {' '}
+            <Button outline onClick={props.toggle}> Cancel </Button>
+          </Form>
         </div>
       </div>
-    );
-  }
-
+    </div>
+  );
 }
 
 export default EditPage;

@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
@@ -239,7 +239,7 @@ function getWebhook(done) {
   // Verifies the response data
   res.send = function send(_data) {
     // Verify response body
-    const foundWebhook = JSON.parse(_data);
+    const foundWebhook = JSON.parse(_data)[0];
     chai.expect(foundWebhook.name).to.equal(webhookData.name);
     chai.expect(foundWebhook.triggers).to.deep.equal(webhookData.triggers);
     chai.expect(foundWebhook.url).to.equal(webhookData.url);
@@ -264,7 +264,7 @@ function getWebhook(done) {
   };
 
   // GET a webhook
-  APIController.getWebhook(req, res, next(req, res));
+  APIController.getWebhooks(req, res, next(req, res));
 }
 
 /**
@@ -430,7 +430,7 @@ function patchWebhook(done) {
   // Verifies the response data
   res.send = function send(_data) {
     // Verify response body
-    const patchedWebhook = JSON.parse(_data);
+    const patchedWebhook = JSON.parse(_data)[0];
     chai.expect(patchedWebhook.name).to.equal('Patch test');
     chai.expect(patchedWebhook.triggers).to.deep.equal(webhookData.triggers);
     chai.expect(patchedWebhook.url).to.equal(webhookData.url);
@@ -455,7 +455,7 @@ function patchWebhook(done) {
   };
 
   // PATCH a webhook
-  APIController.patchWebhook(req, res, next(req, res));
+  APIController.patchWebhooks(req, res, next(req, res));
 }
 
 /**
@@ -555,6 +555,7 @@ function deleteWebhook(done) {
   res.send = function send(_data) {
     // Verify response body
     const deletedWebhooks = JSON.parse(_data);
+
     chai.expect(deletedWebhooks.length).to.equal(1);
     chai.expect(deletedWebhooks[0]).to.equal(webhookID);
 
@@ -565,7 +566,7 @@ function deleteWebhook(done) {
   };
 
   // DELETE a webhook
-  APIController.deleteWebhook(req, res, next(req, res));
+  APIController.deleteWebhooks(req, res, next(req, res));
 }
 
 /**

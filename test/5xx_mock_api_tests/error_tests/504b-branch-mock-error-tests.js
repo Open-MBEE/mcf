@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
@@ -80,35 +80,21 @@ describe(M.getModuleName(module.filename), () => {
   /* Execute tests */
   // ------------- No Requesting User -------------
   it('should reject a GET branches request with no requesting user', noReqUser('getBranches'));
-  it('should reject a GET branch request with no requesting user', noReqUser('getBranch'));
   it('should reject a POST branches request with no requesting user', noReqUser('postBranches'));
-  it('should reject a POST branch request with no requesting user', noReqUser('postBranch'));
   it('should reject a PATCH branches request with no requesting user', noReqUser('patchBranches'));
-  it('should reject a PATCH branch request with no requesting user', noReqUser('patchBranch'));
   it('should reject a DELETE branches request with no requesting user', noReqUser('deleteBranches'));
-  it('should reject a DELETE branch request with no requesting user', noReqUser('deleteBranch'));
   // ------------- Invalid options -------------
   it('should reject a GET branches request with invalid options', invalidOptions('getBranches'));
-  it('should reject a GET branch request with invalid options', invalidOptions('getBranch'));
   it('should reject a POST branches request with invalid options', invalidOptions('postBranches'));
-  it('should reject a POST branch request with invalid options', invalidOptions('postBranch'));
   it('should reject a PATCH branches request with invalid options', invalidOptions('patchBranches'));
-  it('should reject a PATCH branch request with invalid options', invalidOptions('patchBranch'));
   it('should reject a DELETE branches request with invalid options', invalidOptions('deleteBranches'));
-  it('should reject a DELETE branch request with invalid options', invalidOptions('deleteBranch'));
   // ------- Non matching ids in body vs url -------
-  it('should reject a POST branch request with conflicting ids in the body and url', conflictingIDs('postBranch'));
-  it('should reject a PATCH branch request with conflicting ids in the body and url', conflictingIDs('patchBranch'));
+  it('should reject a POST branch request with conflicting ids in the body and url', conflictingIDs('postBranches'));
+  it('should reject a PATCH branch request with conflicting ids in the body and url', conflictingIDs('patchBranches'));
   // ------------- 404 Not Found -------------
   it('should return 404 for a GET branches request that returned no results', notFound('getBranches'));
-  it('should return 404 for a GET branch request that returned no results', notFound('getBranch'));
   it('should return 404 for a PATCH branches request for nonexistent branches', notFound('patchBranches'));
-  it('should return 404 for a PATCH branch request for a nonexistent branch', notFound('patchBranch'));
   it('should return 404 for a DELETE branches request for nonexistent branches', notFound('deleteBranches'));
-  it('should return 404 for a DELETE branch request for a nonexistent branch', notFound('deleteBranch'));
-  // ------------- No arrays in singular endpoints -------------
-  it('should reject a POST singular branch request containing an array in the body', noArrays('postBranch'));
-  it('should reject a PATCH singular branch request containing an array in the body', noArrays('patchBranch'));
 });
 
 /* --------------------( Tests )-------------------- */
@@ -261,43 +247,6 @@ function notFound(endpoint) {
     res.send = function send(_data) {
       // Expect the statusCode to be 404
       res.statusCode.should.equal(404);
-
-      done();
-    };
-
-    // Sends the mock request
-    APIController[endpoint](req, res, next(req, res));
-  };
-}
-
-/**
- * @description A test factory function that generates a mocha-compatible test function that can
- * test the response of singular api endpoint given an array in the body.
- *
- * @param {string} endpoint - The particular api endpoint to test.
- * @returns {Function} A function for mocha to use to test a specific api endpoint.
- */
-function noArrays(endpoint) {
-  // Parse the method
-  const method = testUtils.parseMethod(endpoint);
-  const body = [];
-  const params = {};
-
-  return function(done) {
-    // Create request object
-    const req = testUtils.createRequest(adminUser, params, body, method);
-
-    // Create response object
-    const res = {};
-    testUtils.createResponse(res);
-
-    // Verifies the response data
-    res.send = function send(_data) {
-      // Expect an error message
-      _data.should.equal('Input cannot be an array');
-
-      // Expect the statusCode to be 400
-      res.statusCode.should.equal(400);
 
       done();
     };

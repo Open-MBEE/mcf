@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner James Eckstein
  *
@@ -20,13 +20,14 @@
 
 // React modules
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 /* eslint-enable no-unused-vars */
 
 function SearchResult(props) {
   const cols = [];
   const { org, project, branch, id } = props.data;
-  const href = `/orgs/${org}/projects/${project}/branches/${branch}/elements#${id}`;
+  const link = `/orgs/${org}/projects/${project}/branches/${branch}/elements#${id}`;
 
   props.keys.forEach((key, index) => {
     // Check if element has value defined for respective key
@@ -35,9 +36,9 @@ function SearchResult(props) {
     const displayValue = (key === 'custom') ? JSON.stringify(props.data[key]) : currentValue;
     const col = (key === 'id')
       ? <td className={`search-col-${index}`} key={`col-${index}`}>
-          <a href={href}>
+          <Link to={link}>
             {displayValue}
-          </a>
+          </Link>
         </td>
       : <td className={`search-col-${index}`} key={`col-${index}`}>{displayValue}</td>;
     cols.push(col);

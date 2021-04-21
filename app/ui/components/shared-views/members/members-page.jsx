@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner James Eckstein
  *
@@ -84,7 +84,7 @@ class MembersPage extends Component {
                         user={user}
                         permission={perm}
                         _key={`key-${user}`}
-                        href={`/profile/${user}`}/>
+                        link={`/profile/${user}`}/>
           <div className='controls-container'>
             <UncontrolledTooltip placement='top'
                                  target={`edit-${user}-roles`}>
@@ -111,9 +111,11 @@ class MembersPage extends Component {
             <div className='roles-box'>
               {(this.props.project && !this.props.org)
                 ? (<MemberEdit project={this.props.project}
-                               selectedUser={this.state.selectedUser}/>)
+                               selectedUser={this.state.selectedUser}
+                               refresh={this.props.refresh}/>)
                 : (<MemberEdit org={this.props.org}
-                               selectedUser={this.state.selectedUser}/>)
+                               selectedUser={this.state.selectedUser}
+                               refresh={this.props.refresh}/>)
               }
             </div>
             <List className='members-box'>

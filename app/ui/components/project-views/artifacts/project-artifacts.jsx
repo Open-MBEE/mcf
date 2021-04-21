@@ -1,11 +1,11 @@
 /**
  * @classification UNCLASSIFIED
  *
- * @module ui.components.project-views.artifacts.project-artifacts
+ * @module components.project-views.artifacts.project-artifacts
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner James Eckstein
  *
@@ -17,10 +17,11 @@
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
+/* eslint-disable jsdoc/require-jsdoc */
 
 // React modules
-import React, { Component } from 'react';
-import { Button, Modal, ModalBody, UncontrolledAlert, UncontrolledTooltip } from 'reactstrap';
+import React, { useState, useEffect } from 'react';
+import { Button, Modal, ModalHeader, ModalBody, ModalFooter, Spinner, Tooltip, UncontrolledAlert, UncontrolledTooltip } from 'reactstrap';
 
 // MBEE modules
 import BoxList from '../../general/box-list.jsx';
@@ -28,46 +29,54 @@ import ArtifactListItem from '../../shared-views/list-items/artifact-list-item.j
 import List from '../../general/list/list.jsx';
 import ArtifactForm from './artifact-form.jsx';
 import BranchBar from '../branches/branch-bar.jsx';
+import { useApiClient } from '../../context/ApiClientProvider';
 
 /* eslint-enable no-unused-vars */
 
-class ProjectArtifacts extends Component {
+function ProjectArtifacts(props) {
+  const { artifactService } = useApiClient();
+  const [artifacts, setArtifacts] = useState([]);
+  const [error, setError] = useState(null);
+  const [selectedEditArtifactID, setSelectedEditArtifactID] = useState(null);
+  const [selectedDeleteArtifactID, setSelectedDeleteArtifactID] = useState(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteSpin, setDeleteSpin] = useState(false);
 
-  constructor(props) {
-    super(props);
+  const toggleEditModal = (artifactID) => {
+    const id = (typeof artifactID !== 'string') ? null : artifactID;
 
-    this.state = {
-      artifacts: [],
-      error: null,
-      selectedArtifactId: null,
-      modalOpen: false
-    };
+    setEditModalOpen((prevState) => !prevState);
+    setSelectedEditArtifactID(id);
+  };
 
-    this.toggleModal = this.toggleModal.bind(this);
-    this.download = this.download.bind(this);
-    this.delete = this.delete.bind(this);
-  }
+  const toggleDeleteModal = (artifactID) => {
+    const id = (typeof artifactID !== 'string') ? null : artifactID;
 
-  // Toggle Create Modal
-  toggleModal(artifactId) {
-    const id = (typeof artifactId !== 'string') ? null : artifactId;
+    setDeleteModalOpen((prevState) => !prevState);
+    setSelectedDeleteArtifactID(id);
+  };
 
-    this.setState((prevState) => ({
-      modalOpen: !prevState.modalOpen,
-      selectedArtifactId: id
-    }));
-  }
+  const toggleDeleteSpin = () => {
+    setDeleteSpin((prevState) => !prevState);
+  };
 
-  // Download artifact blob
-  download(artifact) {
+  const deleteSpinner = (deleteSpin)
+    ? (<div style={{ width: '100%', textAlign: 'center' }}>
+           <Spinner type="grow" color="primary" />
+           <span style={{ paddingLeft: '20px' }}>Deleting ...</span>
+         </div>)
+    : (<div style={{ width: '100%', textAlign: 'center' }}>
+          <span>Are you sure you wish to delete this item?</span>
+        </div>);
+
+  const download = (artifact) => {
     // Reset error state
-    if (this.state.error) {
-      this.setState({ error: null });
-    }
+    if (error) setError(null);
 
     // URL input variables
     const { location, filename } = artifact;
-    const { org, id } = this.props.project;
+    const { org, id } = props.project;
 
     // Base request variables
     const base = `/api/orgs/${org}/projects/${id}/artifacts/blob`;
@@ -94,8 +103,8 @@ class ProjectArtifacts extends Component {
           window.URL.revokeObjectURL(dataUrl);
         }
         else {
+          setError(`[${filename}] ${xhr.responseText}`);
           // Display error response from server
-          this.setState({ error: `[${filename}] ${xhr.responseText}` });
         }
       }
       else if (xhr.readyState === 2) {
@@ -114,67 +123,58 @@ class ProjectArtifacts extends Component {
 
     xhr.open('GET', url, true);
     xhr.send();
-  }
+  };
 
-  // Delete Artifact document.
-  delete(artifactId) {
+  const refresh = async () => {
+    // Base request variables
+    const { org, id } = props.project;
+    const branchId = props.match.params.branchid;
+    const options = {
+      includeArchived: true
+    };
+
+    // request the artifacts
+    const [err, data] = await artifactService.get(org, id, branchId, options);
+
+    // Set the state
+    if (err === 'No artifacts found.') setArtifacts([]);
+    else if (err) setError(err);
+    else if (data) setArtifacts(data);
+  };
+
+  const deleteArtifact = async (artifactID, modalToggle, isDeleting) => {
     // Reset error state
-    if (this.state.error) {
-      this.setState({ error: null });
-    }
+
+    if (error) setError(null);
+
+    isDeleting();
 
     // URL input variables
-    const { org, id } = this.props.project;
-    const { branchid } = this.props.match.params;
+    const orgID = props.project.org;
+    const projectID = props.project.id;
+    const branchID = props.match.params.branchid;
 
-    // Base request variables
-    const url = `/api/orgs/${org}/projects/${id}/branches/${branchid}/artifacts/${artifactId}`;
+    const options = {
+      ids: artifactID
+    };
 
-    // Delete Artifact Document
-    $.ajax({
-      method: 'DELETE',
-      url: url
-    })
-    .done(() => {
-      window.location.reload();
-    })
-    .fail(res => {
-      this.setState({ error: res.responseText });
-    });
-  }
+    // Make the delete request
+    const [err, result] = await artifactService.delete(orgID, projectID, branchID, null, options);
 
-  // Retrieve Artifact documents for respective project branch.
-  componentDidMount() {
-    // Base request variables
-    const { org, id } = this.props.project;
-    const branchId = this.props.match.params.branchid;
-    const base = `/api/orgs/${org}/projects/${id}/branches/${branchId}/artifacts`;
-    const opts = 'includeArchived=true&minified=true';
+    // Set error state or refresh the page
+    if (err) { setError(err); }
+    else if (result) {
+      isDeleting();
+      modalToggle();
+      refresh();
+    }
+  };
 
-    // Get artifacts
-    $.ajax({
-      method: 'GET',
-      url: `${base}?${opts}`
-    })
-    .done(data => {
-      this.setState({ artifacts: data });
-    })
-    .fail(res => {
-      if (res.status === 404) {
-        this.setState({ artifacts: [] });
-      }
-      else {
-        this.setState({ error: res.responseText });
-      }
-    });
-  }
-
-  // Render artifacts list items
-  renderArtifacts(artifacts) {
-    const btnEdit = (this.props.permissions !== 'read');
+  const renderArtifacts = (artifactList) => {
+    const btnEdit = (props.permissions !== 'read');
 
     return (
-      artifacts.map((artifact, idx) => (
+      artifactList.map((artifact, idx) => (
         <div className='user-info' key={`artifact-info-${idx}`}>
           <ArtifactListItem className='branch'
                             artifact={artifact}
@@ -188,7 +188,7 @@ class ProjectArtifacts extends Component {
                 </UncontrolledTooltip>
                 <i id={`edit-${artifact.id}`}
                    className='fas fa-edit add-btn'
-                   onClick={() => this.toggleModal(artifact.id)}/></>
+                   onClick={() => toggleEditModal(artifact.id)}/></>
               : ''
             }
             <UncontrolledTooltip placement='top' target={`download-${artifact.id}`}>
@@ -196,94 +196,108 @@ class ProjectArtifacts extends Component {
             </UncontrolledTooltip>
             <i id={`download-${artifact.id}`}
                className='fas fa-file-download download-btn'
-               onClick={() => this.download(artifact)}/>
+               onClick={() => download(artifact)}/>
             {/* Display button if user has write or admin permissions */}
             {(btnEdit)
               ? <>
-                <UncontrolledTooltip placement='top' target={`delete-${artifact.id}`}>
+                <UncontrolledTooltip placement='top' target={`delete-${idx}`}>
                   Delete
                 </UncontrolledTooltip>
-                <i id={`delete-${artifact.id}`}
+                <i id={`delete-${idx}`}
                    className='fas fa-trash-alt delete-btn'
-                   onClick={() => {
-                     // eslint-disable-next-line no-alert
-                     if (window.confirm('Are you sure you wish to delete this item?')) this.delete(artifact.id);
-                   }}/></>
+                   onClick={() => toggleDeleteModal(artifact.id)}/>
+              </>
               : ''
             }
           </div>
         </div>
       ))
     );
-  }
+  };
 
-  render() {
-    // Display first 30 artifacts
-    const artifactsList = this.state.artifacts.slice(0, 30);
-    const artifacts = (artifactsList.length > 0) ? this.renderArtifacts(artifactsList) : '';
-    const titleClass = 'workspace-title workspace-title-padding';
-    const btnCreate = (this.props.permissions !== 'read')
-      ? (<div className='workspace-header-button'>
-           <Button className='btn' outline color="primary" onClick={this.toggleModal}>Create</Button>
-         </div>)
-      : '';
+  // on mount and when the project or branch changes
+  useEffect(() => {
+    refresh();
+  }, [props.project, props.branchID]);
 
-    // Error alert
-    const error = (this.state.error)
-      ? (<div style={{ margin: 'auto', textAlign: 'center' }}>
-           <UncontrolledAlert color="danger" style={{ display: 'inline', float: 'none' }}>
-             {this.state.error}
-           </UncontrolledAlert>
-         </div>)
-      : '';
 
-    return (
-      <div id='workspace'>
-        <Modal isOpen={this.state.modalOpen}>
-          <ModalBody>
-            <ArtifactForm project={this.props.project}
-                          branchId={this.props.match.params.branchid}
-                          artifactId={this.state.selectedArtifactId}
-                          toggle={this.toggleModal}/>
-          </ModalBody>
-        </Modal>
-        <div className='workspace-header header-box-depth'>
-          <h2 className={titleClass}>Artifacts</h2>
-          { /* Display create button for privileged users */}
-          {btnCreate}
-        </div>
-        <div id='workspace-body'>
-          <div className='main-workspace'>
-            <>
-              { /* Branch selector */ }
-              <div id='artifact-branch-bar'>
-                <BranchBar project={this.props.project}
-                           branchid={this.props.match.params.branchid}
-                           endpoint='/artifacts'/>
-              </div>
-              <BoxList header='Artifacts' footer={{}}>
-                <List key='list-artifacts'>
-                  <div className='template-header' key='user-info-template'>
-                    <ArtifactListItem className='head-info'
-                                      label={true}
-                                      artifact={{
-                                        filename: 'Filename',
-                                        location: 'Location',
-                                        description: 'Description' }}
-                                      _key='artifacts-template'/>
-                  </div>
-                  {/* Render Artifacts List Items */}
-                  {artifacts}
-                </List>
-              </BoxList>
-              {error}
-            </>
-          </div>
+  // Display first 30 artifacts
+  const artifactsList = artifacts.slice(0, 30);
+  const artifactItems = (artifactsList.length > 0) ? renderArtifacts(artifactsList) : '';
+  const titleClass = 'workspace-title workspace-title-padding';
+  const btnCreate = (props.permissions !== 'read')
+    ? (<div className='workspace-header-button'>
+         <Button className='btn' outline color="primary" onClick={toggleEditModal}>Create</Button>
+       </div>)
+    : '';
+
+  // Error alert
+  const errorMsg = (error)
+    ? (<div style={{ margin: 'auto', textAlign: 'center' }}>
+         <UncontrolledAlert color="danger" style={{ display: 'inline', float: 'none' }}>
+           {error}
+         </UncontrolledAlert>
+       </div>)
+    : '';
+
+  return (
+    <div id='workspace'>
+      <Modal isOpen={editModalOpen}>
+        <ModalBody>
+          <ArtifactForm project={props.project}
+                        branchId={props.match.params.branchid}
+                        artifactId={selectedEditArtifactID}
+                        toggle={toggleEditModal}
+                        refresh={refresh}/>
+        </ModalBody>
+      </Modal>
+      <Modal isOpen={deleteModalOpen}>
+        <ModalHeader toggle={toggleDeleteModal}>
+          Confirm Delete
+        </ModalHeader>
+        <ModalBody>
+          { deleteSpinner }
+        </ModalBody>
+        <ModalFooter>
+          <Button color="danger" onClick={() => { deleteArtifact(selectedDeleteArtifactID, toggleDeleteModal, toggleDeleteSpin); }}>Delete</Button>{' '}
+          <Button color="secondary" onClick={toggleDeleteModal}>Cancel</Button>
+        </ModalFooter>
+      </Modal>
+      <div className='workspace-header header-box-depth'>
+        <h2 className={titleClass}>Artifacts</h2>
+        { /* Display create button for privileged users */}
+        {btnCreate}
+      </div>
+      <div id='workspace-body'>
+        <div className='main-workspace'>
+          <>
+            { /* Branch selector */ }
+            <div id='artifact-branch-bar'>
+              <BranchBar project={props.project}
+                         branchid={props.match.params.branchid}
+                         endpoint='/artifacts'/>
+            </div>
+            <BoxList header='Artifacts' footer={{}}>
+              <List key='list-artifacts'>
+                <div className='template-header' key='user-info-template'>
+                  <ArtifactListItem className='head-info'
+                                    label={true}
+                                    artifact={{
+                                      filename: 'Filename',
+                                      location: 'Location',
+                                      description: 'Description' }}
+                                    _key='artifacts-template'/>
+                </div>
+                {/* Render Artifacts List Items */}
+                {artifactItems}
+              </List>
+            </BoxList>
+            {errorMsg}
+          </>
         </div>
       </div>
-    );
-  }
-
+    </div>
+  );
 }
 
 export default ProjectArtifacts;

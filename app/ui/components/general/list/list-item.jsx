@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner James Eckstein
  *
@@ -21,6 +21,7 @@
 
 // React modules
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 /* eslint-enable no-unused-vars */
 
@@ -32,10 +33,10 @@ function ListItem(props) {
             {props.children}
         </div>
   );
-  // Verify href provided
-  if (props.href) {
-    // Create a href item
-    return <a href={props.href} onClick={props.onClick}> {listItem} </a>;
+  // Verify link provided
+  if (props.link) {
+    // Create a link item
+    return <Link to={props.link} onClick={props.onClick}> {listItem} </Link>;
   }
   else {
     // Create basic item

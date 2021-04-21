@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner James Eckstein
  *
@@ -16,9 +16,11 @@
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
+/* eslint-disable jsdoc/require-jsdoc */
 
 // React modules
-import React, { Component } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Redirect } from 'react-router-dom';
 import {
   Form,
   FormGroup,
@@ -31,247 +33,227 @@ import {
 
 // MBEE modules
 import validators from '../../../../build/json/validators.json';
+import { useApiClient } from '../context/ApiClientProvider';
+const uuidv4 = require('uuid/v4');
 
 /* eslint-enable no-unused-vars */
 
-class Create extends Component {
+function Create(props) {
+  const { orgService, projectService } = useApiClient();
+  const [orgOpt, setOrgOpt] = useState(null);
+  const [values, setValues] = useState({
+    org: uuidv4(),
+    name: '',
+    id: uuidv4(),
+    visibility: 'private',
+    custom: JSON.stringify({}, null, 2)
+  });
+  const [error, setError] = useState(null);
+  const [redirect, setRedirect] = useState(null);
 
-  constructor(props) {
-    // Initialize parent props
-    super(props);
+  const handleChange = (e) => {
+    setValues((prevState) => ({
+      ...prevState,
+      [e.target.name]: e.target.value
+    }));
+    e.persist();
+  };
 
-    // Initialize state props
-    this.state = {
-      orgOpt: null,
-      org: null,
-      name: '',
-      id: '',
-      visibility: 'private',
-      error: null,
-      custom: JSON.stringify({}, null, 2)
-    };
-
-    // Bind component functions
-    this.handleChange = this.handleChange.bind(this);
-    this.onSubmit = this.onSubmit.bind(this);
-  }
-
-  // Define handle change function
-  handleChange(event) {
-    // Set state of the changed states in form
-    this.setState({ [event.target.name]: event.target.value });
-  }
-
-  // Define the submit function
-  onSubmit() {
+  const onSubmit = async () => {
     // Initialize data
     const data = {
-      id: this.state.id,
-      name: this.state.name,
-      custom: JSON.parse(this.state.custom)
+      id: values.id,
+      name: values.name,
+      custom: JSON.parse(values.custom)
     };
 
     // Initialize variables
-    let url;
-    let redirect;
+    let post;
+    let redirectUrl;
 
     // Verify if this is for a project
-    if (this.props.project) {
-      if (!this.props.org) {
+    if (props.project) {
+      if (!props.org) {
         // Set org as the state prop
-        url = `/api/orgs/${this.state.org}/projects/${this.state.id}`;
-        redirect = `/orgs/${this.state.org}/projects/${this.state.id}/branches/master/elements`;
+        post = (d, o) => projectService.post(values.org, d, o);
+        redirectUrl = `/orgs/${values.org}/projects/${values.id}/branches/master/elements`;
       }
       else {
         // Set org as the parent prop
-        url = `/api/orgs/${this.props.org.id}/projects/${this.state.id}`;
-        redirect = `/orgs/${this.props.org.id}/projects/${this.state.id}/branches/master/elements`;
+        post = (d, o) => projectService.post(props.org.id, d, o);
+        redirectUrl = `/orgs/${props.org.id}/projects/${values.id}/branches/master/elements`;
       }
       // Set project visibility
-      data.visibility = this.state.visibility;
+      data.visibility = values.visibility;
     }
     else {
-      url = `/api/orgs/${this.state.id}`;
-      redirect = `/orgs/${this.state.id}`;
+      post = (d, o) => orgService.post(d, o);
+      redirectUrl = `/orgs/${values.id}`;
     }
 
-    $.ajax({
-      method: 'POST',
-      url: `${url}?minified=true`,
-      contentType: 'application/json',
-      data: JSON.stringify(data),
-      statusCode: {
-        200: () => {
-          // On success, return to project-views page
-          window.location.replace(redirect);
-        },
-        401: (err) => {
-          // Refresh when session expires
-          window.location.reload();
-        },
-        403: (err) => {
-          this.setState({ error: err.responseText });
-        }
-      }
-    });
-  }
+    // Post the data via org or project service
+    const [err, result] = await post(data, {});
 
-  componentDidMount() {
+    // Set error or redirect upon success
+    if (err) setError(err);
+    else if (result) setRedirect(redirectUrl);
+  };
+
+  // on mount
+  useEffect(() => {
     // Verify no orgs were passed in props
-    if (this.props.project && this.props.orgs) {
+    if (props.project && props.orgs) {
       // Loop through orgs
-      const orgOptions = this.props.orgs.map((org) => (<option value={org.id}>{org.name}</option>));
+      const orgOptions = props.orgs.map((org) => (<option value={org.id}>{org.name}</option>));
 
       // Set the org options state
-      this.setState({ orgOpt: orgOptions });
+      setOrgOpt(orgOptions);
     }
+  }, []);
+
+  if (redirect) return <Redirect to={redirect}/>;
+
+  // Initialize validators
+  let title;
+  let header;
+  let idInvalid = false;
+  let customInvalid = false;
+  let validatorId;
+  let validLen;
+
+  if (props.project) {
+    title = (props.org) ? `New Project in ${props.org.name}` : 'New Project';
+    header = 'Project';
+    validatorId = `^${validators.project.id.split(validators.ID_DELIMITER).pop()}`;
+    // Calculate project ID sans delimiter
+    validLen = validators.project.idLength - validators.org.idLength - 1;
+  }
+  else {
+    validatorId = validators.org.id;
+    validLen = validators.org.idLength;
+    title = 'New Organization';
+    header = 'Organization';
   }
 
+  const { id, name } = values;
 
-  render() {
-    // Initialize validators
-    let title;
-    let header;
-    let idInvalid = false;
-    let customInvalid = false;
-    let validatorId;
-    let validLen;
+  if (id.length !== 0) {
+    idInvalid = (id.length > validLen || (!RegExp(validatorId).test(id)));
+  }
 
-    if (this.props.project) {
-      title = (this.props.org) ? `New Project in ${this.props.org.name}` : 'New Project';
-      header = 'Project';
-      validatorId = validators.project.id.split(validators.ID_DELIMITER).pop();
-      // Calculate project ID sans delimiter
-      validLen = validators.project.idLength - validators.org.idLength - 1;
-    }
-    else {
-      validatorId = validators.org.id;
-      validLen = validators.org.idLength;
-      title = 'New Organization';
-      header = 'Organization';
-    }
+  // Verify custom data is valid
+  try {
+    JSON.parse(values.custom);
+  }
+  catch (err) {
+    // Set invalid fields
+    customInvalid = true;
+  }
 
-    const { id, name } = this.state;
+  const disableSubmit = (customInvalid || idInvalid || name.length === 0 || id.length === 0);
 
-    if (id.length !== 0) {
-      idInvalid = (id.length > validLen || (!RegExp(validatorId).test(id)));
-    }
-
-    // Verify custom data is valid
-    try {
-      JSON.parse(this.state.custom);
-    }
-    catch (err) {
-      // Set invalid fields
-      customInvalid = true;
-    }
-
-    const disableSubmit = (customInvalid || idInvalid || name.length === 0 || id.length === 0);
-
-    // Return the form to create a project
-    return (
-      <div id='workspace'>
-        <div className='workspace-header'>
-          <h2 className='workspace-title workspace-title-padding'>{title}</h2>
-        </div>
-        <div className='extra-padding'>
-          {(!this.state.error)
-            ? ''
-            : (<UncontrolledAlert color="danger">
-                {this.state.error}
-               </UncontrolledAlert>)
-          }
-          <Form>
-            {/* Verify if org provided */}
-            {(this.props.project && !this.props.org)
-              ? (// Display options to choose the organization
-                <FormGroup>
-                  <Label for="org">Organization ID</Label>
-                  <Input type="select"
-                         name="org"
-                         id="org"
-                         value={this.state.org || ''}
-                         onChange={this.handleChange}>
-                    <option>Choose one...</option>
-                    {this.state.orgOpt}
-                  </Input>
-                </FormGroup>)
-              : ''
-            }
-            {/* Create an input for project id */}
-            <FormGroup>
-              <Label for="id">{header} ID*</Label>
-              <Input type="id"
-                     name="id"
-                     id="id"
-                     placeholder="ID"
-                     value={this.state.id || ''}
-                     invalid={idInvalid}
-                     onChange={this.handleChange}/>
-              {/* If invalid id, notify user */}
-              <FormFeedback >
-                Invalid: An id may only contain letters, numbers, or dashes.
-              </FormFeedback>
-            </FormGroup>
-            {/* Create an input for project name */}
-            <FormGroup>
-              <Label for="name">{header} Name*</Label>
-              <Input type="name"
-                     name="name"
-                     id="name"
-                     placeholder="Name"
-                     value={this.state.name || ''}
-                     onChange={this.handleChange}/>
-              {/* If invalid name, notify user */}
-              <FormFeedback >
-                Invalid: A name may only contain letters, numbers, space, or dashes.
-              </FormFeedback>
-            </FormGroup>
-            {/* Form section for project visibility */}
-            {(!this.props.project)
-              ? ''
-              : (<FormGroup>
-                <Label for="visibility">Visibility</Label>
+  // Return the form to create a project
+  return (
+    <div id='workspace'>
+      <div className='workspace-header'>
+        <h2 className='workspace-title workspace-title-padding'>{title}</h2>
+      </div>
+      <div className='extra-padding'>
+        {(!error)
+          ? ''
+          : (<UncontrolledAlert color="danger">
+              {error}
+             </UncontrolledAlert>)
+        }
+        <Form>
+          {/* Verify if org provided */}
+          {(props.project && !props.org)
+            ? (// Display options to choose the organization
+              <FormGroup>
+                <Label for="org">Organization ID</Label>
                 <Input type="select"
-                       name="visibility"
-                       id="visibility"
-                       value={this.state.visibility || ''}
-                       onChange={this.handleChange}>
-                  <option value='internal'>Internal</option>
-                  <option value='private'>Private</option>
+                       name="org"
+                       id="org"
+                       value={values.org}
+                       onChange={handleChange}>
+                  <option>Choose one...</option>
+                  {orgOpt}
                 </Input>
               </FormGroup>)
-            }
-            {/* Create an input for custom data */}
-            <FormGroup>
-              <Label for="custom">Custom Data</Label>
-              <Input type="custom"
-                     name="custom"
-                     id="custom"
-                     placeholder="Custom Data"
-                     value={this.state.custom || ''}
-                     invalid={customInvalid}
-                     onChange={this.handleChange}/>
-              {/* If invalid custom data, notify user */}
-              <FormFeedback>
-                Invalid: Custom data must be valid JSON
-              </FormFeedback>
-            </FormGroup>
-            <div className='required-fields'>* required fields.</div>
+            : ''
+          }
+          {/* Create an input for project id */}
+          <FormGroup>
+            <Label for="id">{header} ID*</Label>
+            <Input type="id"
+                   name="id"
+                   id="id"
+                   placeholder="ID"
+                   value={values.id}
+                   invalid={idInvalid}
+                   onChange={handleChange}/>
+            {/* If invalid id, notify user */}
+            <FormFeedback >
+              Invalid: An id may only contain letters, numbers, or dashes.
+            </FormFeedback>
+          </FormGroup>
+          {/* Create an input for project name */}
+          <FormGroup>
+            <Label for="name">{header} Name*</Label>
+            <Input type="name"
+                   name="name"
+                   id="name"
+                   placeholder="Name"
+                   value={values.name || ''}
+                   onChange={handleChange}/>
+            {/* If invalid name, notify user */}
+            <FormFeedback >
+              Invalid: A name may only contain letters, numbers, space, or dashes.
+            </FormFeedback>
+          </FormGroup>
+          {/* Form section for project visibility */}
+          {(!props.project)
+            ? ''
+            : (<FormGroup>
+              <Label for="visibility">Visibility</Label>
+              <Input type="select"
+                     name="visibility"
+                     id="visibility"
+                     value={values.visibility || ''}
+                     onChange={handleChange}>
+                <option value='internal'>Internal</option>
+                <option value='private'>Private</option>
+              </Input>
+            </FormGroup>)
+          }
+          {/* Create an input for custom data */}
+          <FormGroup>
+            <Label for="custom">Custom Data</Label>
+            <Input type="custom"
+                   name="custom"
+                   id="custom"
+                   placeholder="Custom Data"
+                   value={values.custom || ''}
+                   invalid={customInvalid}
+                   onChange={handleChange}/>
+            {/* If invalid custom data, notify user */}
+            <FormFeedback>
+              Invalid: Custom data must be valid JSON
+            </FormFeedback>
+          </FormGroup>
+          <div className='required-fields'>* required fields.</div>
 
-            {/* Button to create project */}
-                <Button outline color='primary'
-                        disabled={disableSubmit} onClick={this.onSubmit}>
-                  Create
-                </Button>
-                {' '}
-                <Button outline onClick={this.props.toggle}> Cancel </Button>
-            </Form>
-        </div>
-    </div>
-    );
-  }
-
+          {/* Button to create project */}
+              <Button outline color='primary'
+                      disabled={disableSubmit} onClick={onSubmit}>
+                Create
+              </Button>
+              {' '}
+              <Button outline onClick={props.toggle}> Cancel </Button>
+          </Form>
+      </div>
+  </div>
+  );
 }
 
 export default Create;

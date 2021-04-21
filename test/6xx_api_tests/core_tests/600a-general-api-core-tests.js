@@ -5,11 +5,12 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
  * @author Josh Kaplan
+ * @author Phillip Lee
  *
  * @description Tests the API functionality. Confirms API and swagger API
  * documentation is up. Testing these endpoints also confirms that server has
@@ -18,11 +19,10 @@
 
 // NPM modules
 const chai = require('chai');
-const request = require('request');
+const axios = require('axios');
 
 // MBEE modules
 const test = M.config.test;
-const testUtils = M.require('lib.test-utils');
 
 /* --------------------( Main )-------------------- */
 /**
@@ -40,44 +40,52 @@ describe(M.getModuleName(module.filename), () => {
 /* --------------------( Tests )-------------------- */
 /**
  * @description Verifies the API is up and running.
- *
- * @param {Function} done - The mocha callback.
  */
-function upTest(done) {
-  // Make an API GET request
-  request({
-    url: `${test.url}/api/test`,
-    ca: testUtils.readCaFile()
-  },
-  (error, response, body) => {
+async function upTest() {
+  try {
+    const options = {
+      method: 'get',
+      url: `${test.url}/api/test`
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
+    // Expect status 200 OK
+    chai.expect(res.status).to.equal(200);
+    // Expect body to be an empty string
+    chai.expect(res.data).to.equal('');
+  }
+  catch (error) {
+    M.log.error(error);
     // Expect no error
     chai.expect(error).to.equal(null);
-    // Expect status 200 OK
-    chai.expect(response.statusCode).to.equal(200);
-    // Expect body to be an empty string
-    chai.expect(body).to.equal('');
-    done();
-  });
+  }
 }
 
 /**
  * @description Verifies swagger API documentation is up and running.
- *
- * @param {Function} done - The mocha callback.
  */
-function swaggerJSONTest(done) {
+async function swaggerJSONTest() {
   // API GET request swagger documentation
-  request({
-    url: `${test.url}/api/doc/swagger.json`,
-    ca: testUtils.readCaFile()
-  },
-  (error, response, body) => {
+  try {
+    const options = {
+      method: 'get',
+      url: `${test.url}/api/doc/swagger.json`
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
+    // Expect status 200 OK
+    chai.expect(res.status).to.equal(200);
+
+    // Expect body is valid JSON
+    chai.expect(res.data).to.be.an('object');
+  }
+  catch (error) {
+    M.log.error(error);
     // Expect no error
     chai.expect(error).to.equal(null);
-    // Expect status 200 OK
-    chai.expect(response.statusCode).to.equal(200);
-    // Expect body is valid JSON
-    chai.expect(JSON.parse(body)).to.be.an('object');
-    done();
-  });
+  }
 }

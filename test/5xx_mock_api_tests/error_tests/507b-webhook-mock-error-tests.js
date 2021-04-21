@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
@@ -76,27 +76,18 @@ describe(M.getModuleName(module.filename), () => {
   /* Execute tests */
   // ------------- No Requesting User -------------
   it('should reject a GET webhooks request with no requesting user', noReqUser('getWebhooks'));
-  it('should reject a GET webhook request with no requesting user', noReqUser('getWebhook'));
   it('should reject a POST webhooks request with no requesting user', noReqUser('postWebhooks'));
   it('should reject a PATCH webhooks request with no requesting user', noReqUser('patchWebhooks'));
-  it('should reject a PATCH webhook request with no requesting user', noReqUser('patchWebhook'));
   it('should reject a DELETE webhooks request with no requesting user', noReqUser('deleteWebhooks'));
-  it('should reject a DELETE webhook request with no requesting user', noReqUser('deleteWebhook'));
   // ------------- Invalid options -------------
   it('should reject a GET webhooks request with invalid options', invalidOptions('getWebhooks'));
-  it('should reject a GET webhook request with invalid options', invalidOptions('getWebhook'));
   it('should reject a POST webhook request with invalid options', invalidOptions('postWebhooks'));
   it('should reject a PATCH webhooks request with invalid options', invalidOptions('patchWebhooks'));
-  it('should reject a PATCH webhook request with invalid options', invalidOptions('patchWebhook'));
   it('should reject a DELETE webhooks request with invalid options', invalidOptions('deleteWebhooks'));
-  it('should reject a DELETE webhook request with invalid options', invalidOptions('deleteWebhook'));
   // ------- Non matching ids in body vs url -------
-  it('should reject a PATCH webhook request with conflicting ids in the body and url', conflictingIDs('patchWebhook'));
+  it('should reject a PATCH webhook request with conflicting ids in the body and url', conflictingIDs('patchWebhooks'));
   // ------------- 404 Not Found -------------
   it('should return 404 for a GET webhooks request that returned no results', notFound('getWebhooks'));
-  it('should return 404 for a GET webhook request for a nonexistent webhook', notFound('getWebhook'));
-  // ------------- No arrays in singular endpoints -------------
-  it('should reject a PATCH singular webhook request containing an array in the body', noArrays('patchWebhook'));
   //  ------------- Trigger -------------
   it('should reject a POST request to trigger a webhook if the token cannot be found', tokenNotFound);
   it('should reject a POST request to trigger a webhook if the token is invalid', tokenInvalid);
@@ -251,43 +242,6 @@ function notFound(endpoint) {
     res.send = function send(_data) {
       // Expect the statusCode to be 404
       res.statusCode.should.equal(404);
-
-      done();
-    };
-
-    // Sends the mock request
-    APIController[endpoint](req, res, next(req, res));
-  };
-}
-
-/**
- * @description A constructor for a dynamic mocha-compatible function that tests singular webhook
- * api endpoints given an array of webhook ids in the body.
- *
- * @param {string} endpoint - The particular api endpoint to test.
- * @returns {Function} A function for mocha to use to test a specific api endpoint.
- */
-function noArrays(endpoint) {
-  // Parse the method
-  const method = testUtils.parseMethod(endpoint);
-  const body = [];
-  const params = {};
-
-  return function(done) {
-    // Create request object
-    const req = testUtils.createRequest(adminUser, params, body, method);
-
-    // Create response object
-    const res = {};
-    testUtils.createResponse(res);
-
-    // Verifies the response data
-    res.send = function send(_data) {
-      // Expect an error message
-      _data.should.equal('Input cannot be an array');
-
-      // Expect the statusCode to be 400
-      res.statusCode.should.equal(400);
 
       done();
     };

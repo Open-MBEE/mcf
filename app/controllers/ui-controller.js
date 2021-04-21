@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner James Eckstein
  *
@@ -22,17 +22,8 @@
 // Note: The export is being done before the import to solve the issues of
 // circular references between controllers.
 module.exports = {
-  home,
   flightManual,
-  adminConsole,
-  profile,
-  organization,
-  project,
   swaggerDoc,
-  showAboutPage,
-  showLoginPage,
-  login,
-  logout,
   notFound
 };
 
@@ -45,109 +36,6 @@ const swaggerJSDoc = require('swagger-jsdoc');
 
 // MBEE modules
 const utils = M.require('lib.utils');
-const validators = M.require('lib.validators');
-const logger = M.require('lib.logger');
-
-/**
- * @description Renders the home page.
- *
- * @param {object} req - Request express object.
- * @param {object} res - Response express object.
- *
- * @returns {Function} The response express object's render function.
- */
-function home(req, res) {
-  // Sanity check: confirm req.user exists
-  if (!req.user) {
-    M.log.critical('/ executed with invalid req.user object');
-    // redirect to the login screen
-    res.redirect('/login');
-  }
-  // Render the MBEE home screen
-  return utils.render(req, res, 'home', {
-    title: 'MBEE | Model-Based Engineering Environment'
-  });
-}
-
-/**
- * @description Renders the admin console.
- *
- * @param {object} req - Request express object.
- * @param {object} res - Response express object.
- */
-function adminConsole(req, res) {
-  // Sanity check: confirm req.user exists
-  if (!req.user) {
-    M.log.critical('/admin executed with invalid req.user object');
-
-    // redirect to the login screen
-    res.redirect('/login');
-  }
-  utils.render(req, res, 'admin-console', {
-    title: 'MBEE | Model-Based Engineering Environment'
-  });
-}
-
-/**
- * @description Renders the current user's page.
- *
- * @param {object} req - Request express object.
- * @param {object} res - Response express object.
- */
-function profile(req, res) {
-  // Sanity check: confirm req.user exists
-  if (!req.user) {
-    M.log.critical('/profile executed with invalid req.user object');
-    // redirect to the login screen
-    res.redirect('/login');
-  }
-  utils.render(req, res, 'profile', {
-    name: 'profile',
-    title: 'MBEE | Model-Based Engineering Environment'
-  });
-}
-
-/**
- * @description Renders the organization page.
- *
- * @param {object} req - Request express object.
- * @param {object} res - Response express object.
- *
- * @returns {Function} The response express object's render function.
- */
-function organization(req, res) {
-  // Sanity check: confirm req.user exists
-  if (!req.user) {
-    M.log.critical('/ executed with invalid req.user object');
-    // redirect to the login screen
-    res.redirect('/login');
-  }
-  // Render the MBEE home screen
-  return utils.render(req, res, 'organization', {
-    title: 'MBEE | Model-Based Engineering Environment'
-  });
-}
-
-/**
- * @description Renders the project page.
- *
- * @param {object} req - Request express object.
- * @param {object} res - Response express object.
- *
- * @returns {Function} The response express object's render function.
- */
-function project(req, res) {
-  // Sanity check: confirm req.user exists
-  if (!req.user) {
-    M.log.critical('/ executed with invalid req.user object');
-    // redirect to the login screen
-    res.redirect('/login');
-  }
-  // Render the MBEE home screen
-  return utils.render(req, res, 'project', {
-    title: 'MBEE | Model-Based Engineering Environment'
-  });
-}
 
 /**
  * @description Renders the flight manual.
@@ -214,106 +102,6 @@ function swaggerDoc(req, res) {
     swagger: swaggerSpec(),
     title: 'API Documentation | Model-Based Engineering Environment'
   });
-}
-
-/**
- * @description Renders the about page. This page is accessible even when users are not
- * signed in. Therefore, this function has some logic to identify whether
- * or not the user is logged in.
- *
- * @param {object} req - Request express object.
- * @param {object} res - Response express object.
- *
- * @returns {Function} The response express object's render function.
- */
-function showAboutPage(req, res) {
-  return utils.render(req, res, 'about', {
-    info: {
-      version: M.version,
-      build: M.build,
-      commit: M.commit
-    },
-    title: 'About | Model-Based Engineering Environment'
-  });
-}
-
-/**
- * @description This page renders the login screen. If a get query parameter
- * called "next" is passed in the URL, the next url rendered as a hidden input
- * to tell the login process where to redirect the user after a successful
- * login.
- *
- * @param {object} req - Request express object.
- * @param {object} res - Response express object.
- *
- * @returns {Function} The response express object's render function.
- */
-function showLoginPage(req, res) {
-  let next = '';
-  // make sure the passed in "next" parameter is valid
-  if (RegExp(validators.url.next).test(req.query.next)) {
-    next = req.query.next;
-  }
-
-  // render the login page
-  return utils.render(req, res, 'login', {
-    title: 'Login | Model-Based Engineering Environment',
-    next: next,
-    err: req.flash('loginError')
-  });
-}
-
-/**
- * @description This is the final function in the UI authentication chain. First,
- * the authentication controller's authenticate() and doLogin() functions
- * are called. This function should only get called once login was
- * successful. It handles the appropriate redirect for the user.
- *
- * @param {object} req - Request express object.
- * @param {object} res - Response express object.
- */
-function login(req, res) {
-  // make sure the passed in "next" parameter is valid
-  let next = null;
-  if (RegExp(validators.url.next).test(req.body.next)) {
-    next = req.body.next;
-  }
-  else if (req.user.custom.hasOwnProperty('homepage')) {
-    next = req.user.custom.homepage;
-  }
-  else {
-    next = '/';
-  }
-
-  // Log the login
-  logger.logSecurityResponse(req, res);
-  logger.logResponse(req, res);
-
-  // handle the redirect
-  M.log.info(`Redirecting to ${next} ...`);
-  res.redirect(next);
-}
-
-/**
- * @description Logs out the user by un-setting the req.user object and the
- * req.session.token object.
- *
- * @param {object} req - Request express object.
- * @param {object} res - Response express object.
- */
-function logout(req, res) {
-  // Sanity check: confirm req.user exists
-  if (!req.user) {
-    M.log.critical('/logout executed with invalid req.user object');
-    // redirect to the login screen
-    res.redirect('/login');
-  }
-  // destroy the session
-  req.user = null;
-  req.session.destroy();
-
-  // redirect to the login screen
-  res.redirect('/login');
 }
 
 /**
