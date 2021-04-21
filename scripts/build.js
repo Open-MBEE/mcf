@@ -6,7 +6,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
@@ -40,6 +40,7 @@ const sass = require('gulp-sass');
 const markdown = require('gulp-markdown');
 const rename = require('gulp-rename');
 const webpack = require('webpack');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 // MBEE modules
 const validators = M.require('lib.validators');
@@ -140,6 +141,10 @@ function build(_args) {
   // Import validator object into validators file
   fs.writeFileSync(path.join(validatorsDir, 'validators.json'), JSON.stringify(_validators), 'utf8');
 
+  // Store UI Login Modal
+  fs.writeFileSync(path.join(validatorsDir, 'uiConfig.json'), JSON.stringify(M.config.server.ui), 'utf8');
+
+
   // Compile Sass into CSS
   if (args.includes('--all') || args.includes('--sass')) {
     M.log.info('  + Compiling sass ...');
@@ -191,16 +196,12 @@ function build(_args) {
       webpack({
         mode: mode,
         entry: {
-          navbar: path.join(M.root, 'app', 'ui', 'components', 'apps', 'nav-app.jsx'),
-          'home-app': path.join(M.root, 'app', 'ui', 'components', 'apps', 'home-app.jsx'),
-          'org-app': path.join(M.root, 'app', 'ui', 'components', 'apps', 'org-app.jsx'),
-          'project-app': path.join(M.root, 'app', 'ui', 'components', 'apps', 'project-app.jsx'),
-          'profile-app': path.join(M.root, 'app', 'ui', 'components', 'apps', 'profile-app.jsx'),
-          'admin-console-app': path.join(M.root, 'app', 'ui', 'components', 'apps', 'admin-console-app.jsx')
+          main: path.join(M.root, 'app', 'ui', 'components', 'Index.jsx')
         },
         output: {
           path: path.join(M.root, 'build', 'public', 'js'),
-          filename: '[name].js'
+          filename: 'index_bundle.js',
+          publicPath: '/js/'
         },
         devServer: {
           historyApiFallback: true
@@ -212,11 +213,18 @@ function build(_args) {
               loader: 'babel-loader',
               exclude: /node_modules/,
               options: {
-                presets: ['@babel/preset-env', '@babel/preset-react']
+                presets: ['@babel/preset-env', '@babel/preset-react'],
+                plugins: ['@babel/transform-runtime']
               }
             }
           ]
-        }
+        },
+        plugins: [
+          new HtmlWebpackPlugin({
+            template: path.join(M.root, 'app', 'ui', 'html', 'index_template.html'),
+            filename: path.join(M.root, 'build', 'public', 'index.html')
+          })
+        ]
       }, (err, stats) => {
         if (err || stats.hasErrors()) {
           // eslint-disable-next-line no-console

@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
@@ -484,7 +484,7 @@ function patch(reference) {
     // Verifies the response data
     res.send = function send(_data) {
       // Verify response body
-      const updatedWebhook = JSON.parse(_data);
+      const updatedWebhook = JSON.parse(_data)[0];
       chai.expect(updatedWebhook.name).to.equal('Patch test');
       chai.expect(updatedWebhook.triggers).to.deep.equal(webhookData.triggers);
       chai.expect(updatedWebhook.url).to.equal(webhookData.url);
@@ -509,7 +509,7 @@ function patch(reference) {
     };
 
     // PATCH a webhook
-    APIController.patchWebhook(req, res, next(req, res));
+    APIController.patchWebhooks(req, res, next(req, res));
   };
 }
 
@@ -664,7 +664,7 @@ function remove(reference) {
     };
 
     // DELETE a webhook
-    APIController.deleteWebhook(req, res, next(req, res));
+    APIController.deleteWebhooks(req, res, next(req, res));
   };
 }
 

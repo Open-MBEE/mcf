@@ -5,11 +5,12 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
  * @author Austin Bieber
+ * @author Phillip Lee
  *
  * @description This tests the element API controller functionality:
  * GET, POST, PATCH, and DELETE of an element.
@@ -17,7 +18,7 @@
 
 // NPM modules
 const chai = require('chai');
-const request = require('request');
+const axios = require('axios');
 
 // MBEE modules
 const utils = M.require('lib.utils');
@@ -96,25 +97,24 @@ describe(M.getModuleName(module.filename), () => {
  * @description Verifies POST
  * /api/orgs/:orgid/projects/:projectid/branches/:branchid/elements/:elementid
  * creates a single element.
- *
- * @param {Function} done - The mocha callback.
  */
-function postElement(done) {
-  const elemData = testData.elements[0];
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements/${elemData.id}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'POST',
-    body: JSON.stringify(elemData)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function postElement() {
+  try {
+    const elemData = testData.elements[0];
+    const options = {
+      method: 'post',
+      url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements/${elemData.id}`,
+      headers: testUtils.getHeaders(),
+      data: elemData
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const createdElement = JSON.parse(body);
+    const createdElement = res.data[0];
 
     // Verify element created properly
     chai.expect(createdElement.id).to.equal(elemData.id);
@@ -149,38 +149,42 @@ function postElement(done) {
     // Verify specific fields not returned
     chai.expect(createdElement).to.not.have.any.keys('archivedOn', 'archivedBy',
       '__v', '_id');
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies POST /api/orgs/:orgid/projects/:projectid/branches/:branchid/elements
  * creates multiple elements.
  *
- * @param {Function} done - The mocha callback.
  */
-function postElements(done) {
-  const elemData = [
-    testData.elements[1],
-    testData.elements[2],
-    testData.elements[3],
-    testData.elements[4],
-    testData.elements[5]
-  ];
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'POST',
-    body: JSON.stringify(elemData)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function postElements() {
+  try {
+    const elemData = [
+      testData.elements[1],
+      testData.elements[2],
+      testData.elements[3],
+      testData.elements[4],
+      testData.elements[5]
+    ];
+    const options = {
+      method: 'post',
+      url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements`,
+      headers: testUtils.getHeaders(),
+      data: elemData
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const createdElements = JSON.parse(body);
+    const createdElements = res.data;
 
     // Expect createdElements not to be empty
     chai.expect(createdElements.length).to.equal(elemData.length);
@@ -224,33 +228,36 @@ function postElements(done) {
       chai.expect(createdElement).to.not.have.any.keys('archivedOn',
         'archivedBy', '__v', '_id');
     });
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies PUT
  * /api/orgs/:orgid/projects/:projectid/branches/:branchid/elements/:elementid
  * creates or replaces a single element.
- *
- * @param {Function} done - The mocha callback.
  */
-function putElement(done) {
-  const elemData = testData.elements[0];
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements/${elemData.id}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'PUT',
-    body: JSON.stringify(elemData)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function putElement() {
+  try {
+    const elemData = testData.elements[0];
+    const options = {
+      method: 'put',
+      url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements/${elemData.id}`,
+      headers: testUtils.getHeaders(),
+      data: elemData
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const replacedElem = JSON.parse(body);
+    const replacedElem = res.data[0];
 
     // Verify element created/replaced properly
     chai.expect(replacedElem.id).to.equal(elemData.id);
@@ -285,39 +292,42 @@ function putElement(done) {
     // Verify specific fields not returned
     chai.expect(replacedElem).to.not.have.any.keys('archivedOn', 'archivedBy',
       '__v', '_id');
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies PUT /api/orgs/:orgid/projects/:projectid/branches/:branchid/elements
  * creates or replaces multiple elements.
- *
- * @param {Function} done - The mocha callback.
  */
-function putElements(done) {
-  const elemData = [
-    testData.elements[1],
-    testData.elements[2],
-    testData.elements[3],
-    testData.elements[4],
-    testData.elements[5],
-    testData.elements[6]
-  ];
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'PUT',
-    body: JSON.stringify(elemData)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function putElements() {
+  try {
+    const elemData = [
+      testData.elements[1],
+      testData.elements[2],
+      testData.elements[3],
+      testData.elements[4],
+      testData.elements[5],
+      testData.elements[6]
+    ];
+    const options = {
+      method: 'put',
+      url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements`,
+      headers: testUtils.getHeaders(),
+      data: elemData
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const replacedElements = JSON.parse(body);
+    const replacedElements = res.data;
 
     // Expect replacedElements not to be empty
     chai.expect(replacedElements.length).to.equal(elemData.length);
@@ -361,32 +371,35 @@ function putElements(done) {
       chai.expect(replacedElem).to.not.have.any.keys('archivedOn', 'archivedBy',
         '__v', '_id');
     });
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies GET
  * /api/orgs/:orgid/projects/:projectid/branches/:branchid/elements/:elementid
  * finds a single element.
- *
- * @param {Function} done - The mocha callback.
  */
-function getElement(done) {
-  const elemData = testData.elements[0];
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements/${elemData.id}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'GET'
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function getElement() {
+  try {
+    const elemData = testData.elements[0];
+    const options = {
+      method: 'get',
+      url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements/${elemData.id}`,
+      headers: testUtils.getHeaders()
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const foundElement = JSON.parse(body);
+    const foundElement = res.data[0];
 
     // Verify element created properly
     chai.expect(foundElement.id).to.equal(elemData.id);
@@ -421,39 +434,44 @@ function getElement(done) {
     // Verify specific fields not returned
     chai.expect(foundElement).to.not.have.any.keys('archivedOn', 'archivedBy',
       '__v', '_id');
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies GET /api/orgs/:orgid/projects/:projectid/branches/:branchid/elements
  * finds multiple elements.
- *
- * @param {Function} done - The mocha callback.
  */
-function getElements(done) {
-  const elemData = [
-    testData.elements[1],
-    testData.elements[2],
-    testData.elements[3],
-    testData.elements[4],
-    testData.elements[5],
-    testData.elements[6]
-  ];
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'GET',
-    body: JSON.stringify(elemData.map(e => e.id))
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function getElements() {
+  try {
+    const elemData = [
+      testData.elements[1],
+      testData.elements[2],
+      testData.elements[3],
+      testData.elements[4],
+      testData.elements[5],
+      testData.elements[6]
+    ];
+    const options = {
+      method: 'get',
+      url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements`,
+      headers: testUtils.getHeaders(),
+      params: {
+        ids: elemData.map(e => e.id).toString()
+      }
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const foundElements = JSON.parse(body);
+    const foundElements = res.data;
 
     // Expect foundElements not to be empty
     chai.expect(foundElements.length).to.equal(elemData.length);
@@ -498,8 +516,12 @@ function getElements(done) {
       chai.expect(foundElement).to.not.have.any.keys('archivedOn', 'archivedBy',
         '__v', '_id');
     });
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
@@ -507,23 +529,23 @@ function getElements(done) {
  * /api/orgs/:orgid/projects/:projectid/branches/:branchid/elements/search
  * searches for elements using text based search.
  *
- * @param {Function} done - The mocha callback.
  */
-function searchElement(done) {
-  const elemData = testData.elements[0];
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements/search?q="${elemData.name}"`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'GET'
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function searchElement() {
+  try {
+    const elemData = testData.elements[0];
+    const options = {
+      method: 'get',
+      url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements/search?q="${elemData.name}"`,
+      headers: testUtils.getHeaders()
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const resp = JSON.parse(body);
+    const resp = res.data;
 
     // Expect resp array to contains 1 element
     chai.expect(resp.length).to.equal(1);
@@ -562,8 +584,12 @@ function searchElement(done) {
     // Verify specific fields not returned
     chai.expect(foundElement).to.not.have.any.keys('archivedOn', 'archivedBy',
       '__v', '_id');
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
@@ -571,28 +597,28 @@ function searchElement(done) {
  * /api/orgs/:orgid/projects/:projectid/branches/:branchid/elements/:elementid
  * updates a single element.
  *
- * @param {Function} done - The mocha callback.
  */
-function patchElement(done) {
-  const elemData = testData.elements[0];
-  const updateObj = {
-    id: elemData.id,
-    name: `${elemData.name}_edit`
-  };
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements/${elemData.id}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'PATCH',
-    body: JSON.stringify(updateObj)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function patchElement() {
+  try {
+    const elemData = testData.elements[0];
+    const updateObj = {
+      id: elemData.id,
+      name: `${elemData.name}_edit`
+    };
+    const options = {
+      method: 'patch',
+      url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements/${elemData.id}`,
+      headers: testUtils.getHeaders(),
+      data: updateObj
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const updatedElement = JSON.parse(body);
+    const updatedElement = res.data[0];
 
     // Verify element updated properly
     chai.expect(updatedElement.id).to.equal(elemData.id);
@@ -627,43 +653,46 @@ function patchElement(done) {
     // Verify specific fields not returned
     chai.expect(updatedElement).to.not.have.any.keys('archivedOn', 'archivedBy',
       '__v', '_id');
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies PATCH /api/orgs/:orgid/projects/:projectid/branches/:branchid/elements
  * updates multiple elements.
- *
- * @param {Function} done - The mocha callback.
  */
-function patchElements(done) {
-  const elemData = [
-    testData.elements[1],
-    testData.elements[2],
-    testData.elements[3],
-    testData.elements[4],
-    testData.elements[5],
-    testData.elements[6]
-  ];
-  const updateObj = elemData.map(e => ({
-    id: e.id,
-    name: `${e.name}_edit`
-  }));
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'PATCH',
-    body: JSON.stringify(updateObj)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function patchElements() {
+  try {
+    const elemData = [
+      testData.elements[1],
+      testData.elements[2],
+      testData.elements[3],
+      testData.elements[4],
+      testData.elements[5],
+      testData.elements[6]
+    ];
+    const updateObj = elemData.map(e => ({
+      id: e.id,
+      name: `${e.name}_edit`
+    }));
+    const options = {
+      method: 'patch',
+      url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements`,
+      headers: testUtils.getHeaders(),
+      data: updateObj
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const updatedElements = JSON.parse(body);
+    const updatedElements = res.data;
 
     // Expect updatedElements not to be empty
     chai.expect(updatedElements.length).to.equal(elemData.length);
@@ -708,8 +737,12 @@ function patchElements(done) {
       chai.expect(updatedElement).to.not.have.any.keys('archivedOn',
         'archivedBy', '__v', '_id');
     });
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
@@ -717,64 +750,70 @@ function patchElements(done) {
  * /api/orgs/:orgid/projects/:projectid/branches/:branchid/elements/:elementid
  * deletes a single element.
  *
- * @param {Function} done - The mocha callback.
  */
-function deleteElement(done) {
-  const elemData = testData.elements[0];
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements/${elemData.id}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'DELETE'
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function deleteElement() {
+  try {
+    const elemData = testData.elements[0];
+    const options = {
+      method: 'delete',
+      url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements/${elemData.id}`,
+      headers: testUtils.getHeaders()
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const deleteElementID = JSON.parse(body);
+    const deleteElementID = res.data[0];
 
     // Verify correct element deleted
     chai.expect(deleteElementID).to.equal(elemData.id);
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies DELETE /api/orgs/:orgid/projects/:projectid/branches/:branchid/elements
  * deletes multiple elements.
- *
- * @param {Function} done - The mocha callback.
  */
-function deleteElements(done) {
-  const elemData = [
-    testData.elements[1],
-    testData.elements[2],
-    testData.elements[3],
-    testData.elements[4],
-    testData.elements[5],
-    testData.elements[6]
-  ];
+async function deleteElements() {
+  try {
+    const elemData = [
+      testData.elements[1],
+      testData.elements[2],
+      testData.elements[3],
+      testData.elements[4],
+      testData.elements[5],
+      testData.elements[6]
+    ];
 
-  const elemIDs = elemData.map(e => e.id);
-  const ids = elemIDs.join(',');
+    const elemIDs = elemData.map(e => e.id);
+    const ids = elemIDs.join(',');
+    const options = {
+      method: 'delete',
+      url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements?ids=${ids}`,
+      headers: testUtils.getHeaders()
+    };
 
-  request({
-    url: `${test.url}/api/orgs/${org._id}/projects/${projID}/branches/master/elements?ids=${ids}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'DELETE'
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
 
     // Verify response body
-    const deletedElementIDs = JSON.parse(body);
+    const deletedElementIDs = res.data;
     chai.expect(deletedElementIDs).to.have.members(elemIDs);
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }

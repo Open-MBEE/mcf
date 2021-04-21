@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
@@ -113,7 +113,7 @@ function postBranch(done) {
   // Verifies the response data
   res.send = function send(_data) {
     // Verify response body
-    const createdBranch = JSON.parse(_data);
+    const createdBranch = JSON.parse(_data)[0];
 
     // Verify branch created properly
     chai.expect(createdBranch.id).to.equal(branchData.id);
@@ -140,7 +140,7 @@ function postBranch(done) {
   };
 
   // POST a branch
-  apiController.postBranch(req, res, next(req, res));
+  apiController.postBranches(req, res, next(req, res));
 }
 
 /**
@@ -239,7 +239,7 @@ function getBranch(done) {
   // Verifies the response data
   res.send = function send(_data) {
     // Verify response body
-    const foundBranch = JSON.parse(_data);
+    const foundBranch = JSON.parse(_data)[0];
 
     // Verify branch found properly
     chai.expect(foundBranch.id).to.equal(branchData.id);
@@ -266,7 +266,7 @@ function getBranch(done) {
   };
 
   // GET an branch
-  apiController.getBranch(req, res, next(req, res));
+  apiController.getBranches(req, res, next(req, res));
 }
 
 /**
@@ -439,7 +439,7 @@ function patchBranch(done) {
   // Verifies the response data
   res.send = function send(_data) {
     // Verify response body
-    const updatedBranch = JSON.parse(_data);
+    const updatedBranch = JSON.parse(_data)[0];
 
     // Verify branch updated properly
     chai.expect(updatedBranch.id).to.equal(branchData.id);
@@ -466,7 +466,7 @@ function patchBranch(done) {
   };
 
   // PATCH an branch
-  apiController.patchBranch(req, res, next(req, res));
+  apiController.patchBranches(req, res, next(req, res));
 }
 
 /**
@@ -567,7 +567,7 @@ function deleteBranch(done) {
 
   // Verifies the response data
   res.send = function send(_data) {
-    const branchid = JSON.parse(_data);
+    const branchid = JSON.parse(_data)[0];
     chai.expect(branchid).to.equal(testData.branches[1].id);
 
     // Expect the statusCode to be 200
@@ -577,7 +577,7 @@ function deleteBranch(done) {
   };
 
   // DELETE an branch
-  apiController.deleteBranch(req, res, next(req, res));
+  apiController.deleteBranches(req, res, next(req, res));
 }
 
 /**

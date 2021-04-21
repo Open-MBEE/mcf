@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner James Eckstein
  *
@@ -21,6 +21,7 @@
 
 // React modules
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Button, Modal, ModalBody } from 'reactstrap';
 
 // MBEE modules
@@ -39,44 +40,21 @@ function OrganizationProjects(props) {
     if (!props.user.admin) {
       const username = props.user.username;
       const perm = project.permissions[username];
-      if (perm === 'admin') {
+      if (perm === 'admin'
+        || (!project.archived && (perm === 'write' || perm === 'read' || project.visibility === 'internal'))) {
         listItems.push(<ListItem key={`proj-key-${project.id}`} className='proj-org-header'>
-                        <a href={`/orgs/${org.id}/project/${project.id}/branches/master/elements`}>
+                        <Link to={`/orgs/${org.id}/projects/${project.id}/branches/master/elements`}>
                           {project.name}
-                        </a>
-                      </ListItem>);
-      }
-      // Verify write permissions and not archived project
-      else if (perm === 'write' && !project.archived) {
-        listItems.push(<ListItem key={`proj-key-${project.id}`} className='proj-org-header'>
-                        <a href={`/orgs/${org.id}/project/${project.id}/branches/master/elements`}>
-                          {project.name}
-                        </a>
-                      </ListItem>);
-      }
-      // Verify read permissions and not archived project
-      else if (perm === 'read' && !project.archived) {
-        listItems.push(<ListItem key={`proj-key-${project.id}`} className='proj-org-header'>
-                        <a href={`/orgs/${org.id}/project/${project.id}/branches/master/elements`}>
-                          {project.name}
-                        </a>
-                       </ListItem>);
-      }
-      // Verify if project is internal and not archived
-      else if (project.visibility === 'internal' && !project.archived) {
-        listItems.push(<ListItem key={`proj-key-${project.id}`} className='proj-org-header'>
-                        <a href={`/orgs/${org.id}/project/${project.id}/branches/master/elements`}>
-                          {project.name}
-                        </a>
+                        </Link>
                       </ListItem>);
       }
     }
     else {
       const className = project.archived ? 'grayed-out' : '';
       listItems.push(<ListItem key={`proj-key-${project.id}`} className='proj-org-header'>
-                      <a href={`/orgs/${org.id}/projects/${project.id}/branches/master/elements`} className={className}>
+                      <Link to={`/orgs/${org.id}/projects/${project.id}/branches/master/elements`} className={className}>
                         {project.name}
-                      </a>
+                      </Link>
                      </ListItem>);
     }
   });

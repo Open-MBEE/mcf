@@ -5,11 +5,12 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
  * @author Connor Doyle
+ * @author Phillip Lee
  *
  * @description This tests the webhook API controller functionality:
  * GET, POST, PATCH, and DELETE webhooks.
@@ -17,7 +18,7 @@
 
 // NPM modules
 const chai = require('chai');
-const request = require('request');
+const axios = require('axios');
 
 // MBEE modules
 const WebhookController = M.require('controllers.webhook-controller');
@@ -90,27 +91,25 @@ describe(M.getModuleName(module.filename), () => {
 /* --------------------( Tests )-------------------- */
 /**
  * @description Verifies POST /api/webhooks creates multiple webhooks.
- *
- * @param {Function} done - The mocha callback.
  */
-function postWebhooks(done) {
-  const webhookData = testData.webhooks;
-  request({
-    url: `${test.url}/api/webhooks`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'POST',
-    body: JSON.stringify(webhookData)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function postWebhooks() {
+  try {
+    const webhookData = testData.webhooks;
+    const options = {
+      method: 'post',
+      url: `${test.url}/api/webhooks`,
+      headers: testUtils.getHeaders(),
+      data: webhookData
+    };
+
+    // Make an API request
+    const res = await axios(options);
 
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
 
     // Verify response body
-    const createdWebhooks = JSON.parse(body);
+    const createdWebhooks = res.data;
 
     // Convert createdWebhooks to JMI type 2 for easier lookup
     // Note: using the name field because the test data object will not have the id field
@@ -148,33 +147,34 @@ function postWebhooks(done) {
       // Save webhook id for later use
       webhookDataObj.id = createdWebhook.id;
     });
-
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies GET /api/webhooks/:webhookid can find a single webhook.
- *
- * @param {Function} done - The mocha callback.
  */
-function getWebhook(done) {
-  const webhookData = testData.webhooks[0];
-  request({
-    url: `${test.url}/api/webhooks/${webhookData.id}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'GET',
-    body: null
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function getWebhook() {
+  try {
+    const webhookData = testData.webhooks[0];
+    const options = {
+      method: 'get',
+      url: `${test.url}/api/webhooks/${webhookData.id}`,
+      headers: testUtils.getHeaders(),
+      data: null
+    };
+
+    // Make an API request
+    const res = await axios(options);
 
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const foundWebhook = JSON.parse(body);
+    const foundWebhook = res.data[0];
     chai.expect(foundWebhook.name).to.equal(webhookData.name);
     chai.expect(foundWebhook.triggers).to.deep.equal(webhookData.triggers);
     chai.expect(foundWebhook.url).to.equal(webhookData.url);
@@ -191,33 +191,36 @@ function getWebhook(done) {
     // Verify specific fields not returned
     chai.expect(foundWebhook).to.not.have.any.keys('archivedOn', 'archivedBy',
       '__v', '_id');
-
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies GET /api/webhooks can find multiple webhooks.
- *
- * @param {Function} done - The mocha callback.
  */
-function getWebhooks(done) {
-  const webhookData = testData.webhooks.slice(0, 2);
-  request({
-    url: `${test.url}/api/webhooks`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'GET',
-    body: JSON.stringify(webhookData.map(w => w.id))
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function getWebhooks() {
+  try {
+    const webhookData = testData.webhooks.slice(0, 2);
+    const options = {
+      method: 'get',
+      url: `${test.url}/api/webhooks`,
+      headers: testUtils.getHeaders(),
+      params: {
+        ids: webhookData.map(w => w.id).toString()
+      }
+    };
+
+    // Make an API request
+    const res = await axios(options);
 
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const foundWebhooks = JSON.parse(body);
+    const foundWebhooks = res.data;
 
     // Convert foundWebhooks to JMI type 2 for easier lookup
     const jmi2 = jmi.convertJMI(1, 2, foundWebhooks, 'id');
@@ -252,33 +255,34 @@ function getWebhooks(done) {
       chai.expect(foundWebhook).to.not.have.any.keys('archivedOn', 'archivedBy',
         '__v', '_id');
     });
-
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies GET /api/webhooks can find all webhooks.
- *
- * @param {Function} done - The mocha callback.
  */
-function getAllWebhooks(done) {
-  const webhookData = testData.webhooks;
-  request({
-    url: `${test.url}/api/webhooks`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'GET',
-    body: null
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function getAllWebhooks() {
+  try {
+    const webhookData = testData.webhooks;
+    const options = {
+      method: 'get',
+      url: `${test.url}/api/webhooks`,
+      headers: testUtils.getHeaders(),
+      data: null
+    };
+
+    // Make an API request
+    const res = await axios(options);
 
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const foundWebhooks = JSON.parse(body);
+    const foundWebhooks = res.data;
 
     // Convert foundWebhooks to JMI type 2 for easier lookup
     const jmi2 = jmi.convertJMI(1, 2, foundWebhooks, 'id');
@@ -313,37 +317,38 @@ function getAllWebhooks(done) {
       chai.expect(foundWebhook).to.not.have.any.keys('archivedOn', 'archivedBy',
         '__v', '_id');
     });
-
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies PATCH /api/webhooks/:webhookid can update a single webhook.
- *
- * @param {Function} done - The mocha callback.
  */
-function patchWebhook(done) {
-  const webhookData = testData.webhooks[0];
-  const webhookUpdate = {
-    id: webhookData.id,
-    name: 'test update'
-  };
-  request({
-    url: `${test.url}/api/webhooks/${webhookData.id}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'PATCH',
-    body: JSON.stringify(webhookUpdate)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function patchWebhook() {
+  try {
+    const webhookData = testData.webhooks[0];
+    const webhookUpdate = {
+      id: webhookData.id,
+      name: 'test update'
+    };
+    const options = {
+      method: 'patch',
+      url: `${test.url}/api/webhooks/${webhookData.id}`,
+      headers: testUtils.getHeaders(),
+      data: webhookUpdate
+    };
+
+    // Make an API request
+    const res = await axios(options);
 
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const updatedWebhook = JSON.parse(body);
+    const updatedWebhook = res.data[0];
     chai.expect(updatedWebhook.name).to.equal('test update');
     chai.expect(updatedWebhook.triggers).to.deep.equal(webhookData.triggers);
     chai.expect(updatedWebhook.url).to.equal(webhookData.url);
@@ -360,40 +365,41 @@ function patchWebhook(done) {
     // Verify specific fields not returned
     chai.expect(updatedWebhook).to.not.have.any.keys('archivedOn', 'archivedBy',
       '__v', '_id');
-
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies PATCH /api/webhooks/:webhookid can update multiple webhooks.
- *
- * @param {Function} done - The mocha callback.
  */
-function patchWebhooks(done) {
-  const webhookData = testData.webhooks.slice(1, 3);
-  const webhookUpdate = [{
-    id: webhookData[0].id,
-    name: 'test update'
-  }, {
-    id: webhookData[1].id,
-    name: 'test update'
-  }];
-  request({
-    url: `${test.url}/api/webhooks`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'PATCH',
-    body: JSON.stringify(webhookUpdate)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function patchWebhooks() {
+  try {
+    const webhookData = testData.webhooks.slice(1, 3);
+    const webhookUpdate = [{
+      id: webhookData[0].id,
+      name: 'test update'
+    }, {
+      id: webhookData[1].id,
+      name: 'test update'
+    }];
+    const options = {
+      method: 'patch',
+      url: `${test.url}/api/webhooks`,
+      headers: testUtils.getHeaders(),
+      data: webhookUpdate
+    };
+
+    // Make an API request
+    const res = await axios(options);
 
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const updatedWebhooks = JSON.parse(body);
+    const updatedWebhooks = res.data;
 
     // Convert updatedWebhooks to JMI type 2 for easier lookup
     const jmi2 = jmi.convertJMI(1, 2, updatedWebhooks, 'id');
@@ -427,91 +433,91 @@ function patchWebhooks(done) {
       chai.expect(updatedWebhook).to.not.have.any.keys('archivedOn', 'archivedBy',
         '__v', '_id');
     });
-
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies DELETE /api/webhooks/:webhookid can delete a single webhook.
- *
- * @param {Function} done - The mocha callback.
  */
-function deleteWebhook(done) {
-  const deleteID = testData.webhooks[0].id;
-  request({
-    url: `${test.url}/api/webhooks/${deleteID}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'DELETE',
-    body: null
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function deleteWebhook() {
+  try {
+    const deleteID = testData.webhooks[0].id;
+    const options = {
+      method: 'delete',
+      url: `${test.url}/api/webhooks/${deleteID}`,
+      headers: testUtils.getHeaders(),
+      body: null
+    };
+
+    // Make an API request
+    const res = await axios(options);
 
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const deletedWebhooks = JSON.parse(body);
+    const deletedWebhooks = res.data;
     chai.expect(deletedWebhooks.length).to.equal(1);
     chai.expect(deletedWebhooks[0]).to.equal(deleteID);
-
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies DELETE /api/webhooks/ can delete multiple webhooks.
- *
- * @param {Function} done - The mocha callback.
  */
-function deleteWebhooks(done) {
-  const deleteIDs = testData.webhooks.slice(1, 3).map((w) => w.id);
-  const ids = deleteIDs.join(',');
+async function deleteWebhooks() {
+  try {
+    const deleteIDs = testData.webhooks.slice(1, 3).map((w) => w.id);
+    const ids = deleteIDs.join(',');
+    const options = {
+      method: 'delete',
+      url: `${test.url}/api/webhooks?ids=${ids}`,
+      headers: testUtils.getHeaders()
+    };
 
-  request({
-    url: `${test.url}/api/webhooks?ids=${ids}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'DELETE'
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+    // Make an API request
+    const res = await axios(options);
 
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const deletedWebhooks = JSON.parse(body);
+    const deletedWebhooks = res.data;
     chai.expect(deletedWebhooks.length).to.equal(2);
     chai.expect(deletedWebhooks).to.have.members(deleteIDs);
-
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies POST /api/webhooks/trigger/:base64id can trigger a webhook.
- *
- * @param {Function} done - The mocha callback.
  */
-function triggerWebhook(done) {
-  // Get data for an incoming webhook
-  const webhookData = testData.webhooks[1];
-  delete webhookData.id;
+async function triggerWebhook() {
+  try {
+    // Get data for an incoming webhook
+    const webhookData = testData.webhooks[1];
+    delete webhookData.id;
+    const body = {
+      test: {
+        token: Buffer.from(`${adminUser._id}:test token`).toString('base64')
+      }
+    };
 
-  const body = {
-    test: {
-      token: Buffer.from(`${adminUser._id}:test token`).toString('base64')
-    }
-  };
-
-  // Note: registering a listener here would not work because the event occurs on a
-  // separately running server. All we can test here is that we get a 200 response.
-
-  WebhookController.create(adminUser, webhookData)
-  .then((webhooks) => {
+    // Note: registering a listener here would not work because the event occurs on a
+    // separately running server. All we can test here is that we get a 200 response.
+    const webhooks = await WebhookController.create(adminUser, webhookData);
     const webhook = webhooks[0];
     // Get the base64 encoding of the webhook id
     const triggerID = webhook._id;
@@ -519,26 +525,22 @@ function triggerWebhook(done) {
 
     // Save the id to be deleted later
     webhookIDs.push(triggerID);
-
-    request({
+    const options = {
+      method: 'post',
       url: `${test.url}/api/webhooks/trigger/${encodedID}`,
       headers: testUtils.getHeaders(),
-      ca: testUtils.readCaFile(),
-      method: 'POST',
-      body: JSON.stringify(body)
-    },
-    (err, response) => {
-      // Expect no error
-      chai.expect(err).to.equal(null);
+      data: body
+    };
 
-      // Expect response status: 200 OK
-      chai.expect(response.statusCode).to.equal(200);
+    // Make an API request
+    const res = await axios(options);
 
-      done();
-    });
-  })
-  .catch((error) => {
+    // Expect response status: 200 OK
+    chai.expect(res.status).to.equal(200);
+  }
+  catch (error) {
     M.log.error(error);
+    // Expect no error
     chai.expect(error).to.equal(null);
-  });
+  }
 }

@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
@@ -77,44 +77,27 @@ describe(M.getModuleName(module.filename), () => {
   /* Execute tests */
   // ------------- No Requesting User -------------
   it('should reject a GET projects request with no requesting user', noReqUser('getProjects'));
-  it('should reject a GET project request with no requesting user', noReqUser('getProject'));
   it('should reject a GET all projects request with no requesting user', noReqUser('getAllProjects'));
   it('should reject a POST projects request with no requesting user', noReqUser('postProjects'));
-  it('should reject a POST project request with no requesting user', noReqUser('postProject'));
   it('should reject a PATCH projects request with no requesting user', noReqUser('patchProjects'));
-  it('should reject a PATCH project request with no requesting user', noReqUser('patchProject'));
   it('should reject a PUT projects request with no requesting user', noReqUser('putProjects'));
-  it('should reject a PUT project request with no requesting user', noReqUser('putProject'));
-  it('should reject a DELETE projects request with no requesting user', noReqUser('deleteProject'));
-  it('should reject a DELETE project request with no requesting user', noReqUser('deleteProject'));
+  it('should reject a DELETE projects request with no requesting user', noReqUser('deleteProjects'));
   // ------------- Invalid options -------------
   it('should reject a GET projects request with invalid options', invalidOptions('getProjects'));
-  it('should reject a GET project request with invalid options', invalidOptions('getProject'));
   it('should reject a GET all projects request with invalid options', invalidOptions('getAllProjects'));
   it('should reject a POST projects request with invalid options', invalidOptions('postProjects'));
-  it('should reject a POST project request with invalid options', invalidOptions('postProject'));
   it('should reject a PATCH projects request with invalid options', invalidOptions('patchProjects'));
-  it('should reject a PATCH project request with invalid options', invalidOptions('patchProject'));
   it('should reject a PUT projects request with invalid options', invalidOptions('putProjects'));
-  it('should reject a PUT project request with invalid options', invalidOptions('putProject'));
   it('should reject a DELETE projects request with invalid options', invalidOptions('deleteProjects'));
-  it('should reject a DELETE project request with invalid options', invalidOptions('deleteProject'));
   // ------- Non matching ids in body vs url -------
-  it('should reject a POST project request with conflicting ids in the body and url', conflictingIDs('postProject'));
-  it('should reject a PATCH project request with conflicting ids in the body and url', conflictingIDs('patchProject'));
-  it('should reject a PUT project request with conflicting ids in the body and url', conflictingIDs('putProject'));
+  it('should reject a POST project request with conflicting ids in the body and url', conflictingIDs('postProjects'));
+  it('should reject a PATCH project request with conflicting ids in the body and url', conflictingIDs('patchProjects'));
+  it('should reject a PUT project request with conflicting ids in the body and url', conflictingIDs('putProjects'));
   // ------------- 404 Not Found -------------
   it('should return 404 for a GET projects request that returned no results', notFound('getProjects'));
-  it('should return 404 for a GET project request that returned no results', notFound('getProject'));
   it('should return 404 for a GET all projects request that returned no results', notFound('getAllProjects'));
   it('should return 404 for a PATCH projects request for nonexistent projects', notFound('patchProjects'));
-  it('should return 404 for a PATCH project request for a nonexistent project', notFound('patchProject'));
   it('should return 404 for a DELETE projects request for nonexistent projects', notFound('deleteProjects'));
-  it('should return 404 for a DELETE project request for a nonexistent project', notFound('deleteProject'));
-  // ------------- No arrays in singular endpoints -------------
-  it('should reject a POST singular project request containing an array in the body', noArrays('postProject'));
-  it('should reject a PATCH singular project request containing an array in the body', noArrays('patchProject'));
-  it('should reject a PUT singular project request containing an array in the body', noArrays('putProject'));
 });
 
 /* --------------------( Tests )-------------------- */
@@ -267,43 +250,6 @@ function notFound(endpoint) {
     res.send = function send(_data) {
       // Expect the statusCode to be 404
       res.statusCode.should.equal(404);
-
-      done();
-    };
-
-    // Sends the mock request
-    APIController[endpoint](req, res, next(req, res));
-  };
-}
-
-/**
- * @description A test factory function that generates a mocha-compatible test function that can
- * test the response of singular api endpoints given an array in the body.
- *
- * @param {string} endpoint - The particular api endpoint to test.
- * @returns {Function} A function for mocha to use to test a specific api endpoint.
- */
-function noArrays(endpoint) {
-  // Parse the method
-  const method = testUtils.parseMethod(endpoint);
-  const body = [];
-  const params = {};
-
-  return function(done) {
-    // Create request object
-    const req = testUtils.createRequest(adminUser, params, body, method);
-
-    // Create response object
-    const res = {};
-    testUtils.createResponse(res);
-
-    // Verifies the response data
-    res.send = function send(_data) {
-      // Expect an error message
-      _data.should.equal('Input cannot be an array');
-
-      // Expect the statusCode to be 400
-      res.statusCode.should.equal(400);
 
       done();
     };

@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner James Eckstein
  *
@@ -16,9 +16,11 @@
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
+/* eslint-disable jsdoc/require-jsdoc */
 
 // React modules
-import React, { Component } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { Button, Modal, ModalBody } from 'reactstrap';
 
 // MBEE modules
@@ -27,210 +29,175 @@ import ListItem from '../general/list/list-item.jsx';
 import ProjectListItem from '../shared-views/list-items/project-list-item.jsx';
 import Create from '../shared-views/create.jsx';
 import Delete from '../shared-views/delete.jsx';
+import { useApiClient } from '../context/ApiClientProvider';
 
 /* eslint-enable no-unused-vars */
 
 // Define component
-class ProjectList extends Component {
+function ProjectList(props) {
+  const { orgService } = useApiClient();
+  const [width, setWidth] = useState(null);
+  const [orgs, setOrgs] = useState([]);
+  const [modalCreate, setModalCreate] = useState(false);
+  const [modalDelete, setModalDelete] = useState(false);
+  // eslint-disable-next-line no-unused-vars
+  const [error, setError] = useState(null);
 
-  constructor(props) {
-    // Initialize parent props
-    super(props);
+  const ref = useRef();
 
-    // Initialize state props
-    this.state = {
-      width: null,
-      orgs: [],
-      modalCreate: false,
-      modalDelete: false,
-      error: null
-    };
+  const handleResize = () => {
+    // Set state to width of window
+    setWidth(ref.current.clientWidth);
+  };
 
-    // Create reference
-    this.ref = React.createRef();
+  const handleCreateToggle = () => {
+    setModalCreate((prevState) => !prevState);
+  };
 
-    // Bind component functions
-    this.handleResize = this.handleResize.bind(this);
-    this.handleCreateToggle = this.handleCreateToggle.bind(this);
-    this.handleDeleteToggle = this.handleDeleteToggle.bind(this);
-    this.setMountedComponentStates = this.setMountedComponentStates.bind(this);
-  }
+  const handleDeleteToggle = () => {
+    setModalDelete((prevState) => !prevState);
+  };
 
-  componentDidMount() {
+  const refresh = () => {
     // eslint-disable-next-line no-undef
-    mbeeWhoAmI((err, data) => {
+    mbeeWhoAmI(async (err, data) => {
       // Verify if error
       if (err) {
         // Set error state
-        this.setState({ error: err.responseText });
+        setError(err);
       }
       else {
-        // Set user data
-        this.setState({ user: data });
-        // Initialize url data
-        const base = '/api/orgs';
-        const opt = 'populate=projects&includeArchived=true&minified=true';
+        // Request data
+        const options = {
+          populate: 'projects',
+          includeArchived: true
+        };
+        const [err2, orgData] = await orgService.get(options);
 
-        // Get project data
-        $.ajax({
-          method: 'GET',
-          url: `${base}?${opt}`,
-          statusCode: {
-            200: (orgs) => {
-              this.setMountedComponentStates(data, orgs);
-            },
-            401: (error) => {
-              // Throw error and set state
-              this.setState({ error: error.responseText });
-
-              // Refresh when session expires
-              window.location.reload();
-            },
-            404: (error) => {
-              this.setState({ error: error.responseText });
-            }
-          }
-        });
+        // Set state
+        if (err2) setError(err2);
+        else if (orgData) setOrgs(orgData);
       }
     });
-  }
+  };
 
-  setMountedComponentStates(user, orgs) {
+  // On mount
+  useEffect(() => {
     // Add event listener for window resizing
-    window.addEventListener('resize', this.handleResize);
+    window.addEventListener('resize', handleResize);
     // Handle initial size of window
-    this.handleResize();
+    handleResize();
 
-    // Set the org state
-    this.setState({ orgs: orgs });
-  }
+    // Set initial state
+    refresh();
 
-  componentWillUnmount() {
-    // Remove event listener
-    window.removeEventListener('resize', this.handleResize);
-  }
+    // Clean up event listener
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
-  handleResize() {
-    // Set state to width of window
-    this.setState({ width: this.ref.current.clientWidth });
-  }
 
-  // Define toggle function
-  handleCreateToggle() {
-    // Set create modal state
-    this.setState({ modalCreate: !this.state.modalCreate });
-  }
+  let projectsAvaliable = false;
 
-  // Define toggle function
-  handleDeleteToggle() {
-    // Set delete modal state
-    this.setState({ modalDelete: !this.state.modalDelete });
-  }
+  // Loop through all orgs
+  const list = orgs.map(org => {
+    // Initialize variables
+    const orgId = org.id;
+    const projects = org.projects;
+    const permProjects = [];
+    const archiveProj = org.archived;
+    let className;
 
-  render() {
-    let projectsAvaliable = false;
+    // Verify if org is archived
+    if (archiveProj) {
+      className = 'archived-link';
+    }
+    // Verify there are projects in the org
+    if (projects.length < 1) {
+      // If there are not projects skip view rendering
+      return;
+    }
 
-    // Loop through all orgs
-    const list = this.state.orgs.map(org => {
-      // Initialize variables
-      const orgId = org.id;
-      const projects = org.projects;
-      const permProjects = [];
-      const archiveProj = org.archived;
-      let className;
+    // Push all projects to the viewable projects
+    projects.forEach(project => permProjects.push(<ProjectListItem className='hover-darken project-hover'
+                                                                  archiveProj={archiveProj}
+                                                                  key={`proj-key-${project.id}`}
+                                                                  project={project}
+                                                                  link={`/orgs/${orgId}/projects/${project.id}/branches/master/elements`}/>));
 
-      // Verify if org is archived
-      if (archiveProj) {
-        className = 'archived-link';
-      }
-      // Verify there are projects in the org
-      if (projects.length < 1) {
-        // If there are not projects skip view rendering
-        return;
-      }
+    // Verify if projects
+    if (permProjects.length > 0) {
+      // Set projects to true
+      projectsAvaliable = true;
+    }
 
-      // Push all projects to the viewable projects
-      projects.forEach(project => permProjects.push(<ProjectListItem className='hover-darken project-hover'
-                                                                    archiveProj={archiveProj}
-                                                                    key={`proj-key-${project.id}`}
-                                                                    project={project}
-                                                                    href={`/orgs/${orgId}/projects/${project.id}/branches/master/elements`}/>));
-
-      // Verify if projects
-      if (permProjects.length > 0) {
-        // Set projects to true
-        projectsAvaliable = true;
-      }
-
-      // Return the list of the orgs with project-views
-      return (
-        <React.Fragment>
-            <ListItem key={`org-key-${org.id}`} className='proj-org-header'>
-                <a href={`/orgs/${orgId}`} className={className}>{org.name}</a>
-            </ListItem>
-            <List key={`org-list-key-${org.id}`}>
-                {permProjects}
-            </List>
-        </React.Fragment>
-      );
-    });
-
-    // Return project list
+    // Return the list of the orgs with project-views
     return (
-      <React.Fragment>
-        {/* Modal for creating a project */}
-        <Modal isOpen={this.state.modalCreate} toggle={this.handleCreateToggle}>
-          <ModalBody>
-            <Create project={true} orgs={this.state.orgs} toggle={this.handleCreateToggle}/>
-          </ModalBody>
-        </Modal>
-        {/* Modal for deleting a project */}
-        <Modal isOpen={this.state.modalDelete} toggle={this.handleDeleteToggle}>
-          <ModalBody>
-            <Delete orgs={this.state.orgs}
-                    projects={true}
-                    toggle={this.handleDeleteToggle}/>
-          </ModalBody>
-        </Modal>
-        {/* Display the list of project-views */}
-        <div id='workspace' ref={this.ref}>
-          <div className='workspace-header header-box-depth'>
-            <h2 className='workspace-title'>Projects</h2>
-            <div className='workspace-header-button'>
-              <Button className='btn'
-                            outline color="primary"
-                            onClick={this.handleCreateToggle}>
-                {(this.state.width > 600)
-                  ? 'Create'
-                  : (<i className='fas fa-plus add-btn'/>)
-                }
-              </Button>
-              <Button className='btn'
-                            outline color="danger"
-                            onClick={this.handleDeleteToggle}>
-                {(this.state.width > 600)
-                  ? 'Delete'
-                  : (<i className='fas fa-trash-alt delete-btn'/>)
-                }
-              </Button>
-            </div>
-          </div>
-          <div id='workspace-body' className='extra-padding'>
-            {/* Verify there are project-views */}
-            {(!projectsAvaliable)
-              ? (<div className='main-workspace list-item'>
-                  <h3> No projects. </h3>
-                 </div>)
-              : (<List className='main-workspace' key='main-list'>
-                  {list}
-                 </List>)
-            }
+      <ListItem key={`org-key-${org.id}`}>
+          <ListItem className='proj-org-header'>
+              <Link to={`/orgs/${orgId}`} className={className}>{org.name}</Link>
+          </ListItem>
+          <List key={`org-list-key-${org.id}`}>
+              {permProjects}
+          </List>
+      </ListItem>
+    );
+  });
+
+  // Return project list
+  return (
+    <React.Fragment>
+      {/* Modal for creating a project */}
+      <Modal isOpen={modalCreate} toggle={handleCreateToggle}>
+        <ModalBody>
+          <Create project={true} orgs={orgs} toggle={handleCreateToggle}/>
+        </ModalBody>
+      </Modal>
+      {/* Modal for deleting a project */}
+      <Modal isOpen={modalDelete} toggle={handleDeleteToggle}>
+        <ModalBody>
+          <Delete orgs={orgs}
+                  projects={true}
+                  toggle={handleDeleteToggle}
+                  refresh={refresh}/>
+        </ModalBody>
+      </Modal>
+      {/* Display the list of project-views */}
+      <div id='workspace' ref={ref}>
+        <div className='workspace-header header-box-depth'>
+          <h2 className='workspace-title'>Projects</h2>
+          <div className='workspace-header-button'>
+            <Button className='btn'
+                          outline color="primary"
+                          onClick={handleCreateToggle}>
+              {(width > 600)
+                ? 'Create'
+                : (<i className='fas fa-plus add-btn'/>)
+              }
+            </Button>
+            <Button className='btn'
+                          outline color="danger"
+                          onClick={handleDeleteToggle}>
+              {(width > 600)
+                ? 'Delete'
+                : (<i className='fas fa-trash-alt delete-btn'/>)
+              }
+            </Button>
           </div>
         </div>
-      </React.Fragment>
-    );
-  }
-
+        <div id='workspace-body' className='extra-padding'>
+          {/* Verify there are project-views */}
+          {(!projectsAvaliable)
+            ? (<div className='main-workspace list-item'>
+                <h3> No projects. </h3>
+               </div>)
+            : (<List className='main-workspace' key='main-list'>
+                {list}
+               </List>)
+          }
+        </div>
+      </div>
+    </React.Fragment>
+  );
 }
 
 // Export component

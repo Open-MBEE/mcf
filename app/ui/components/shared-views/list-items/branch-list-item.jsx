@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner James Eckstein
  *
@@ -19,6 +19,7 @@
 
 // React modules
 import React, { Component } from 'react';
+import { Link } from 'react-router-dom';
 
 /* eslint-enable no-unused-vars */
 
@@ -31,19 +32,18 @@ class BranchListItem extends Component {
 
     // Initialize state props
     this.state = {
-      branch: props.branch,
       error: null
     };
   }
 
   render() {
     // Initialize variables
-    const branch = this.state.branch;
+    const branch = this.props.branch;
     let classNames = 'list-header';
     let archivedClass;
     let date;
 
-    if (this.state.branch.archived) {
+    if (this.props.branch.archived) {
       archivedClass = 'grayed-out';
     }
 
@@ -61,10 +61,12 @@ class BranchListItem extends Component {
         <div id='branch-list-items' className={classNames}>
           <div className={archivedClass} style={{ overflow: 'hidden' }}>
             <span>
-              <a id={archivedClass} className='branch-link'
-                 href={this.props.href}>
-                {branch.id}
-              </a>
+              { this.props.link
+                ? (<Link id={archivedClass} className='branch-link' to={this.props.link}>
+                    {branch.id}
+                  </Link>)
+                : branch.id
+              }
             </span>
           </div>
           <span className={archivedClass} style={{ overflow: 'hidden' }}>

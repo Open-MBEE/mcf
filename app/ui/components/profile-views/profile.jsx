@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner James Eckstein
  *
@@ -78,9 +78,10 @@ class Profile extends Component {
         <Modal isOpen={this.state.modal} toggle={this.handleToggle}>
           <ModalBody>
               <ProfileEdit user={this.props.user}
-                              viewingUser={this.props.viewingUser}
-                              togglePasswordModal={this.togglePasswordModal}
-                              toggle={this.handleToggle}/>
+                           viewingUser={this.props.viewingUser}
+                           togglePasswordModal={this.togglePasswordModal}
+                           toggle={this.handleToggle}
+                           refreshUsers={this.props.refreshUsers}/>
           </ModalBody>
         </Modal>
         <Modal isOpen={this.state.editPasswordModal}

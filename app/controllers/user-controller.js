@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
@@ -262,7 +262,7 @@ async function create(requestingUser, users, options) {
     // Create array of id's for lookup and array of valid keys
     const arrUsernames = [];
     const validUserKeys = ['username', 'password', 'fname', 'lname',
-      'preferredName', 'email', 'admin', 'provider', 'custom', 'archived'];
+      'preferredName', 'email', 'admin', 'provider', 'custom', 'archived', 'integration_keys'];
 
     // Check that each user has a username, and add to arrUsernames
     let index = 1;
@@ -310,6 +310,7 @@ async function create(requestingUser, users, options) {
       u.updatedOn = Date.now();
       u.archivedBy = (u.archived) ? reqUser._id : null;
       u.archivedOn = (u.archived) ? Date.now() : null;
+      u.integration_keys = [];
       User.hashPassword(u);
       return u;
     });
@@ -435,13 +436,11 @@ async function update(requestingUser, users, options) {
       else {
         duplicateCheck[user.username] = user.username;
       }
+
       arrUsernames.push(user.username);
       user._id = user.username;
       index++;
     });
-
-    // Ensure user cannot update others, unless sys-admin
-    permissions.updateUser(reqUser, arrUsernames[0]);
 
     // Create searchQuery
     const searchQuery = { _id: { $in: arrUsernames } };
@@ -465,6 +464,9 @@ async function update(requestingUser, users, options) {
 
     // For each found user
     foundUsers.forEach((user) => {
+      // Ensure user cannot update others, unless sys-admin
+      permissions.updateUser(reqUser, user);
+
       const updateUser = jmiType2[user._id];
       // Remove username and _id field from update object
       delete updateUser.username;

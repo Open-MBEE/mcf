@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
@@ -214,7 +214,8 @@ function ldapConnect() {
       // Extract certificate filename from config file
       const certName = ldapCA[i];
       // Extract certificate file content
-      const file = fs.readFileSync(path.join(M.root, certName));
+      const file = fs.readFileSync(path.isAbsolute(certName)
+        ? certName : path.join(M.root, certName));
       // Push file content to arrCaCert
       arrCaCerts.push(file);
     }

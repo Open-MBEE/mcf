@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
 
  * @owner James Eckstein
  *
@@ -25,6 +25,7 @@
   align-items: $align_items;
 }
 
+// TODO (ld): Important is not best practice, but only way to get to work
 .archived-link {
   color: #c0c0c0 !important;
 }
@@ -35,6 +36,7 @@
   grid-template-columns: 1fr 1fr 1fr 1fr;
 }
 
+// TODO - consider renaming as it is only in lists/ or move it same with above
 .hover-darken:hover {
   background: #f7f7f7;
 }
@@ -60,6 +62,7 @@
   }
 }
 
+// TODO - consider splitting it up in specific lists?
 .project-hover {
   border-left: #eeeeee solid;
   margin-left: 10px;

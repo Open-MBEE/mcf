@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
@@ -19,7 +19,7 @@
 
 // NPM modules
 const chai = require('chai');
-const request = require('request');
+const axios = require('axios');
 
 // MBEE modules
 const jmi = M.require('lib.jmi-conversions');
@@ -86,25 +86,24 @@ describe(M.getModuleName(module.filename), () => {
 /* --------------------( Tests )-------------------- */
 /**
  * @description Verifies POST /api/orgs/:orgid creates an organization.
- *
- * @param {Function} done - The mocha callback.
  */
-function postOrg(done) {
-  const orgData = testData.orgs[0];
-  request({
-    url: `${test.url}/api/orgs/${orgData.id}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'POST',
-    body: JSON.stringify(orgData)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function postOrg() {
+  try {
+    const orgData = testData.orgs[0];
+    const options = {
+      method: 'post',
+      url: `${test.url}/api/orgs/${orgData.id}`,
+      headers: testUtils.getHeaders(),
+      data: orgData
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const postedOrg = JSON.parse(body);
+    const postedOrg = res.data[0];
     chai.expect(postedOrg.id).to.equal(orgData.id);
     chai.expect(postedOrg.name).to.equal(orgData.name);
     chai.expect(postedOrg.custom).to.deep.equal(orgData.custom || {});
@@ -120,35 +119,37 @@ function postOrg(done) {
     // Verify specific fields not returned
     chai.expect(postedOrg).to.not.have.any.keys('archivedOn', 'archivedBy',
       '__v', '_id');
-
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies POST /api/orgs creates multiple organizations.
- *
- * @param {Function} done - The mocha callback.
  */
-function postOrgs(done) {
-  const orgData = [
-    testData.orgs[1],
-    testData.orgs[2]
-  ];
-  request({
-    url: `${test.url}/api/orgs`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'POST',
-    body: JSON.stringify(orgData)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function postOrgs() {
+  try {
+    const orgData = [
+      testData.orgs[1],
+      testData.orgs[2]
+    ];
+    const options = {
+      method: 'post',
+      url: `${test.url}/api/orgs`,
+      headers: testUtils.getHeaders(),
+      data: orgData
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const postedOrgs = JSON.parse(body);
+    const postedOrgs = res.data;
     chai.expect(postedOrgs.length).to.equal(orgData.length);
 
     // Convert postedOrgs to JMI type 2 for easier lookup
@@ -174,32 +175,35 @@ function postOrgs(done) {
       chai.expect(postedOrg).to.not.have.any.keys('archivedOn', 'archivedBy',
         '__v', '_id');
     });
-
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies PUT /api/org/:orgid creates/replaces an organization.
- *
- * @param {Function} done - The mocha callback.
  */
-function putOrg(done) {
-  const orgData = testData.orgs[0];
-  request({
-    url: `${test.url}/api/orgs/${orgData.id}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'PUT',
-    body: JSON.stringify(orgData)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function putOrg() {
+  try {
+    const orgData = testData.orgs[0];
+
+    const options = {
+      method: 'put',
+      url: `${test.url}/api/orgs/${orgData.id}`,
+      headers: testUtils.getHeaders(),
+      data: orgData
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const replacedOrg = JSON.parse(body);
+    const replacedOrg = res.data[0];
     chai.expect(replacedOrg.id).to.equal(orgData.id);
     chai.expect(replacedOrg.name).to.equal(orgData.name);
     chai.expect(replacedOrg.custom).to.deep.equal(orgData.custom || {});
@@ -215,36 +219,38 @@ function putOrg(done) {
     // Verify specific fields not returned
     chai.expect(replacedOrg).to.not.have.any.keys('archivedOn', 'archivedBy',
       '__v', '_id');
-
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies PUT /api/orgs creates/replaces multiple organizations.
- *
- * @param {Function} done - The mocha callback.
  */
-function putOrgs(done) {
-  const orgData = [
-    testData.orgs[1],
-    testData.orgs[2],
-    testData.orgs[3]
-  ];
-  request({
-    url: `${test.url}/api/orgs`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'PUT',
-    body: JSON.stringify(orgData)
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function putOrgs() {
+  try {
+    const orgData = [
+      testData.orgs[1],
+      testData.orgs[2],
+      testData.orgs[3]
+    ];
+    const options = {
+      method: 'put',
+      url: `${test.url}/api/orgs`,
+      headers: testUtils.getHeaders(),
+      data: orgData
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const replacedOrgs = JSON.parse(body);
+    const replacedOrgs = res.data;
     chai.expect(replacedOrgs.length).to.equal(orgData.length);
 
     // Convert replacedOrgs to JMI type 2 for easier lookup
@@ -270,30 +276,33 @@ function putOrgs(done) {
       chai.expect(replacedOrg).to.not.have.any.keys('archivedOn', 'archivedBy',
         '__v', '_id');
     });
-
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies GET /api/orgs/:orgid finds and returns the previously
  * created organization.
- *
- * @param {Function} done - The mocha callback.
  */
-function getOrg(done) {
-  request({
-    url: `${test.url}/api/orgs/${testData.orgs[0].id}`,
-    ca: testUtils.readCaFile(),
-    headers: testUtils.getHeaders()
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function getOrg() {
+  try {
+    const options = {
+      method: 'get',
+      url: `${test.url}/api/orgs/${testData.orgs[0].id}`,
+      headers: testUtils.getHeaders()
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const foundOrg = JSON.parse(body);
+    const foundOrg = res.data[0];
     chai.expect(foundOrg.id).to.equal(testData.orgs[0].id);
     chai.expect(foundOrg.name).to.equal(testData.orgs[0].name);
     chai.expect(foundOrg.custom).to.deep.equal(testData.orgs[0].custom || {});
@@ -309,35 +318,40 @@ function getOrg(done) {
     // Verify specific fields not returned
     chai.expect(foundOrg).to.not.have.any.keys('archivedOn', 'archivedBy',
       '__v', '_id');
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies GET /api/orgs returns the two organizations to which
  * the user belongs.
- *
- * @param {Function} done - The mocha callback.
  */
-function getOrgs(done) {
-  const orgData = [
-    testData.orgs[1],
-    testData.orgs[2],
-    testData.orgs[3]
-  ];
-  const orgIDs = orgData.map(p => p.id).join(',');
-  request({
-    url: `${test.url}/api/orgs?ids=${orgIDs}`,
-    ca: testUtils.readCaFile(),
-    headers: testUtils.getHeaders()
-  },
-  (err, response, body) => {
-    // Expect no error (request succeeds)
-    chai.expect(err).to.equal(null);
+async function getOrgs() {
+  try {
+    const orgData = [
+      testData.orgs[1],
+      testData.orgs[2],
+      testData.orgs[3]
+    ];
+    const orgIDs = orgData.map(p => p.id).join(',');
+
+    const options = {
+      method: 'get',
+      url: `${test.url}/api/orgs?ids=${orgIDs}`,
+      headers: testUtils.getHeaders()
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verifies length of response body
-    const foundOrgs = JSON.parse(body);
+    const foundOrgs = res.data;
     chai.expect(foundOrgs.length).to.equal(orgData.length);
 
     // Convert foundOrgs to JMI type 2 for easier lookup
@@ -364,39 +378,42 @@ function getOrgs(done) {
       chai.expect(foundOrg).to.not.have.any.keys('archivedOn', 'archivedBy',
         '__v', '_id');
     });
-
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies GET /api/orgs returns all organizations
  * the user belongs to.
- *
- * @param {Function} done - The mocha callback.
  */
-function getAllOrgs(done) {
-  const orgData = [
-    {
-      id: M.config.server.defaultOrganizationId,
-      name: M.config.server.defaultOrganizationName
-    },
-    testData.orgs[1],
-    testData.orgs[2],
-    testData.orgs[3]
-  ];
-  request({
-    url: `${test.url}/api/orgs`,
-    ca: testUtils.readCaFile(),
-    headers: testUtils.getHeaders()
-  },
-  (err, response, body) => {
-    // Expect no error (request succeeds)
-    chai.expect(err).to.equal(null);
+async function getAllOrgs() {
+  try {
+    const orgData = [
+      {
+        id: M.config.server.defaultOrganizationId,
+        name: M.config.server.defaultOrganizationName
+      },
+      testData.orgs[1],
+      testData.orgs[2],
+      testData.orgs[3]
+    ];
+    const options = {
+      method: 'get',
+      url: `${test.url}/api/orgs`,
+      headers: testUtils.getHeaders()
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verifies length of response body
-    const foundOrgs = JSON.parse(body);
+    const foundOrgs = res.data;
 
     // Convert foundOrgs to JMI type 2 for easier lookup
     const jmi2Orgs = jmi.convertJMI(1, 2, foundOrgs, 'id');
@@ -430,32 +447,35 @@ function getAllOrgs(done) {
       chai.expect(foundOrg).to.not.have.any.keys('archivedOn', 'archivedBy',
         '__v', '_id');
     });
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies PATCH /api/orgs/:orgid updates the provided org fields
  * on an existing organization.
- *
- * @param {Function} done - The mocha callback.
  */
-function patchOrg(done) {
-  request({
-    url: `${test.url}/api/orgs/${testData.orgs[0].id}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'PATCH',
-    body: JSON.stringify({ name: 'Edited Name' })
-  },
-  (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function patchOrg() {
+  try {
+    const options = {
+      method: 'patch',
+      url: `${test.url}/api/orgs/${testData.orgs[0].id}`,
+      headers: testUtils.getHeaders(),
+      data: { name: 'Edited Name' }
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
 
     // Verify response body
-    const patchedOrg = JSON.parse(body);
+    const patchedOrg = res.data[0];
     chai.expect(patchedOrg.id).to.equal(testData.orgs[0].id);
     chai.expect(patchedOrg.name).to.equal('Edited Name');
     chai.expect(patchedOrg.custom).to.deep.equal(testData.orgs[0].custom || {});
@@ -471,40 +491,44 @@ function patchOrg(done) {
     // Verify specific fields not returned
     chai.expect(patchedOrg).to.not.have.any.keys('archivedOn', 'archivedBy',
       '__v', '_id');
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies PATCH /api/orgs updates multiple orgs at the same time.
- *
- * @param {Function} done - The mocha callback.
  */
-function patchOrgs(done) {
-  const orgData = [
-    testData.orgs[1],
-    testData.orgs[2],
-    testData.orgs[3]
-  ];
-  const arrUpdateOrg = orgData.map((p) => ({
-    id: p.id,
-    name: 'Edited Name'
-  }));
-  request({
-    url: `${test.url}/api/orgs`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'PATCH',
-    body: JSON.stringify(arrUpdateOrg)
-  },
-  (err, response, body) => {
-    // Expect no error (request succeeds)
-    chai.expect(err).to.equal(null);
+async function patchOrgs() {
+  try {
+    const orgData = [
+      testData.orgs[1],
+      testData.orgs[2],
+      testData.orgs[3]
+    ];
+    const arrUpdateOrg = orgData.map((p) => ({
+      id: p.id,
+      name: 'Edited Name'
+    }));
+
+    const options = {
+      method: 'patch',
+      url: `${test.url}/api/orgs`,
+      headers: testUtils.getHeaders(),
+      data: arrUpdateOrg
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
 
     // Verify response body
-    const postedOrgs = JSON.parse(body);
+    const postedOrgs = res.data;
     chai.expect(postedOrgs.length).to.equal(orgData.length);
 
     // Convert foundProjects to JMI type 2 for easier lookup
@@ -529,70 +553,78 @@ function patchOrgs(done) {
       chai.expect(patchedOrg).to.not.have.any.keys('archivedOn', 'archivedBy',
         '__v', '_id');
     });
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies DELETE /api/orgs/:orgid deletes an organization.
- *
- * @param {Function} done - The mocha callback.
  */
-function deleteOrg(done) {
-  const orgData = testData.orgs[0];
-  request({
-    url: `${test.url}/api/orgs/${orgData.id}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'DELETE'
-  },
-  function(err, response, body) {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+async function deleteOrg() {
+  try {
+    const orgData = testData.orgs[0];
+    const options = {
+      method: 'delete',
+      url: `${test.url}/api/orgs/${orgData.id}`,
+      headers: testUtils.getHeaders()
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const deletedID = JSON.parse(body);
+    const deletedID = res.data[0];
 
     // Verify correct orgs deleted
     chai.expect(deletedID).to.equal(orgData.id);
-
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies DELETE /api/orgs deletes multiple organizations.
- *
- * @param {Function} done - The mocha callback.
  */
-function deleteOrgs(done) {
-  const orgData = [
-    testData.orgs[1],
-    testData.orgs[2],
-    testData.orgs[3]
-  ];
+async function deleteOrgs() {
+  try {
+    const orgData = [
+      testData.orgs[1],
+      testData.orgs[2],
+      testData.orgs[3]
+    ];
 
-  const orgIDs = orgData.map(o => o.id);
-  const ids = orgIDs.join(',');
+    const orgIDs = orgData.map(o => o.id);
+    const ids = orgIDs.join(',');
 
-  request({
-    url: `${test.url}/api/orgs?ids=${ids}`,
-    headers: testUtils.getHeaders(),
-    ca: testUtils.readCaFile(),
-    method: 'DELETE'
-  },
-  function(err, response, body) {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+    const options = {
+      method: 'delete',
+      url: `${test.url}/api/orgs?ids=${ids}`,
+      headers: testUtils.getHeaders()
+    };
+
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const deletedIDs = JSON.parse(body);
+    const deletedIDs = res.data;
 
     // Verify correct orgs deleted
     chai.expect(deletedIDs).to.have.members(orgIDs);
-
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }

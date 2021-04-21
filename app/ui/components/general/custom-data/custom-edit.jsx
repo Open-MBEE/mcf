@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner James Eckstein
  *
@@ -87,7 +87,7 @@ class CustomEdit extends Component {
 
   // Handle updates to Key/Value input fields.
   handleChange(idx, event) {
-    const { name, value } = event.target;
+        const { name, value } = event.target;
     const rows = this.state.rows;
     rows[idx][name] = value;
     this.updateParent(rows);
@@ -167,7 +167,7 @@ class CustomEdit extends Component {
       $('textarea[name="custom"]').autoResize();
 
       // Parse custom data input values
-      try {
+            try {
         JSON.parse(this.props.data);
       }
       catch (err) {

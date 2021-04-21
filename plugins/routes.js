@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
@@ -104,6 +104,18 @@ function loadPlugins() {
     M.log.info(`Loading plugin '${namespace}' ...`);
 
     // Install the dependencies
+    /* TODO: Add Configuration parameters to configure behavior of plugin dependency
+        resolution at startup. For examples:
+          dependencyResolution:
+            atStartup: true //boolean
+            useCache: true //boolean
+            sourceType: file //enum: file, npm, artifactory, etc
+            sourceAuth: //Optional
+              user: test
+              password: superSecretPassword
+            sourceURL: /plugin_dependencies //url or filepath
+        These should be set globally or per plugin.
+     */
     if (pkg.dependencies) {
       M.log.verbose('Installing plugin dependencies ...');
       const command = `cd ${path.join('plugins', namespace)}; yarn install`;
@@ -221,6 +233,17 @@ function clonePluginFromGitRepo(data) {
   }
   catch (error) {
     M.log.warn(`Failed to clone plugin [${data.name}].`);
+  }
+
+  if (data.hasOwnProperty('persistToPath')) {
+    if (data.persistToPath !== 'false') {
+      try {
+        fsExtra.copySync(path.join(M.root, 'plugins', data.name), path.join(M.root, data.persistToPath, data.name));
+      }
+      catch (error) {
+        M.log.warn(error.stack);
+      }
+    }
   }
 }
 

@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
@@ -22,10 +22,10 @@
 /* eslint-disable jsdoc/require-description-complete-sentence */
 // Disabling these rules due to the use of headers for api endpoints
 
-
 // Node modules
 const fs = require('fs');
 const path = require('path');
+const axios = require('axios');
 
 // NPM modules
 const swaggerJSDoc = require('swagger-jsdoc');
@@ -50,12 +50,16 @@ const permissions = M.require('lib.permissions');
 const publicData = M.require('lib.get-public-data');
 const sani = M.require('lib.sanitization');
 const utils = M.require('lib.utils');
+const mmsConfig = M.config.server.plugins.plugins['mms-adapter'].mms || null;
 
+// Publisher
+const publisher = require('../lib/pubsub/publisher');
 
 // Expose `API Controller functions`
 module.exports = {
   swaggerJSON,
   login,
+  logout,
   test,
   version,
   getLogs,
@@ -64,33 +68,18 @@ module.exports = {
   putOrgs,
   patchOrgs,
   deleteOrgs,
-  getOrg,
-  postOrg,
-  putOrg,
-  patchOrg,
-  deleteOrg,
   getAllProjects,
   getProjects,
   postProjects,
   putProjects,
   patchProjects,
   deleteProjects,
-  getProject,
-  postProject,
-  putProject,
-  patchProject,
-  deleteProject,
   getUsers,
   postUsers,
   putUsers,
   patchUsers,
   deleteUsers,
   searchUsers,
-  getUser,
-  postUser,
-  putUser,
-  patchUser,
-  deleteUser,
   whoami,
   patchPassword,
   getElements,
@@ -99,27 +88,14 @@ module.exports = {
   patchElements,
   deleteElements,
   searchElements,
-  getElement,
-  postElement,
-  putElement,
-  patchElement,
-  deleteElement,
   getBranches,
   postBranches,
   patchBranches,
   deleteBranches,
-  getBranch,
-  patchBranch,
-  postBranch,
-  deleteBranch,
   getArtifacts,
   patchArtifacts,
   postArtifacts,
   deleteArtifacts,
-  getArtifact,
-  patchArtifact,
-  postArtifact,
-  deleteArtifact,
   getBlob,
   postBlob,
   deleteBlob,
@@ -129,10 +105,8 @@ module.exports = {
   postWebhooks,
   patchWebhooks,
   deleteWebhooks,
-  getWebhook,
-  patchWebhook,
-  deleteWebhook,
   triggerWebhook,
+  getMetrics,
   invalidRoute
 };
 
@@ -208,13 +182,65 @@ function swaggerJSON(req, res, next) {
  * @param {object} res - Response express object.
  * @param {Function} next - Middleware callback to trigger the next function.
  */
-function login(req, res, next) {
+async function login(req, res, next) {
   // Skip controller code if a plugin pre-hook threw an error
   if (res.statusCode !== 200) return next();
+
+  // Checking to see if user has integration keys in database
+  const user = await User.findOne({ _id: req.user._id });
+
+  // Checking to see if there are any integrated services
+  if (M.config.integratedServices) {
+    M.config.integratedServices.forEach(service => {
+      const integrationKey = user.integration_keys.find(key => key.name === service.name);
+
+      // data the integration service needs for authentication
+      const data = {
+        sessionId: req.sessionID,
+        token: req.session.token,
+        user: req.user._id,
+        name: service.name,
+        exists: false
+      };
+
+      if (integrationKey) {
+        data.exists = true;
+        data.key = integrationKey.key;
+      }
+
+      // sending message to dynamic integration service to handle auth for service
+      publisher.publish('AUTH_INTEGRATION', JSON.stringify(data));
+    });
+  }
 
   const json = formatJSON({ token: req.session.token });
   res.locals = {
     message: json,
+    statusCode: 200
+  };
+  next();
+}
+
+/**
+ * POST /api/logout
+ *
+ * @description Logs the user out by unsetting the req.user and req.session.token objects.
+ *
+ * @param {object} req - Request express object.
+ * @param {object} res - Response express object.
+ * @param {Function} next - Middleware callback to trigger the next function.
+ */
+function logout(req, res, next) {
+  // Sanity check: confirm req.user exists
+  if (!req.user) {
+    M.log.critical('/logout executed with invalid req.user object');
+  }
+  // Destroy the session
+  req.user = null;
+  req.session.destroy();
+
+  res.locals = {
+    message: 'Successfully logged out',
     statusCode: 200
   };
   next();
@@ -394,7 +420,6 @@ async function getOrgs(req, res, next) {
 
   // Define options and ids
   // Note: Undefined if not set
-  let ids;
   let options;
   let minified = false;
 
@@ -438,6 +463,7 @@ async function getOrgs(req, res, next) {
     return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
+  let ids;
   // Check query for ids
   if (options.ids) {
     ids = options.ids;
@@ -450,6 +476,18 @@ async function getOrgs(req, res, next) {
   // No IDs in options or body, check body for org objects
   else if (Array.isArray(req.body) && req.body.every(s => typeof s === 'object')) {
     ids = req.body.map(o => o.id);
+  }
+  // Check if orgid provided in query
+  else if (req.params.orgid) {
+    // If orgid was provided in the body, ensure it matches orgid in params
+    if (req.body.hasOwnProperty('orgid') && (req.body.orgid !== req.params.orgid)) {
+      const error = new M.DataFormatError(
+        'Orgid in body does not match orgid in params.', 'warn'
+      );
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+    }
+    // Set body ids
+    ids = req.params.orgid;
   }
 
   // Check options for minified
@@ -546,6 +584,18 @@ async function postOrgs(req, res, next) {
       return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   }
+  else if (req.params.orgid) {
+    // If an ID was provided in the body, ensure it matches the ID in params
+    if (req.body.hasOwnProperty('id') && (req.body.id !== req.params.orgid)) {
+      const error = new M.DataFormatError(
+        'Organization ID in the body does not match ID in the params.', 'warn'
+      );
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+    }
+    orgData = req.body;
+    // Set the org ID in the body equal req.params.orgid
+    req.body.id = req.params.orgid;
+  }
   else {
     orgData = req.body;
   }
@@ -554,6 +604,32 @@ async function postOrgs(req, res, next) {
     // Create organizations from org data
     // NOTE: create() sanitizes orgData
     const orgs = await OrgController.create(req.user, orgData, options);
+
+    if (mmsConfig) {
+      orgs.forEach(org => {
+        const port = M.config.server[req.protocol].port;
+        const requestOptions = {
+          url: `${req.protocol}://${M.config.server.commitURL}:${port}/plugins/mms-adapter/alfresco/service/mms-org`,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${req.session.token}`,
+            'MMS-TOKEN': req.session.mms_token
+          },
+          method: 'post',
+          data: org
+        };
+
+        axios(requestOptions).then(function(response) {
+          if (response.status !== 200) {
+            throw new M.ServerError('Issue creating MMS org');
+          }
+        })
+        .catch(function(error) {
+          return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+        });
+      });
+    }
+
     // Get the public data of each org
     const orgsPublicData = sani.html(
       orgs.map(o => publicData.getPublicData(req.user, o, 'org', options))
@@ -633,6 +709,18 @@ async function putOrgs(req, res, next) {
       // Error occurred with options, report it
       return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
+  }
+  else if (req.params.orgid) {
+    // If an ID was provided in the body, ensure it matches the ID in params
+    if (req.body.hasOwnProperty('id') && (req.body.id !== req.params.orgid)) {
+      const error = new M.DataFormatError(
+        'Organization ID in the body does not match ID in the params.', 'warn'
+      );
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+    }
+    orgData = req.body;
+    // Set the org ID in the body equal req.params.orgid
+    req.body.id = req.params.orgid;
   }
   else {
     orgData = req.body;
@@ -721,6 +809,18 @@ async function patchOrgs(req, res, next) {
       return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   }
+  else if (req.params.orgid) {
+    // If an ID was provided in the body, ensure it matches the ID in params
+    if (req.body.hasOwnProperty('id') && (req.body.id !== req.params.orgid)) {
+      const error = new M.DataFormatError(
+        'Organization ID in the body does not match ID in the params.', 'warn'
+      );
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+    }
+    orgData = req.body;
+    // Set the org ID in the body equal req.params.orgid
+    req.body.id = req.params.orgid;
+  }
   else {
     orgData = req.body;
   }
@@ -791,11 +891,24 @@ async function deleteOrgs(req, res, next) {
     return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
-  // Extract IDs from request
-  const ids = utils.parseRequestIDs(req, options);
+  let ids;
+  if (req.params.orgid) {
+    // If an ID was provided in the body, ensure it matches the ID in params
+    if (req.body.hasOwnProperty('id') && (req.body.id !== req.params.orgid)) {
+      const error = new M.DataFormatError(
+        'Organization ID in the body does not match ID in the params.', 'warn'
+      );
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+    }
+    ids = req.params.orgid;
+  }
+  else {
+    // Extract IDs from request
+    ids = utils.parseRequestIDs(req, options);
 
-  // Remove option IDs
-  delete options.ids;
+    // Remove option IDs
+    delete options.ids;
+  }
 
   // Check options for minified
   if (options.hasOwnProperty('minified')) {
@@ -810,418 +923,6 @@ async function deleteOrgs(req, res, next) {
     const json = formatJSON(orgIDs, minified);
 
     // Sets the message to the deleted org ids and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * GET /api/orgs/:orgid
- *
- * @description Gets an organization by its id.
- *
- * @param {object} req - Request express object.
- * @param {object} res - Response express object.
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with org's public data
- */
-async function getOrg(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  // Note: Undefined if not set
-  let options;
-  let minified = false;
-
-  // Define valid option and its parsed type
-  const validOptions = {
-    populate: 'array',
-    includeArchived: 'boolean',
-    fields: 'array',
-    minified: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) return noUserError(req, res, next);
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  try {
-    // Find the org from it's id
-    // NOTE: find() sanitizes req.params.orgid
-    const orgs = await OrgController.find(req.user, req.params.orgid, options);
-    // If no orgs found, return 404 error
-    if (orgs.length === 0) {
-      throw new M.NotFoundError(
-        `Organization [${req.params.orgid}] not found.`, 'warn'
-      );
-    }
-
-    // Get the public data of each org
-    const orgsPublicData = sani.html(
-      orgs.map(o => publicData.getPublicData(req.user, o, 'org', options))
-    );
-
-    // Format JSON
-    const json = formatJSON(orgsPublicData[0], minified);
-
-    // Sets the message to the org's public data and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * POST /api/orgs/:orgid
- *
- * @description Takes an organization in the request body and an
- * organization ID in the URI and creates the organization.
- *
- * @param {object} req - Request express object.
- * @param {object} res - Response express object.
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with org's public data
- */
-async function postOrg(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  // Note: Undefined if not set
-  let options;
-  let minified = false;
-
-  // Define valid option and its parsed type
-  const validOptions = {
-    populate: 'array',
-    fields: 'array',
-    minified: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) return noUserError(req, res, next);
-
-  // Singular api: should not accept arrays
-  if (Array.isArray(req.body)) {
-    const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // If an ID was provided in the body, ensure it matches the ID in params
-  if (req.body.hasOwnProperty('id') && (req.body.id !== req.params.orgid)) {
-    const error = new M.DataFormatError(
-      'Organization ID in the body does not match ID in the params.', 'warn'
-    );
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Set the org ID in the body equal req.params.orgid
-  req.body.id = req.params.orgid;
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  try {
-    // Create the organization with provided parameters
-    // NOTE: create() sanitizes req.body
-    const orgs = await OrgController.create(req.user, req.body, options);
-    // Get the public data of each org
-    const orgsPublicData = sani.html(
-      orgs.map(o => publicData.getPublicData(req.user, o, 'org', options))
-    );
-
-    // Format JSON
-    const json = formatJSON(orgsPublicData[0], minified);
-
-    // Sets the message to the created org and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * PUT /api/orgs/:orgid
- *
- * @description Creates or replaces an organization.
- * NOTE: this route is reserved for system-wide admins ONLY.
- *
- * @param {object} req - Request express object.
- * @param {object} res - Response express object.
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with org's public data
- */
-async function putOrg(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  // Note: Undefined if not set
-  let options;
-  let minified = false;
-
-  // Define valid option and its parsed type
-  const validOptions = {
-    populate: 'array',
-    fields: 'array',
-    minified: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) return noUserError(req, res, next);
-
-  // Singular api: should not accept arrays
-  if (Array.isArray(req.body)) {
-    const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // If an ID was provided in the body, ensure it matches the ID in params
-  if (req.body.hasOwnProperty('id') && (req.body.id !== req.params.orgid)) {
-    const error = new M.DataFormatError(
-      'Organization ID in the body does not match ID in the params.', 'warn'
-    );
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Set the org ID in the body equal req.params.orgid
-  req.body.id = req.params.orgid;
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  try {
-    // Create or replace the organization with provided parameters
-    // NOTE: createOrReplace() sanitizes req.body
-    const orgs = await OrgController.createOrReplace(req.user, req.body, options);
-    // Get the public data of each org
-    const orgsPublicData = sani.html(
-      orgs.map(o => publicData.getPublicData(req.user, o, 'org', options))
-    );
-
-    // Format JSON
-    const json = formatJSON(orgsPublicData[0], minified);
-
-    // Sets the message to the replaced org and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * PATCH /api/orgs/:orgid
- *
- * @description Updates the specified org.
- *
- * @param {object} req - Request express object.
- * @param {object} res - Response express object.
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with updated org
- */
-async function patchOrg(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  // Note: Undefined if not set
-  let options;
-  let minified = false;
-
-  // Define valid option and its parsed type
-  const validOptions = {
-    populate: 'array',
-    fields: 'array',
-    minified: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) return noUserError(req, res, next);
-
-  // Singular api: should not accept arrays
-  if (Array.isArray(req.body)) {
-    const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // If an ID was provided in the body, ensure it matches the ID in params
-  if (req.body.hasOwnProperty('id') && (req.body.id !== req.params.orgid)) {
-    const error = new M.DataFormatError(
-      'Organization ID in the body does not match ID in the params.', 'warn'
-    );
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Set body org id
-  req.body.id = req.params.orgid;
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  try {
-    // Update the specified organization
-    // NOTE: update() sanitizes req.body
-    const orgs = await OrgController.update(req.user, req.body, options);
-    // Get the public data of each org
-    const orgsPublicData = sani.html(
-      orgs.map(o => publicData.getPublicData(req.user, o, 'org', options))
-    );
-
-    // Format JSON
-    const json = formatJSON(orgsPublicData[0], minified);
-
-    // Sets the message to the updated org and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * DELETE /api/orgs/:orgid
- *
- * @description Takes an orgid in the URI and deletes the corresponding org.
- * NOTE: This function is for system-wide admins ONLY.
- *
- * @param {object} req - Request express object.
- * @param {object} res - Response express object.
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with deleted org ID.
- */
-async function deleteOrg(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  // Note: Undefined if not set
-  let options;
-  let minified = false;
-
-  // Define valid option and its parsed type
-  const validOptions = {
-    minified: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) return noUserError(req, res, next);
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  try {
-    // Remove the specified organization
-    // NOTE: remove() sanitizes req.params.orgid
-    const orgIDs = await OrgController.remove(req.user, req.params.orgid, options);
-    const orgID = orgIDs[0];
-
-    // Format JSON
-    const json = formatJSON(orgID, minified);
-
-    // Sets the message to the deleted org id and the status code to 200
     res.locals = {
       message: json,
       statusCode: 200
@@ -1406,6 +1107,10 @@ async function getProjects(req, res, next) {
   else if (Array.isArray(req.body) && req.body.every(s => typeof s === 'object')) {
     ids = req.body.map(p => p.id);
   }
+  else if (req.params.projectid) {
+    // Set the project id
+    ids = req.params.projectid;
+  }
 
   // Check options for minified
   if (options.hasOwnProperty('minified')) {
@@ -1501,6 +1206,19 @@ async function postProjects(req, res, next) {
       return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   }
+  else if (req.params.projectid) {
+    // If project ID was provided in the body, ensure it matches project ID in params
+    if (req.body.hasOwnProperty('id') && (req.params.projectid !== req.body.id)) {
+      const error = new M.DataFormatError(
+        'Project ID in the body does not match ID in the params.', 'warn'
+      );
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+    }
+    projectData = req.body;
+
+    // Set the projectid in case it wasn't provided
+    projectData.id = req.params.projectid;
+  }
   else {
     projectData = req.body;
   }
@@ -1510,6 +1228,61 @@ async function postProjects(req, res, next) {
     // NOTE: create() sanitizes req.params.orgid and projectData
     const projects = await ProjectController.create(req.user, req.params.orgid, projectData,
       options);
+
+    if (mmsConfig) {
+      projects.forEach(proj => {
+        const port = M.config.server[req.protocol].port;
+        const projectRequestOptions = {
+          url: `${req.protocol}://${M.config.server.commitURL}:${port}/plugins/mms-adapter/alfresco/service/mms-project`,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${req.session.token}`,
+            'MMS-TOKEN': req.session.mms_token
+          },
+          method: 'post',
+          data: proj
+        };
+
+        axios(projectRequestOptions).then(async function() {
+          const elementIds = ['model', 'undefined', 'holding_bin', '__mbee__'];
+          const orgid = req.params.orgid;
+          const projectid = utils.parseID(proj._id)[1];
+
+          // Get all init elements
+          const elements = await ElementController.find(req.user, orgid, projectid, 'master', elementIds);
+
+          // Create the init elements in MMS
+          elements.forEach(element => {
+            const elementRequestOptions = {
+              url: `${req.protocol}://${M.config.server.commitURL}:${port}/plugins/mms-adapter/alfresco/service/mms-element`,
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${req.session.token}`,
+                'MMS-TOKEN': req.session.mms_token
+              },
+              method: 'post',
+              data: {
+                projectId: projectid,
+                branchId: 'master',
+                element: element
+              }
+            };
+
+            axios(elementRequestOptions).then(function() {
+              M.log.info(`Success: created element ${element.name} in MMS`);
+            })
+            .catch(function(error) {
+              const message = error.message;
+              return utils.formatResponse(req, res, message, errors.getStatusCode(error), next);
+            });
+          });
+        })
+        .catch(function(error) {
+          return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+        });
+      });
+    }
+
     const publicProjectData = sani.html(
       projects.map(p => publicData.getPublicData(req.user, p, 'project', options))
     );
@@ -1588,6 +1361,19 @@ async function putProjects(req, res, next) {
       // Error occurred with options, report it
       return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
+  }
+  else if (req.params.projectid) {
+    // If project ID was provided in the body, ensure it matches project ID in params
+    if (req.body.hasOwnProperty('id') && (req.params.projectid !== req.body.id)) {
+      const error = new M.DataFormatError(
+        'Project ID in the body does not match ID in the params.', 'warn'
+      );
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+    }
+    projectData = req.body;
+
+    // Set the projectid in req.body in case it wasn't provided
+    projectData.id = req.params.projectid;
   }
   else {
     projectData = req.body;
@@ -1676,6 +1462,19 @@ async function patchProjects(req, res, next) {
       return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   }
+  else if (req.params.projectid) {
+    // If project ID was provided in the body, ensure it matches project ID in params
+    if (req.body.hasOwnProperty('id') && (req.params.projectid !== req.body.id)) {
+      const error = new M.DataFormatError(
+        'Project ID in the body does not match ID in the params.', 'warn'
+      );
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+    }
+    projectData = req.body;
+
+    // Set the projectid in req.body in case it wasn't provided
+    projectData.id = req.params.projectid;
+  }
   else {
     projectData = req.body;
   }
@@ -1746,11 +1545,26 @@ async function deleteProjects(req, res, next) {
     return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
-  // Extract IDs from request
-  const ids = utils.parseRequestIDs(req, options);
+  let ids;
+  if (req.params.projectid) {
+    // If project ID was provided in the body, ensure it matches project ID in params
+    if (req.body.hasOwnProperty('id') && (req.params.projectid !== req.body.id)) {
+      const error = new M.DataFormatError(
+        'Project ID in the body does not match ID in the params.', 'warn'
+      );
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+    }
 
-  // Remove option IDs
-  delete options.ids;
+    // Set the projectid in req.body in case it wasn't provided
+    ids = req.params.projectid;
+  }
+  else {
+    // Extract IDs from request
+    ids = utils.parseRequestIDs(req, options);
+
+    // Remove option IDs
+    delete options.ids;
+  }
 
   // Check options for minified
   if (options.hasOwnProperty('minified')) {
@@ -1767,418 +1581,6 @@ async function deleteProjects(req, res, next) {
     const json = formatJSON(parsedIDs, minified);
 
     // Sets the message to the deleted project ids and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * GET /api/org/:orgid/projects/:projectid
- *
- * @description Gets a project by its project ID.
- *
- * @param {object} req - request express object
- * @param {object} res - response express object
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with project's public data
- */
-async function getProject(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  // Note: Undefined if not set
-  let options;
-  let minified = false;
-
-  // Define valid option and its parsed type
-  const validOptions = {
-    populate: 'array',
-    includeArchived: 'boolean',
-    fields: 'array',
-    minified: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) return noUserError(req, res, next);
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  try {
-    // Find the project
-    // NOTE: find() sanitizes req.params.projectid and req.params.orgid
-    const projects = await ProjectController.find(req.user, req.params.orgid,
-      req.params.projectid, options);
-    // If no projects found, return 404 error
-    if (projects.length === 0) {
-      throw new M.NotFoundError(
-        `Project [${req.params.projectid}] not found.`, 'warn'
-      );
-    }
-
-    const publicProjectData = sani.html(
-      projects.map(p => publicData.getPublicData(req.user, p, 'project', options))
-    );
-
-    // Format JSON
-    const json = formatJSON(publicProjectData[0], minified);
-
-    // Sets the message to the public project data and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * POST /api/orgs/:orgid/projects/:projectid
- *
- * @description Takes an organization ID and project ID in the URI and project
- * data in the request body, and creates a project.
- *
- * @param {object} req - Request express object
- * @param {object} res - Response express object
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with created project.
- */
-async function postProject(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  // Note: Undefined if not set
-  let options;
-  let minified = false;
-
-  // Define valid option and its parsed type
-  const validOptions = {
-    populate: 'array',
-    fields: 'array',
-    minified: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) return noUserError(req, res, next);
-
-  // Singular api: should not accept arrays
-  if (Array.isArray(req.body)) {
-    const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // If project ID was provided in the body, ensure it matches project ID in params
-  if (req.body.hasOwnProperty('id') && (req.params.projectid !== req.body.id)) {
-    const error = new M.DataFormatError(
-      'Project ID in the body does not match ID in the params.', 'warn'
-    );
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Set the projectid in req.body in case it wasn't provided
-  req.body.id = req.params.projectid;
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  try {
-    // Create project with provided parameters
-    // NOTE: create() sanitizes req.params.orgid and req.body
-    const projects = await ProjectController.create(req.user, req.params.orgid, req.body, options);
-    const publicProjectData = sani.html(
-      projects.map(p => publicData.getPublicData(req.user, p, 'project', options))
-    );
-
-    // Format JSON
-    const json = formatJSON(publicProjectData[0], minified);
-
-    // Sets the message to the created project and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * PUT /api/orgs/:orgid/projects/:projectid
- *
- * @description  Creates or replaces a project.
- * NOTE: this route is reserved for system-wide admins ONLY.
- *
- * @param {object} req - Request express object
- * @param {object} res - Response express object
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with created project.
- */
-async function putProject(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  // Note: Undefined if not set
-  let options;
-  let minified = false;
-
-  // Define valid option and its parsed type
-  const validOptions = {
-    populate: 'array',
-    fields: 'array',
-    minified: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) return noUserError(req, res, next);
-
-  // Singular api: should not accept arrays
-  if (Array.isArray(req.body)) {
-    const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // If project ID was provided in the body, ensure it matches project ID in params
-  if (req.body.hasOwnProperty('id') && (req.params.projectid !== req.body.id)) {
-    const error = new M.DataFormatError(
-      'Project ID in the body does not match ID in the params.', 'warn'
-    );
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Set the orgid in req.body in case it wasn't provided
-  req.body.id = req.params.projectid;
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  try {
-    // Create or replace project with provided parameters
-    // NOTE: createOrReplace() sanitizes req.params.orgid and req.body
-    const projects = await ProjectController.createOrReplace(req.user, req.params.orgid,
-      req.body, options);
-    const publicProjectData = sani.html(
-      projects.map(p => publicData.getPublicData(req.user, p, 'project', options))
-    );
-
-    // Format JSON
-    const json = formatJSON(publicProjectData[0], minified);
-
-    // Sets the message to the replaced project and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * PATCH /api/orgs/:orgid/projects/:projectid
- *
- * @description Updates the project specified in the URI.
- *
- * @param {object} req - request express object
- * @param {object} res - response express object
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with updated project.
- */
-async function patchProject(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  // Note: Undefined if not set
-  let options;
-  let minified = false;
-
-  // Define valid option and its parsed type
-  const validOptions = {
-    populate: 'array',
-    fields: 'array',
-    minified: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) return noUserError(req, res, next);
-
-  // Singular api: should not accept arrays
-  if (Array.isArray(req.body)) {
-    const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // If project ID was provided in the body, ensure it matches project ID in params
-  if (req.body.hasOwnProperty('id') && (req.params.projectid !== req.body.id)) {
-    const error = new M.DataFormatError(
-      'Project ID in the body does not match ID in the params.', 'warn'
-    );
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Set the orgid in req.body in case it wasn't provided
-  req.body.id = req.params.projectid;
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  try {
-    // Update the specified project
-    // NOTE: update() sanitizes req.params.orgid and req.body
-    const projects = await ProjectController.update(req.user, req.params.orgid,
-      req.body, options);
-    const publicProjectData = sani.html(
-      projects.map(p => publicData.getPublicData(req.user, p, 'project', options))
-    );
-
-    // Format JSON
-    const json = formatJSON(publicProjectData[0], minified);
-
-    // Sets the message to the updated project and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * DELETE /api/orgs/:orgid/projects/:projectid
- *
- * @description Takes an orgid and projectid in the URI and deletes a project.
- * NOTE: This function is for system-wide admins ONLY.
- *
- * @param {object} req - request express object
- * @param {object} res - response express object
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with deleted project ID.
- */
-async function deleteProject(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  // Note: Undefined if not set
-  let options;
-  let minified = false;
-
-  // Define valid option and its parsed type
-  const validOptions = {
-    minified: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) return noUserError(req, res, next);
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  try {
-    // Remove the specified project
-    // NOTE: remove() sanitizes req.params.orgid and req.params.projectid
-    const projectIDs = await ProjectController.remove(req.user, req.params.orgid,
-      req.params.projectid, options);
-    const parsedIDs = utils.parseID(projectIDs[0]).pop();
-
-    // Format JSON
-    const json = formatJSON(parsedIDs, minified);
-
-    // Sets the message to the deleted project id and the status code to 200
     res.locals = {
       message: json,
       statusCode: 200
@@ -2262,6 +1664,10 @@ async function getUsers(req, res, next) {
   else if (Array.isArray(req.body) && req.body.every(s => typeof s === 'object')) {
     usernames = req.body.map(p => p.id);
   }
+  // Handle case with single user
+  else if (req.params.username) {
+    usernames = req.params.username;
+  }
 
   // Check options for minified
   if (options.hasOwnProperty('minified')) {
@@ -2274,14 +1680,14 @@ async function getUsers(req, res, next) {
     // NOTE: find() sanitizes req.usernames
     const users = await UserController.find(req.user, usernames, options);
 
+    // Verify users public data array is not empty
+    if (users.length === 0) {
+      throw new M.NotFoundError('No users found.', 'warn');
+    }
+
     const publicUserData = sani.html(
       users.map(u => publicData.getPublicData(req.user, u, 'user', options))
     );
-
-    // Verify users public data array is not empty
-    if (publicUserData.length === 0) {
-      throw new M.NotFoundError('No users found.', 'warn');
-    }
 
     // Format JSON
     const json = formatJSON(publicUserData, minified);
@@ -2358,9 +1764,23 @@ async function postUsers(req, res, next) {
       return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   }
+  // Check if usernames provided in query
+  else if (req.params.username) {
+    // If username was provided in the body, ensure it matches username in params
+    if (req.body.hasOwnProperty('username') && (req.body.username !== req.params.username)) {
+      const error = new M.DataFormatError(
+        'Username in body does not match username in params.', 'warn'
+      );
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+    }
+    userData = req.body;
+    // Set body username
+    userData.username = req.params.username;
+  }
   else {
     userData = req.body;
   }
+
 
   try {
     // Create users
@@ -2444,6 +1864,19 @@ async function putUsers(req, res, next) {
       // Error occurred with options, report it
       return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
+  }
+  // Check if usernames provided in query
+  else if (req.params.username) {
+    // If username was provided in the body, ensure it matches username in params
+    if (req.body.hasOwnProperty('username') && (req.body.username !== req.params.username)) {
+      const error = new M.DataFormatError(
+        'Username in body does not match username in params.', 'warn'
+      );
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+    }
+    userData = req.body;
+    // Set body username
+    userData.username = req.params.username;
   }
   else {
     userData = req.body;
@@ -2532,6 +1965,19 @@ async function patchUsers(req, res, next) {
       return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   }
+  // Check if usernames provided in query
+  else if (req.params.username) {
+    // If username was provided in the body, ensure it matches username in params
+    if (req.body.hasOwnProperty('username') && (req.body.username !== req.params.username)) {
+      const error = new M.DataFormatError(
+        'Username in body does not match username in params.', 'warn'
+      );
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+    }
+    userData = req.body;
+    // Set body username
+    userData.username = req.params.username;
+  }
   else {
     userData = req.body;
   }
@@ -2601,11 +2047,17 @@ async function deleteUsers(req, res, next) {
     return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
-  // Extract IDs from request
-  const ids = utils.parseRequestIDs(req, options, true);
+  let ids;
+  if (req.params.username) {
+    ids = req.params.username;
+  }
+  else {
+    // Extract IDs from request
+    ids = utils.parseRequestIDs(req, options, true);
 
-  // Remove option IDs
-  delete options.ids;
+    // Remove option IDs
+    delete options.ids;
+  }
 
   // Check options for minified
   if (options.hasOwnProperty('minified')) {
@@ -2621,421 +2073,6 @@ async function deleteUsers(req, res, next) {
     const json = formatJSON(usernames, minified);
 
     // Sets the message to the deleted usernames and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * GET /api/users/:username
- *
- * @description Gets user by their username.
- *
- * @param {object} req - Request express object
- * @param {object} res - Response express object
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with user's public data
- */
-async function getUser(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  // Note: Undefined if not set
-  let options;
-  let minified = false;
-
-  // Define valid option and its parsed type
-  const validOptions = {
-    populate: 'array',
-    includeArchived: 'boolean',
-    fields: 'array',
-    minified: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) return noUserError(req, res, next);
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  try {
-    // Find the member from its username
-    // NOTE: find() sanitizes req.params.username
-    const users = await UserController.find(req.user, req.params.username, options);
-    // If no user found, return 404 error
-    if (users.length === 0) {
-      throw new M.NotFoundError(
-        `User [${req.params.username}] not found.`, 'warn'
-      );
-    }
-
-    const publicUserData = sani.html(
-      users.map(u => publicData.getPublicData(req.user, u, 'user', options))
-    );
-
-    // Format JSON
-    const json = formatJSON(publicUserData[0], minified);
-
-    // Sets the message to the public user data and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * POST /api/users/:username
- *
- * @description Creates a new user.
- * NOTE: System-wide admin only.
- *
- * @param {object} req - Request express object
- * @param {object} res - Response express object
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with created user
- */
-async function postUser(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  // Note: Undefined if not set
-  let options;
-  let minified = false;
-
-  // Define valid option and its parsed type
-  const validOptions = {
-    populate: 'array',
-    fields: 'array',
-    minified: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) return noUserError(req, res, next);
-
-  // Singular api: should not accept arrays
-  if (Array.isArray(req.body)) {
-    const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // If username was provided in the body, ensure it matches username in params
-  if (req.body.hasOwnProperty('username') && (req.body.username !== req.params.username)) {
-    const error = new M.DataFormatError(
-      'Username in body does not match username in params.', 'warn'
-    );
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Set the username in req.body in case it wasn't provided
-  req.body.username = req.params.username;
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  try {
-    // Create user with provided parameters
-    // NOTE: create() sanitizes req.body
-    const users = await UserController.create(req.user, req.body, options);
-    const publicUserData = sani.html(
-      users.map(u => publicData.getPublicData(req.user, u, 'user', options))
-    );
-
-    // Format JSON
-    const json = formatJSON(publicUserData[0], minified);
-
-    // Sets the message to the public user data and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * PUT /api/users/:username
- *
- * @description Creates or replaces a user. NOTE: This endpoint is reserved for
- * system-wide admins ONLY.
- *
- * @param {object} req - Request express object
- * @param {object} res - Response express object
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with created user
- */
-async function putUser(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  // Note: Undefined if not set
-  let options;
-  let minified = false;
-
-  // Define valid option and its parsed type
-  const validOptions = {
-    populate: 'array',
-    fields: 'array',
-    minified: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) return noUserError(req, res, next);
-
-  // Singular api: should not accept arrays
-  if (Array.isArray(req.body)) {
-    const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // If username was provided in the body, ensure it matches username in params
-  if (req.body.hasOwnProperty('username') && (req.body.username !== req.params.username)) {
-    const error = new M.DataFormatError(
-      'Username in body does not match username in params.', 'warn'
-    );
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Set the username in req.body in case it wasn't provided
-  req.body.username = req.params.username;
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  try {
-    // Creates or replaces a user with provided parameters
-    // NOTE: createOrReplace() sanitizes req.body
-    const users = await UserController.createOrReplace(req.user, req.body, options);
-    const publicUserData = sani.html(
-      users.map(u => publicData.getPublicData(req.user, u, 'user', options))
-    );
-
-    // Format JSON
-    const json = formatJSON(publicUserData[0], minified);
-
-    // Sets the message to the public user data and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * PATCH /api/users/:username
- *
- * @description Updates the user.
- * NOTE: System-wide admin only. Non admin can only edit themselves.
- *
- * @param {object} req - Request express object
- * @param {object} res - Response express object
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with updated user
- */
-async function patchUser(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  // Note: Undefined if not set
-  let options;
-  let minified = false;
-
-  // Define valid option and its parsed type
-  const validOptions = {
-    populate: 'array',
-    fields: 'array',
-    minified: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) return noUserError(req, res, next);
-
-  // Singular api: should not accept arrays
-  if (Array.isArray(req.body)) {
-    const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // If username was provided in the body, ensure it matches username in params
-  if (req.body.hasOwnProperty('username') && (req.body.username !== req.params.username)) {
-    const error = new M.DataFormatError(
-      'Username in body does not match username in params.', 'warn'
-    );
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Set body username
-  req.body.username = req.params.username;
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  try {
-    // Update the specified user
-    // NOTE: update() sanitizes req.body
-    const users = await UserController.update(req.user, req.body, options);
-    const publicUserData = sani.html(
-      users.map(u => publicData.getPublicData(req.user, u, 'user', options))
-    );
-
-    // Format JSON
-    const json = formatJSON(publicUserData[0], minified);
-
-    // Sets the message to the public user data and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * DELETE /api/users/:username
- *
- * @description Deletes a user.
- * NOTE: This function is system-admin ONLY.
- *
- * @param {object} req - Request express object
- * @param {object} res - Response express object
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with deleted username
- */
-async function deleteUser(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  // Note: Undefined if not set
-  let options;
-  let minified = false;
-
-  // Define valid option and its parsed type
-  const validOptions = {
-    minified: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) return noUserError(req, res, next);
-
-  // Singular api: should not accept arrays
-  if (Array.isArray(req.body)) {
-    const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  try {
-    // Remove the specified user
-    // NOTE: remove() sanitizes req.params.username
-    const usernames = await UserController.remove(req.user, req.params.username, options);
-    const username = usernames[0];
-
-    // Format JSON
-    const json = formatJSON(username, minified);
-
-    // Sets the message to the deleted username and the status code to 200
     res.locals = {
       message: json,
       statusCode: 200
@@ -3369,6 +2406,10 @@ async function getElements(req, res, next) {
   else if (Array.isArray(req.body) && req.body.every(s => typeof s === 'object')) {
     elemIDs = req.body.map(p => p.id);
   }
+  else if (req.params.elementid) {
+    // Set the element id
+    elemIDs = req.params.elementid;
+  }
 
   // Check for format conversion option
   if (options.hasOwnProperty('format')) {
@@ -3489,6 +2530,17 @@ async function postElements(req, res, next) {
       return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   }
+  else if (req.params.elementid) {
+    // If an ID was provided in the body, ensure it matches the ID in params
+    if (req.body.hasOwnProperty('id') && (req.body.id !== req.params.elementid)) {
+      const error = new M.DataFormatError(
+        'Element ID in the body does not match ID in the params.', 'warn'
+      );
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+    }
+    elementData = req.body;
+    elementData.id = req.params.elementid;
+  }
   else {
     elementData = req.body;
   }
@@ -3498,6 +2550,39 @@ async function postElements(req, res, next) {
     // NOTE: create() sanitizes input params
     const elements = await ElementController.create(req.user, req.params.orgid,
       req.params.projectid, req.params.branchid, elementData, options);
+
+    if (mmsConfig) {
+      elements.forEach(element => {
+        const port = M.config.server[req.protocol].port;
+        const split = element.branch.split(':');
+        // const org = split[0];
+        const proj = split[1];
+        const branch = split[2];
+        const requestOptions = {
+          url: `${req.protocol}://${M.config.server.commitURL}:${port}/plugins/mms-adapter/alfresco/service/mms-element`,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${req.session.token}`,
+            'MMS-TOKEN': req.session.mms_token
+          },
+          method: 'post',
+          data: {
+            projectId: proj,
+            branchId: branch,
+            element: element
+          }
+        };
+
+        axios(requestOptions).then(function(response) {
+          M.log.info(`Success: created element ${element.name} in MMS`);
+        })
+        .catch(function(error) {
+                    M.log.error(error);
+          return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+        });
+      });
+    }
+
     const elementsPublicData = sani.html(
       elements.map(e => publicData.getPublicData(req.user, e, 'element', options))
     );
@@ -3576,6 +2661,17 @@ async function putElements(req, res, next) {
       // Error occurred with options, report it
       return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
+  }
+  else if (req.params.elementid) {
+    // If an ID was provided in the body, ensure it matches the ID in params
+    if (req.body.hasOwnProperty('id') && (req.body.id !== req.params.elementid)) {
+      const error = new M.DataFormatError(
+        'Element ID in the body does not match ID in the params.', 'warn'
+      );
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+    }
+    elementData = req.body;
+    elementData.id = req.params.elementid;
   }
   else {
     elementData = req.body;
@@ -3664,6 +2760,17 @@ async function patchElements(req, res, next) {
       return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   }
+  else if (req.params.elementid) {
+    // If an ID was provided in the body, ensure it matches the ID in params
+    if (req.body.hasOwnProperty('id') && (req.body.id !== req.params.elementid)) {
+      const error = new M.DataFormatError(
+        'Element ID in the body does not match ID in the params.', 'warn'
+      );
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+    }
+    elementData = req.body;
+    elementData.id = req.params.elementid;
+  }
   else {
     elementData = req.body;
   }
@@ -3733,11 +2840,17 @@ async function deleteElements(req, res, next) {
     return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
-  // Extract IDs from request
-  const ids = utils.parseRequestIDs(req, options);
+  let ids;
+  if (req.params.elementid) {
+    ids = req.params.elementid;
+  }
+  else {
+    // Extract IDs from request
+    ids = utils.parseRequestIDs(req, options);
 
-  // Remove option IDs
-  delete options.ids;
+    // Remove option IDs
+    delete options.ids;
+  }
 
   // Check options for minified
   if (options.hasOwnProperty('minified')) {
@@ -3881,425 +2994,6 @@ async function searchElements(req, res, next) {
   }
 }
 
-/**
- * GET /api/orgs/:orgid/projects/:projectid/branches/:branchid/elements/:elementid
- *
- * @description Gets an element.
- *
- * @param {object} req - Request express object
- * @param {object} res - Response express object
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with element's public data
- */
-async function getElement(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  // Note: Undefined if not set
-  let options;
-  let minified = false;
-
-  // Define valid option type
-  const validOptions = {
-    populate: 'array',
-    includeArchived: 'boolean',
-    subtree: 'boolean',
-    depth: 'number',
-    fields: 'array',
-    minified: 'boolean',
-    rootpath: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) return noUserError(req, res, next);
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  try {
-    // Find the element
-    // NOTE: find() sanitizes input params
-    const elements = await ElementController.find(req.user, req.params.orgid,
-      req.params.projectid, req.params.branchid, req.params.elementid, options);
-    // If no element found, return 404 error
-    if (elements.length === 0) {
-      throw new M.NotFoundError(
-        `Element [${req.params.elementid}] not found.`, 'warn'
-      );
-    }
-
-    let elementsPublicData = sani.html(
-      elements.map(e => publicData.getPublicData(req.user, e, 'element', options))
-    );
-
-    // If the subtree option was not provided, return only the first element
-    if (!options.subtree && !options.rootpath) {
-      elementsPublicData = elementsPublicData[0];
-    }
-
-    // Format JSON
-    const json = formatJSON(elementsPublicData, minified);
-
-    // Sets the message to the public element data and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * POST /api/orgs/:orgid/projects/:projectid/branches/:branchid/elements/:elementid
- *
- * @description Creates an element.
- *
- * @param {object} req - Request express object
- * @param {object} res - Response express object
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with created element
- */
-async function postElement(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  // Note: Undefined if not set
-  let options;
-  let minified = false;
-
-  // Define valid option type
-  const validOptions = {
-    populate: 'array',
-    fields: 'array',
-    minified: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) return noUserError(req, res, next);
-
-  // Singular api: should not accept arrays
-  if (Array.isArray(req.body)) {
-    const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // If an ID was provided in the body, ensure it matches the ID in params
-  if (req.body.hasOwnProperty('id') && (req.body.id !== req.params.elementid)) {
-    const error = new M.DataFormatError(
-      'Element ID in the body does not match ID in the params.', 'warn'
-    );
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Set the element ID in the body equal req.params.elementid
-  req.body.id = req.params.elementid;
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  try {
-    // Create element with provided parameters
-    // NOTE: create() sanitizes input params
-    const elements = await ElementController.create(req.user, req.params.orgid,
-      req.params.projectid, req.params.branchid, req.body, options);
-    const elementsPublicData = sani.html(
-      elements.map(e => publicData.getPublicData(req.user, e, 'element', options))
-    );
-
-    // Format JSON
-    const json = formatJSON(elementsPublicData[0], minified);
-
-    // Sets the message to the public element data and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * PUT /api/orgs/:orgid/projects/:projectid/branches/:branchid/elements/:elementid
- *
- * @description Creates or replaces an element. NOTE: this route is reserved
- * for system-wide admins ONLY.
- *
- * @param {object} req - Request express object
- * @param {object} res - Response express object
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with created/replaced element
- */
-async function putElement(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  // Note: Undefined if not set
-  let options;
-  let minified = false;
-
-  // Define valid option type
-  const validOptions = {
-    populate: 'array',
-    fields: 'array',
-    minified: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) return noUserError(req, res, next);
-
-  // Singular api: should not accept arrays
-  if (Array.isArray(req.body)) {
-    const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // If an ID was provided in the body, ensure it matches the ID in params
-  if (req.body.hasOwnProperty('id') && (req.body.id !== req.params.elementid)) {
-    const error = new M.DataFormatError(
-      'Element ID in the body does not match ID in the params.', 'warn'
-    );
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Set the element ID in the body equal req.params.elementid
-  req.body.id = req.params.elementid;
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  try {
-    // Create or replace element with provided parameters
-    // NOTE: createOrReplace() sanitizes input params
-    const elements = await ElementController.createOrReplace(req.user, req.params.orgid,
-      req.params.projectid, req.params.branchid, req.body, options);
-    const elementsPublicData = sani.html(
-      elements.map(e => publicData.getPublicData(req.user, e, 'element', options))
-    );
-
-    // Format JSON
-    const json = formatJSON(elementsPublicData[0], minified);
-
-    // Sets the message to the public element data and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * PATCH /api/orgs/:orgid/projects/:projectid/branches/:branchid/elements/:elementid
- *
- * @description Updates the specified element.
- *
- * @param {object} req - Request express object
- * @param {object} res - Response express object
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with updated element
- */
-async function patchElement(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  // Note: Undefined if not set
-  let options;
-  let minified = false;
-
-  // Define valid option type
-  const validOptions = {
-    populate: 'array',
-    fields: 'array',
-    minified: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) return noUserError(req, res, next);
-
-  // Singular api: should not accept arrays
-  if (Array.isArray(req.body)) {
-    const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // If an ID was provided in the body, ensure it matches the ID in params
-  if (req.body.hasOwnProperty('id') && (req.body.id !== req.params.elementid)) {
-    const error = new M.DataFormatError(
-      'Element ID in the body does not match ID in the params.', 'warn'
-    );
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Set the element ID in the body equal req.params.elementid
-  req.body.id = req.params.elementid;
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  try {
-    // Updates the specified element
-    // NOTE: update() sanitizes input params
-    const elements = await ElementController.update(req.user, req.params.orgid,
-      req.params.projectid, req.params.branchid, req.body, options);
-    const elementsPublicData = sani.html(
-      elements.map(e => publicData.getPublicData(req.user, e, 'element', options))
-    );
-
-    // Format JSON
-    const json = formatJSON(elementsPublicData[0], minified);
-
-    // Sets the message to the public element data and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * DELETE /api/orgs/:orgid/projects/:projectid/branches/:branchid/elements/:elementid
- *
- * @description Deletes an element.
- *
- * @param {object} req - Request express object
- * @param {object} res - Response express object
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with deleted element id.
- */
-async function deleteElement(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  // Note: Undefined if not set
-  let options;
-  let minified = false;
-
-  // Define valid option and its parsed type
-  const validOptions = {
-    minified: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) return noUserError(req, res, next);
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  try {
-    // Remove the specified element
-    // NOTE: remove() sanitizes input params
-    const element = await ElementController.remove(req.user, req.params.orgid, req.params.projectid,
-      req.params.branchid, [req.params.elementid], options);
-    const parsedID = utils.parseID(element[0]).pop();
-
-    // Format JSON
-    const json = formatJSON(parsedID, minified);
-
-    // Sets the message to the deleted element id and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
 /* -----------------------( Branches API Endpoints )------------------------- */
 /**
  * GET /api/orgs/:orgid/projects/:projectid/branches
@@ -4364,8 +3058,11 @@ async function getBranches(req, res, next) {
     return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
+  if (req.params.branchid) {
+    branchIDs = req.params.branchid;
+  }
   // Check query for branch IDs
-  if (options.ids) {
+  else if (options.ids) {
     branchIDs = options.ids;
     delete options.ids;
   }
@@ -4472,6 +3169,18 @@ async function postBranches(req, res, next) {
       return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   }
+  else if (req.params.branchid) {
+    // If an ID was provided in the body, ensure it matches the ID in params
+    if (req.body.hasOwnProperty('id') && (req.body.id !== req.params.branchid)) {
+      const error = new M.DataFormatError(
+        'Branch ID in the body does not match ID in the params.', 'warn'
+      );
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+    }
+
+    branchData = req.body;
+    branchData.id = req.params.branchid;
+  }
   else {
     branchData = req.body;
   }
@@ -4484,6 +3193,70 @@ async function postBranches(req, res, next) {
     const publicBranchData = sani.html(
       branches.map(b => publicData.getPublicData(req.user, b, 'branch', options))
     );
+
+    if (mmsConfig) {
+      // Create new branch in MMS and the initial elements
+      branches.forEach(branch => {
+        const projectid = req.params.projectid;
+        const port = M.config.server[req.protocol].port;
+
+        // Setting up request options
+        const branchRequestOptions = {
+          url: `${req.protocol}://${M.config.server.commitURL}:${port}/plugins/mms-adapter/alfresco/service/mms-branch`,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${req.session.token}`,
+            'MMS-TOKEN': req.session.mms_token
+          },
+          method: 'post',
+          data: {
+            projectId: projectid,
+            branchObj: branch
+          }
+        };
+
+        // Sending request to MMS adapter to create branch
+        axios(branchRequestOptions).then(async function() {
+          // const elementIds = ['model', 'undefined', 'holding_bin', '__mbee__'];
+          const orgid = req.params.orgid;
+          // const projectid = req.params.projectid;
+          const branchid = utils.parseID(branch._id)[2];
+
+          // Getting all elements in the newly created branch
+          const elements = await ElementController.find(req.user, orgid, projectid, `${branchid}`);
+
+          // Creating the initial 4 elements in MMS
+          elements.forEach(element => {
+            const elementRequestOptions = {
+              url: `${req.protocol}://${M.config.server.commitURL}:${port}/plugins/mms-adapter/alfresco/service/mms-element`,
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${req.session.token}`,
+                'MMS-TOKEN': req.session.mms_token
+              },
+              method: 'post',
+              data: {
+                projectId: projectid,
+                branchId: branchid,
+                element: element
+              }
+            };
+
+            // Sending request to MMS adapter to create elements
+            axios(elementRequestOptions).then(function() {
+              M.log.info(`Success: created element ${element.name} in MMS`);
+            })
+            .catch(function(error) {
+              const message = error.message;
+              return utils.formatResponse(req, res, message, errors.getStatusCode(error), next);
+            });
+          });
+        })
+        .catch(function(error) {
+          return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+        });
+      });
+    }
 
     // Format JSON
     const json = formatJSON(publicBranchData, minified);
@@ -4559,6 +3332,17 @@ async function patchBranches(req, res, next) {
       return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   }
+  else if (req.params.branchid) {
+    // If an ID was provided in the body, ensure it matches the ID in params
+    if (req.body.hasOwnProperty('id') && (req.body.id !== req.params.branchid)) {
+      const error = new M.DataFormatError(
+        'Branch ID in the body does not match ID in the params.', 'warn'
+      );
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+    }
+    branchData = req.body;
+    branchData.id = req.params.branchid;
+  }
   else {
     branchData = req.body;
   }
@@ -4628,11 +3412,24 @@ async function deleteBranches(req, res, next) {
     return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
-  // Extract IDs from request
-  const ids = utils.parseRequestIDs(req, options);
+  let ids;
+  if (req.params.branchid) {
+    // If an ID was provided in the body, ensure it matches the ID in params
+    if (req.body.hasOwnProperty('id') && (req.body.id !== req.params.branchid)) {
+      const error = new M.DataFormatError(
+        'Branch ID in the body does not match ID in the params.', 'warn'
+      );
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+    }
+    ids = req.params.branchid;
+  }
+  else {
+    // Extract IDs from request
+    ids = utils.parseRequestIDs(req, options);
 
-  // Remove option IDs
-  delete options.ids;
+    // Remove option IDs
+    delete options.ids;
+  }
 
   // Check options for minified
   if (options.hasOwnProperty('minified')) {
@@ -4650,329 +3447,6 @@ async function deleteBranches(req, res, next) {
     const json = formatJSON(parsedIDs, minified);
 
     // Sets the message to the deleted branch ids and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * GET /api/org/:orgid/projects/:projectid/branches/:branchid
- *
- * @description Gets a branch by its branch ID.
- *
- * @param {object} req - request express object
- * @param {object} res - response express object
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with branch's public data
- */
-async function getBranch(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  // Note: Undefined if not set
-  let options;
-  let minified = false;
-
-  // Define valid option and its parsed type
-  const validOptions = {
-    populate: 'array',
-    includeArchived: 'boolean',
-    fields: 'array',
-    minified: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) return noUserError(req, res, next);
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  try {
-    // Find the branch
-    // NOTE: find() sanitizes req.params.branchid, req.params.projectid and req.params.orgid
-    const branch = await BranchController.find(req.user, req.params.orgid, req.params.projectid,
-      req.params.branchid, options);
-    // If no branch found, return 404 error
-    if (branch.length === 0) {
-      throw new M.NotFoundError(
-        `Branch [${req.params.branchid}] not found.`, 'warn'
-      );
-    }
-
-    const publicBranchData = sani.html(
-      branch.map(b => publicData.getPublicData(req.user, b, 'branch', options))
-    );
-
-    // Format JSON
-    const json = formatJSON(publicBranchData[0], minified);
-
-    // Sets the message to the public branch data and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * POST /api/orgs/:orgid/projects/:projectid/branches/:branchid
- *
- * @description Creates a branch.
- *
- * @param {object} req - Request express object
- * @param {object} res - Response express object
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with created branch
- */
-async function postBranch(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  // Note: Undefined if not set
-  let options;
-  let minified = false;
-
-  // Define valid option type
-  const validOptions = {
-    populate: 'array',
-    fields: 'array',
-    minified: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) return noUserError(req, res, next);
-
-  // Singular api: should not accept arrays
-  if (Array.isArray(req.body)) {
-    const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // If an ID was provided in the body, ensure it matches the ID in params
-  if (req.body.hasOwnProperty('id') && (req.body.id !== req.params.branchid)) {
-    const error = new M.DataFormatError(
-      'Branch ID in the body does not match ID in the params.', 'warn'
-    );
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Set the branch ID in the body equal req.params.branchid
-  req.body.id = req.params.branchid;
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  try {
-    // Create branch with provided parameters
-    // NOTE: create() sanitizes input params
-    const branch = await BranchController.create(req.user, req.params.orgid, req.params.projectid,
-      req.body, options);
-    const branchesPublicData = sani.html(
-      branch.map(b => publicData.getPublicData(req.user, b, 'branch', options))
-    );
-
-    // Format JSON
-    const json = formatJSON(branchesPublicData[0], minified);
-
-    // Sets the message to the public branch data and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * PATCH /api/orgs/:orgid/projects/:projectid/branches/:branchid
- *
- * @description Updates the specified branch.
- *
- * @param {object} req - Request express object
- * @param {object} res - Response express object
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with updated branch
- */
-async function patchBranch(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  // Note: Undefined if not set
-  let options;
-  let minified = false;
-
-  // Define valid option type
-  const validOptions = {
-    populate: 'array',
-    fields: 'array',
-    minified: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) return noUserError(req, res, next);
-
-  // Singular api: should not accept arrays
-  if (Array.isArray(req.body)) {
-    const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // If an ID was provided in the body, ensure it matches the ID in params
-  if (req.body.hasOwnProperty('id') && (req.body.id !== req.params.branchid)) {
-    const error = new M.DataFormatError(
-      'Branch ID in the body does not match ID in the params.', 'warn'
-    );
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Set the branch ID in the body equal req.params.branchid
-  req.body.id = req.params.branchid;
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  try {
-    // Updates the specified branch
-    // NOTE: update() sanitizes input params
-    const branch = await BranchController.update(req.user, req.params.orgid, req.params.projectid,
-      req.body, options);
-    const branchPublicData = sani.html(
-      branch.map(b => publicData.getPublicData(req.user, b, 'branch', options))
-    );
-
-    // Format JSON
-    const json = formatJSON(branchPublicData[0], minified);
-
-    // Sets the message to the public branch data and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * DELETE /api/orgs/:orgid/projects/:projectid/branches/:branchid
- *
- * @description Takes an orgid, projectid, and branchid in the URI and
- * deletes a branch.
- *
- * @param {object} req - request express object
- * @param {object} res - response express object
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with deleted branch ID.
- */
-async function deleteBranch(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  // Note: Undefined if not set
-  let options;
-  let minified = false;
-
-  // Define valid option and its parsed type
-  const validOptions = {
-    minified: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) return noUserError(req, res, next);
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  try {
-    // Remove the specified branch
-    // NOTE: remove() sanitizes params
-    const branchID = await BranchController.remove(req.user, req.params.orgid, req.params.projectid,
-      req.params.branchid, options);
-    const parsedIDs = utils.parseID(branchID[0]).pop();
-
-    // Format JSON
-    const json = formatJSON(parsedIDs, minified);
-
-    // Sets the message to the deleted branch id and the status code to 200
     res.locals = {
       message: json,
       statusCode: 200
@@ -5051,6 +3525,9 @@ async function getArtifacts(req, res, next) {
   // Check artifact object in body
   else if (Array.isArray(req.body) && req.body.every(s => typeof s === 'object')) {
     artIDs = req.body.map(a => a.id);
+  }
+  else if (req.params.artifactid) {
+    artIDs = req.params.artifactid;
   }
 
   // Check for format conversion option
@@ -5192,6 +3669,18 @@ async function postArtifacts(req, res, next) {
       return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   }
+  else if (req.params.artifactid) {
+    // If artifact ID was provided in the body, ensure it matches artifact ID in params
+    if (req.body.hasOwnProperty('id') && req.params.artifactid !== req.body.id) {
+      const error = new M.DataFormatError(
+        'Artifact ID in the body does not match ID in the params.', 'warn'
+      );
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+    }
+
+    artifactData = req.body;
+    artifactData.id = req.params.artifactid;
+  }
   else {
     artifactData = req.body;
   }
@@ -5279,6 +3768,18 @@ async function patchArtifacts(req, res, next) {
       return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
     }
   }
+  else if (req.params.artifactid) {
+    // If artifact ID was provided in the body, ensure it matches artifact ID in params
+    if (req.body.hasOwnProperty('id') && req.params.artifactid !== req.body.id) {
+      const error = new M.DataFormatError(
+        'Artifact ID in the body does not match ID in the params.', 'warn'
+      );
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+    }
+
+    artifactData = req.body;
+    artifactData.id = req.params.artifactid;
+  }
   else {
     // Sanitize body
     artifactData = JSON.parse(JSON.stringify(req.body));
@@ -5351,11 +3852,17 @@ async function deleteArtifacts(req, res, next) {
     return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
-  // Extract IDs from request
-  const ids = utils.parseRequestIDs(req, options);
+  let ids;
+  if (req.params.artifactid) {
+    ids = req.params.artifactid;
+  }
+  else {
+    // Extract IDs from request
+    ids = utils.parseRequestIDs(req, options);
 
-  // Remove option IDs
-  delete options.ids;
+    // Remove option IDs
+    delete options.ids;
+  }
 
   // Check options for minified
   if (options.hasOwnProperty('minified')) {
@@ -5373,332 +3880,6 @@ async function deleteArtifacts(req, res, next) {
     const json = formatJSON(parsedIDs, minified);
 
     // Sets the message to the deleted artifact ids and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * GET /api/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts/:artifactid
- *
- * @description Gets a single artifact by ID.
- *
- * @param {object} req - Request express object
- * @param {object} res - Response express object
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with found artifact
- */
-async function getArtifact(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  // Note: Undefined if not set
-  let options;
-  let minified = false;
-
-  // Define valid option and its parsed type
-  const validOptions = {
-    populate: 'array',
-    fields: 'array',
-    minified: 'boolean',
-    includeArchived: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) return noUserError(req, res, next);
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  try {
-    // Find the artifact from its artifact.id, branch.id, project.id, and org.id
-    // NOTE: find() sanitizes input params
-    const artifact = await ArtifactController.find(req.user, req.params.orgid,
-      req.params.projectid, req.params.branchid, req.params.artifactid, options);
-
-    // If no artifact found, return 404 error
-    if (artifact.length === 0) {
-      throw new M.NotFoundError(
-        `Artifact [${req.params.artifactid}] not found.`, 'warn'
-      );
-    }
-
-    const publicArtifactData = sani.html(
-      artifact.map(a => publicData.getPublicData(req.user, a, 'artifact', options))
-    );
-
-    // Format JSON
-    const json = formatJSON(publicArtifactData[0], minified);
-
-    // Sets the message to the public artifact data and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * POST /api/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts/:artifactid
- *
- * @description Creates a single artifact.
- *
- * @param {object} req - Request express object
- * @param {object} res - Response express object
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with created artifact
- */
-async function postArtifact(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  // Note: Undefined if not set
-  let options;
-  let minified = false;
-
-  // Define valid option and its parsed type
-  const validOptions = {
-    populate: 'array',
-    fields: 'array',
-    minified: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) return noUserError(req, res, next);
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  // Singular api: should not accept arrays
-  if (Array.isArray(req.body)) {
-    const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // If artifact ID was provided in the body, ensure it matches artifact ID in params
-  if (req.body.hasOwnProperty('id') && req.params.artifactid !== req.body.id) {
-    const error = new M.DataFormatError(
-      'Artifact ID in the body does not match ID in the params.', 'warn'
-    );
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Set the artifact ID in the body equal req.params.artifactid
-  req.body.id = req.params.artifactid;
-
-  // Create artifact with provided parameters
-  // NOTE: create() sanitizes input params
-  try {
-    const artifact = await ArtifactController.create(req.user, req.params.orgid,
-      req.params.projectid, req.params.branchid, req.body, options);
-
-    const artifactsPublicData = sani.html(
-      artifact.map(a => publicData.getPublicData(req.user, a, 'artifact', options))
-    );
-    // Format JSON
-    const json = formatJSON(artifactsPublicData[0], minified);
-
-    // Sets the message to the public artifact data and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * PATCH /api/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts/:artifactid
- *
- * @description Updates a single artifact.
- *
- * @param {object} req - Request express object
- * @param {object} res - Response express object
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with updated artifact
- */
-async function patchArtifact(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  // Note: Undefined if not set
-  let options;
-  let minified = false;
-
-  // Define valid option and its parsed type
-  const validOptions = {
-    populate: 'array',
-    fields: 'array',
-    minified: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) return noUserError(req, res, next);
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  // Singular api: should not accept arrays
-  if (Array.isArray(req.body)) {
-    const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Sanitize body
-  req.body = JSON.parse(JSON.stringify(req.body));
-
-  // If an ID was provided in the body, ensure it matches the ID in params
-  if (req.body.hasOwnProperty('id') && req.params.artifactid !== req.body.id) {
-    const error = new M.DataFormatError(
-      'Artifact ID in the body does not match ID in the params.', 'warn'
-    );
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Set the artifact ID in the body equal req.params.artifactid
-  req.body.id = req.params.artifactid;
-
-  try {
-    // Update the specified artifact
-    // NOTE: update() sanitizes input params
-    const artifact = await ArtifactController.update(req.user, req.params.orgid,
-      req.params.projectid, req.params.branchid, req.body, options);
-
-    const artifactsPublicData = sani.html(
-      artifact.map(a => publicData.getPublicData(req.user, a, 'artifact', options))
-    );
-
-    // Format JSON
-    const json = formatJSON(artifactsPublicData[0], minified);
-
-    // Sets the message to the public artifact data and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * DELETE /api/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts/:artifactid
- *
- * @description Deletes a single artifact.
- *
- * @param {object} req - Request express object
- * @param {object} res - Response express object
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with artifact id.
- */
-async function deleteArtifact(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  // Note: Undefined if not set
-  let options;
-  let minified = false;
-
-  // Define valid option and its parsed type
-  const validOptions = {
-    minified: 'boolean',
-    deleteBlob: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) return noUserError(req, res, next);
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-  try {
-    // Remove the specified artifact
-    // NOTE: remove() sanitizes input params
-    const artIDs = await ArtifactController.remove(req.user, req.params.orgid,
-      req.params.projectid, req.params.branchid, req.params.artifactid, options);
-    const parsedIDs = artIDs.map(a => utils.parseID(a).pop());
-
-    // Format JSON
-    const json = formatJSON(parsedIDs[0], minified);
-
-    // Sets the message to the deleted artifact id and the status code to 200
     res.locals = {
       message: json,
       statusCode: 200
@@ -6043,6 +4224,9 @@ async function getWebhooks(req, res, next) {
   else if (Array.isArray(req.body) && req.body.every(s => typeof s === 'object')) {
     webhookIDs = req.body.map(w => w.id);
   }
+  else if (req.params.webhookid) {
+    webhookIDs = req.params.webhookid;
+  }
 
   // Check options for minified
   if (options.hasOwnProperty('minified')) {
@@ -6203,9 +4387,26 @@ async function patchWebhooks(req, res, next) {
     delete options.minified;
   }
 
+  let webhookData;
+  if (req.params.webhookid) {
+    // If there's a webhookid in the body, check that it matches the params
+    if (req.body.hasOwnProperty('id') && (req.body.id !== req.params.webhookid)) {
+      const error = new M.DataFormatError(
+        'Webhook ID in body does not match webhook ID in params.', 'warn'
+      );
+      return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+    }
+
+    webhookData = req.body;
+    webhookData.id = req.params.webhookid;
+  }
+  else {
+    webhookData = req.body;
+  }
+
   try {
     // Updates the specified webhooks
-    const webhooks = await WebhookController.update(req.user, req.body, options);
+    const webhooks = await WebhookController.update(req.user, webhookData, options);
 
     // Get the webhooks' public data
     const webhookPublicData = sani.html(
@@ -6244,7 +4445,7 @@ async function deleteWebhooks(req, res, next) {
   if (res.statusCode !== 200) return next();
 
   // Define options
-  let options = {};
+  let options;
   let minified = false;
 
   // Define valid option and its parsed type
@@ -6270,11 +4471,17 @@ async function deleteWebhooks(req, res, next) {
     return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
   }
 
-  // Extract IDs from request
-  const ids = utils.parseRequestIDs(req, options);
+  let ids;
+  if (req.params.webhookid) {
+    ids = req.params.webhookid;
+  }
+  else {
+    // Extract IDs from request
+    ids = utils.parseRequestIDs(req, options);
 
-  // Remove option IDs
-  delete options.ids;
+    // Remove option IDs
+    delete options.ids;
+  }
 
   // Check options for minified
   if (options.hasOwnProperty('minified')) {
@@ -6290,247 +4497,6 @@ async function deleteWebhooks(req, res, next) {
     const json = formatJSON(webhooks, minified);
 
     // Sets the message to the deleted webhook ids and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * GET /api/webhooks/:webhookid
- *
- * @description Gets a single webhook by id
- *
- * @param {object} req - Request express object
- * @param {object} res - Response express object
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with the webhook's public data.
- */
-async function getWebhook(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  let options;
-  let minified = false;
-
-  // Define valid option type
-  const validOptions = {
-    populate: 'array',
-    includeArchived: 'boolean',
-    fields: 'array',
-    minified: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  try {
-    // Find the webhook
-    const webhooks = await WebhookController.find(req.user, req.params.webhookid, options);
-
-    // If no webhook was found, return 404
-    if (webhooks.length === 0) {
-      throw new M.NotFoundError(
-        `Webhook [${req.params.webhookid}] not found.`, 'warn'
-      );
-    }
-    const webhook = webhooks[0];
-
-    // Get the public data for the webhook
-    const webhookPublicData = sani.html(
-      publicData.getPublicData(req.user, webhook, 'webhook', options)
-    );
-
-    // Format JSON
-    const json = formatJSON(webhookPublicData, minified);
-
-    // Sets the message to the public webhook data and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * PATCH /api/webhooks/:webhookid
- *
- * @description Updates the specified webhook.
- *
- * @param {object} req - Request express object
- * @param {object} res - Response express object
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with the updated webhook.
- */
-async function patchWebhook(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  let options;
-  let minified = false;
-
-  // Define valid option type
-  const validOptions = {
-    populate: 'array',
-    fields: 'array',
-    minified: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Singular api: should not accept arrays
-  if (Array.isArray(req.body)) {
-    const error = new M.DataFormatError('Input cannot be an array', 'warn');
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // If there's a webhookid in the body, check that it matches the params
-  if (req.body.hasOwnProperty('id') && (req.body.id !== req.params.webhookid)) {
-    const error = new M.DataFormatError(
-      'Webhook ID in body does not match webhook ID in params.', 'warn'
-    );
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-  // Set body id to params id
-  req.body.id = req.params.webhookid;
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  try {
-    // Updates the specified webhook
-    const webhooks = await WebhookController.update(req.user, req.body, options);
-    const webhook = webhooks[0];
-
-    // Get the webhook public data
-    const webhookPublicData = sani.html(
-      publicData.getPublicData(req.user, webhook, 'webhook', options)
-    );
-
-    // Format JSON
-    const json = formatJSON(webhookPublicData, minified);
-
-    // Sets the message to the public webhook data and the status code to 200
-    res.locals = {
-      message: json,
-      statusCode: 200
-    };
-    next();
-  }
-  catch (error) {
-    // If an error was thrown, return it and its status
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-}
-
-/**
- * DELETE /api/webhooks/:webhookid
- *
- * @description Deletes the specified webhook
- *
- * @param {object} req - Request express object
- * @param {object} res - Response express object
- * @param {Function} next - Middleware callback to trigger the next function
- *
- * @returns {object} Response object with the deleted webhook id.
- */
-async function deleteWebhook(req, res, next) {
-  // Skip controller code if a plugin pre-hook threw an error
-  if (res.statusCode !== 200) return next();
-
-  // Define options
-  let options;
-  let minified = false;
-
-  // Define valid option and its parsed type
-  const validOptions = {
-    minified: 'boolean'
-  };
-
-  // Sanity Check: there should always be a user in the request
-  if (!req.user) {
-    M.log.critical('No requesting user available.');
-    const error = new M.ServerError('Request Failed');
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Attempt to parse query options
-  try {
-    // Extract options from request query
-    options = utils.parseOptions(req.query, validOptions);
-  }
-  catch (error) {
-    // Error occurred with options, report it
-    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
-  }
-
-  // Check options for minified
-  if (options.hasOwnProperty('minified')) {
-    minified = options.minified;
-    delete options.minified;
-  }
-
-  try {
-    // Remove the specified webhook
-    const webhooks = await WebhookController.remove(req.user, req.params.webhookid, options);
-
-    // Format JSON
-    const json = formatJSON(webhooks, minified);
-
-    // Sets the message to the deleted webhook id and the status code to 200
     res.locals = {
       message: json,
       statusCode: 200
@@ -6626,6 +4592,190 @@ async function triggerWebhook(req, res, next) {
 
     // Set a mock user object to be used in the response logging middleware
     req.user = { _id: `Trigger of webhook ${webhook._id}` };
+    next();
+  }
+  catch (error) {
+    // If an error was thrown, return it and its status
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+}
+
+/**
+ * POST /api/org/:orgid/projects/:projectid/branches/:branchid/metrics
+ *
+ * @description This function runs a series of test to collect metrics
+ * against the selected model.
+ *
+ * @param {object} req - Request express object.
+ * @param {object} res - Response express object.
+ * @param {Function} next - Middleware callback to trigger the next function
+ *
+ * @returns {object} Response object with metrics data.
+ */
+async function getMetrics(req, res, next) {
+  // Skip controller code if a plugin pre-hook threw an error
+  if (res.statusCode !== 200) return next();
+
+  // Define options
+  // Note: Undefined if not set
+  let options;
+  let minified = false;
+
+  // Define valid option and its parsed type
+  const validOptions = {
+    populate: 'array',
+    fields: 'array',
+    minified: 'boolean'
+  };
+
+  // Sanity Check: there should always be a user in the request
+  if (!req.user) return noUserError(req, res, next);
+
+  // Attempt to parse query options
+  try {
+    // Extract options from request query
+    options = utils.parseOptions(req.query, validOptions);
+  }
+  catch (error) {
+    // Error occurred with options, report it
+    return utils.formatResponse(req, res, error.message, errors.getStatusCode(error), next);
+  }
+
+  // Check options for minified
+  if (options.hasOwnProperty('minified')) {
+    minified = options.minified;
+    delete options.minified;
+  }
+
+  try {
+    // Get all elements from this model
+    const allElements = await ElementController.find(req.user, req.params.orgid,
+      req.params.projectid, req.params.branchid, options);
+
+    // Define list/objects to store temp metric data
+    const dateList = [];
+    const userList = [];
+    const typeList = [];
+    const seenDates = {};
+    const seenUsers = {};
+    const seenTypes = {};
+
+    // Get model size
+    const modelSize = allElements.length;
+
+    // Loop though each element
+    for (let i = 0; i < modelSize; i++) {
+      // Extract element and its id
+      const elem = allElements[i];
+      const elemID = utils.parseID(elem._id).pop();
+
+      // Exclude/Skip the metrics model
+      if (elemID === '__metrics__') continue;
+
+      // Check if user NOT seen
+      if (!(elem.createdBy in seenUsers)) {
+        seenUsers[elem.createdBy] = 1;
+        userList.push(elem.createdBy);
+      }
+      if (!(elem.lastModifiedBy in seenUsers)) {
+        seenUsers[elem.lastModifiedBy] = 1;
+        userList.push(elem.lastModifiedBy);
+      }
+
+      // Check if date NOT seen
+      if (!(elem.createdOn in seenDates)) {
+        seenDates[elem.createdOn] = 1;
+        dateList.push(new Date(elem.createdOn));
+      }
+      if (!(elem.updatedOn in seenDates)) {
+        seenDates[elem.updatedOn] = 1;
+        dateList.push(new Date(elem.updatedOn));
+      }
+
+      // Check if this element type has been seen
+      if (elem.type in seenTypes) {
+        // Found element type, increment type count
+        const count = seenTypes[elem.type][0] + 1;
+        // Save off type count and overall percentage
+        seenTypes[elem.type] = [count, (count / modelSize).toFixed(2)];
+      }
+      else {
+        // New type, set count to 1
+        seenTypes[elem.type] = [1, (1 / modelSize).toFixed(2)];
+      }
+    }
+
+    // Loop through all found element types
+    Object.keys(seenTypes).forEach(function(type) {
+      const count = seenTypes[type][0];
+      const percentage = seenTypes[type][1];
+      // Create a triplet: elemType, numOfElemType, typePercentage
+      typeList.push([type, count, percentage]);
+    });
+
+    // Calculate the number of days since model was modified
+    // eslint-disable-next-line
+    const earliestDate = Math.max(...dateList);
+    const daysAgo = (Date.now() - earliestDate) / (1000 * 3600 * 24);
+
+    // Create the metric element
+    const metrics = {
+      Date: new Date(),                        // Date when metric was run
+      NumOfElems: modelSize,                   // Number of elements in this model
+      Users: userList,                         // Users who created/modifed this model
+      LastModifiedDaysAgo: daysAgo.toFixed(0), // Number of days since this model was last modified
+      Types: typeList                          // Array of ElemType triplets
+    };
+
+    // Find any previously created metrics element
+    let metricsElem = await ElementController.find(req.user, req.params.orgid,
+      req.params.projectid, req.params.branchid, ['__metrics__'], options);
+
+    // Check if a __metrics__ element exists
+    if (metricsElem.length === 0) {
+      // Metrics does NOT exist, create it
+      const createObj = {
+        id: '__metrics__',
+        name: 'Model Metrics',
+        parent: '__mbee__',
+        custom: {
+          metrics: [metrics]
+        }
+      };
+
+      // Create it
+      await ElementController.create(req.user, req.params.orgid,
+        req.params.projectid, req.params.branchid, createObj);
+    }
+    else {
+      // Metrics element already exists, update it
+      const metricsArr = metricsElem[0].custom.metrics;
+
+      // Push new metrics into array
+      metricsArr.push(metrics);
+
+      // Create the object to update element
+      // Update Element Custom Data with metrics
+      const updateObj = {
+        id: '__metrics__',
+        custom: {
+          metrics: metricsArr
+        }
+      };
+
+      // __metrics__ exist, update it
+      metricsElem = await ElementController.update(req.user, req.params.orgid,
+        req.params.projectid, req.params.branchid, updateObj, options);
+    }
+
+    // Format JSON
+    const json = formatJSON(metrics, minified);
+
+    // Sets message to the metric data, status code to 200
+    res.locals = {
+      message: json,
+      statusCode: 200
+    };
     next();
   }
   catch (error) {

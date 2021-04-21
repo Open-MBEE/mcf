@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
@@ -103,7 +103,7 @@ function postOrg(done) {
   // Verifies the response data
   res.send = function send(_data) {
     // Verify response body
-    const postedOrg = JSON.parse(_data);
+    const postedOrg = JSON.parse(_data)[0];
     chai.expect(postedOrg.id).to.equal(orgData.id);
     chai.expect(postedOrg.name).to.equal(orgData.name);
     chai.expect(postedOrg.custom).to.deep.equal(orgData.custom || {});
@@ -127,7 +127,7 @@ function postOrg(done) {
   };
 
   // POST an org
-  APIController.postOrg(req, res, next(req, res));
+  APIController.postOrgs(req, res, next(req, res));
 }
 
 /**
@@ -213,7 +213,7 @@ function putOrg(done) {
   // Verifies the response data
   res.send = function send(_data) {
     // Verify response body
-    const replacedOrg = JSON.parse(_data);
+    const replacedOrg = JSON.parse(_data)[0];
     chai.expect(replacedOrg.id).to.equal(orgData.id);
     chai.expect(replacedOrg.name).to.equal(orgData.name);
     chai.expect(replacedOrg.custom).to.deep.equal(orgData.custom || {});
@@ -237,7 +237,7 @@ function putOrg(done) {
   };
 
   // PUTs an org
-  APIController.putOrg(req, res, next(req, res));
+  APIController.putOrgs(req, res, next(req, res));
 }
 
 /**
@@ -324,7 +324,7 @@ function getOrg(done) {
   // Verifies the response data
   res.send = function send(_data) {
     // Verify response body
-    const foundOrg = JSON.parse(_data);
+    const foundOrg = JSON.parse(_data)[0];
     chai.expect(foundOrg.id).to.equal(testData.orgs[0].id);
     chai.expect(foundOrg.name).to.equal(testData.orgs[0].name);
     chai.expect(foundOrg.custom).to.deep.equal(testData.orgs[0].custom || {});
@@ -348,7 +348,7 @@ function getOrg(done) {
   };
 
   // GET an org
-  APIController.getOrg(req, res, next(req, res));
+  APIController.getOrgs(req, res, next(req, res));
 }
 
 /**
@@ -499,7 +499,7 @@ function patchOrg(done) {
 
   // Verifies the response data
   res.send = function send(_data) {
-    const patchedOrg = JSON.parse(_data);
+    const patchedOrg = JSON.parse(_data)[0];
     chai.expect(patchedOrg.id).to.equal(testData.orgs[0].id);
     chai.expect(patchedOrg.name).to.equal(testData.orgs[1].name);
     chai.expect(patchedOrg.custom).to.deep.equal(testData.orgs[0].custom || {});
@@ -523,7 +523,7 @@ function patchOrg(done) {
   };
 
   // PATCH an org
-  APIController.patchOrg(req, res, next(req, res));
+  APIController.patchOrgs(req, res, next(req, res));
 }
 
 /**
@@ -613,7 +613,7 @@ function deleteOrg(done) {
   // Verifies the response data
   res.send = function send(_data) {
     // Parse the JSON response
-    const deletedID = JSON.parse(_data);
+    const deletedID = JSON.parse(_data)[0];
 
     // Verify correct org deleted
     chai.expect(deletedID).to.equal(testData.orgs[0].id);
@@ -625,7 +625,7 @@ function deleteOrg(done) {
   };
 
   // DELETE an org
-  APIController.deleteOrg(req, res, next(req, res));
+  APIController.deleteOrgs(req, res, next(req, res));
 }
 
 /**

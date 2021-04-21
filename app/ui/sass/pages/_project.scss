@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner James Eckstein
  *
@@ -26,6 +26,8 @@
   }
 }
 
+// TODO (ld): consider moving this to model
+// TODO (ld): or consider moving model into project page
 .model-dropdown-btn {
   &:active {
     border: none;

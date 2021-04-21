@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
@@ -138,7 +138,7 @@ function postUser(done) {
   // Verifies the response data
   res.send = function send(_data) {
     // Convert response to JSON
-    const createdUser = JSON.parse(_data);
+    const createdUser = JSON.parse(_data)[0];
 
     // Verify expected response
     chai.expect(createdUser.username).to.equal(userData.username);
@@ -165,7 +165,7 @@ function postUser(done) {
   };
 
   // POST a user
-  APIController.postUser(req, res, next(req, res));
+  APIController.postUsers(req, res, next(req, res));
 }
 
 /**
@@ -248,7 +248,7 @@ function putUser(done) {
   // Verifies the response data
   res.send = function send(_data) {
     // Convert response to JSON
-    const replacedUser = JSON.parse(_data);
+    const replacedUser = JSON.parse(_data)[0];
 
     // Verify expected response
     chai.expect(replacedUser.username).to.equal(userData.username);
@@ -275,7 +275,7 @@ function putUser(done) {
   };
 
   // PUTs a user
-  APIController.putUser(req, res, next(req, res));
+  APIController.putUsers(req, res, next(req, res));
 }
 
 /**
@@ -359,7 +359,7 @@ function getUser(done) {
   // Verifies the response data
   res.send = function send(_data) {
     // Convert response to JSON
-    const foundUser = JSON.parse(_data);
+    const foundUser = JSON.parse(_data)[0];
 
     // Verify expected response
     chai.expect(foundUser.username).to.equal(userData.username);
@@ -386,7 +386,7 @@ function getUser(done) {
   };
 
   // GET a user
-  APIController.getUser(req, res, next(req, res));
+  APIController.getUsers(req, res, next(req, res));
 }
 
 /**
@@ -616,7 +616,7 @@ function patchUser(done) {
   // Verifies the response data
   res.send = function send(_data) {
     // Convert response to JSON
-    const updatedUser = JSON.parse(_data);
+    const updatedUser = JSON.parse(_data)[0];
 
     // Verify expected response
     chai.expect(updatedUser.username).to.equal(userData.username);
@@ -643,7 +643,7 @@ function patchUser(done) {
   };
 
   // PATCH a user
-  APIController.patchUser(req, res, next(req, res));
+  APIController.patchUsers(req, res, next(req, res));
 }
 
 /**
@@ -789,7 +789,7 @@ function deleteUser(done) {
   // Verifies the response data
   res.send = function send(_data) {
     // Convert response to JSON
-    const deletedUsername = JSON.parse(_data);
+    const deletedUsername = JSON.parse(_data)[0];
 
     // Verify expected response
     chai.expect(deletedUsername).to.equal(userData.username);
@@ -801,7 +801,7 @@ function deleteUser(done) {
   };
 
   // DELETE a user
-  APIController.deleteUser(req, res, next(req, res));
+  APIController.deleteUsers(req, res, next(req, res));
 }
 
 /**

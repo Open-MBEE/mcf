@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
@@ -42,6 +42,7 @@ const ArtifactStrategy = M.require(`artifact.${M.config.artifact.strategy}`);
  * name of the current file.
  */
 describe(M.getModuleName(module.filename), function() {
+  this.timeout(30000);
   /**
    * Execute the tests.
    */

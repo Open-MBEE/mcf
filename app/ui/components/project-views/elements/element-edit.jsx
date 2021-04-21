@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner James Eckstein
  *
@@ -87,7 +87,8 @@ class ElementEdit extends Component {
       method: 'GET',
       url: url,
       statusCode: {
-        200: (element) => {
+        200: (elements) => {
+          const element = elements[0];
           this.setState({
             element: element,
             name: element.name,

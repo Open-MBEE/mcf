@@ -234,7 +234,7 @@
     {
       "id": "artifact00",
       "description": "artifact 00",
-      "filename": "logo.png",
+      "filename": "logo.svg",
       "location": "test/test_files",
       "size": 26930,
       "custom": {
