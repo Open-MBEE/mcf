@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
@@ -81,42 +81,28 @@ describe(M.getModuleName(module.filename), () => {
   /* Execute tests */
   // ------------- No Requesting User -------------
   it('should reject a GET artifacts request with no requesting user', noReqUser('getArtifacts'));
-  it('should reject a GET artifact request with no requesting user', noReqUser('getArtifact'));
   it('should reject a GET blob request with no requesting user', noReqUser('getBlob'));
   it('should reject a GET blob by ID request with no requesting user', noReqUser('getBlobById'));
   it('should reject a POST artifacts request with no requesting user', noReqUser('postArtifacts'));
-  it('should reject a POST artifact request with no requesting user', noReqUser('postArtifact'));
   it('should reject a POST blob request with no requesting user', noReqUser('postBlob'));
   it('should reject a PATCH artifacts request with no requesting user', noReqUser('patchArtifacts'));
-  it('should reject a PATCH artifact request with no requesting user', noReqUser('patchArtifact'));
   it('should reject a DELETE artifacts request with no requesting user', noReqUser('deleteArtifacts'));
-  it('should reject a DELETE artifact request with no requesting user', noReqUser('deleteArtifact'));
   it('should reject a DELETE blob request with no requesting user', noReqUser('deleteBlob'));
   // ------------- Invalid options -------------
   it('should reject a GET artifacts request with invalid options', invalidOptions('getArtifacts'));
-  it('should reject a GET artifact request with invalid options', invalidOptions('getArtifact'));
   it('should reject a GET blob by ID request with invalid options', invalidOptions('getBlobById'));
   it('should reject a POST artifacts request with invalid options', invalidOptions('postArtifacts'));
-  it('should reject a POST artifact request with invalid options', invalidOptions('postArtifact'));
   it('should reject a PATCH artifacts request with invalid options', invalidOptions('patchArtifacts'));
-  it('should reject a PATCH artifact request with invalid options', invalidOptions('patchArtifact'));
   it('should reject a DELETE artifacts request with invalid options', invalidOptions('deleteArtifacts'));
-  it('should reject a DELETE artifact request with invalid options', invalidOptions('deleteArtifact'));
   // ------- Non matching ids in body vs url -------
-  it('should reject a POST artifact request with conflicting ids in the body and url', conflictingIDs('postArtifact'));
-  it('should reject a PATCH artifact request with conflicting ids in the body and url', conflictingIDs('patchArtifact'));
+  it('should reject a POST artifact request with conflicting ids in the body and url', conflictingIDs('postArtifacts'));
+  it('should reject a PATCH artifact request with conflicting ids in the body and url', conflictingIDs('patchArtifacts'));
   // ------------- 404 Not Found -------------
   it('should return 404 for a GET artifacts request that returned no results', notFound('getArtifacts'));
-  it('should return 404 for a GET artifact request that returned no results', notFound('getArtifact'));
   it('should return 404 for a GET blob request that returned no results', notFound('getBlob'));
   it('should return 404 for a GET blob by ID request  hat returned no results', notFound('getBlobById'));
   it('should return 404 for a PATCH artifacts request for nonexistent artifacts', notFound('patchArtifacts'));
-  it('should return 404 for a PATCH artifact request for a nonexistent artifact', notFound('patchArtifact'));
   it('should return 404 for a DELETE artifacts request for nonexistent artifacts', notFound('deleteArtifacts'));
-  it('should return 404 for a DELETE artifact request for a nonexistent artifact', notFound('deleteArtifact'));
-  // ------------- No arrays in singular endpoints -------------
-  it('should reject a POST singular artifact request containing an array in the body', noArrays('postArtifact'));
-  it('should reject a PATCH singular artifact request containing an array in the body', noArrays('patchArtifact'));
 });
 
 /* --------------------( Tests )-------------------- */
@@ -269,43 +255,6 @@ function notFound(endpoint) {
     res.send = function send(_data) {
       // Expect the statusCode to be 404
       res.statusCode.should.equal(404);
-
-      done();
-    };
-
-    // Sends the mock request
-    APIController[endpoint](req, res, next(req, res));
-  };
-}
-
-/**
- * @description A test factory function that generates a mocha-compatible test function that can
- * test the response of a singular api endpoint given an array in the body.
- *
- * @param {string} endpoint - The particular api endpoint to test.
- * @returns {Function} A function for mocha to use to test a specific api endpoint.
- */
-function noArrays(endpoint) {
-  // Parse the method
-  const method = testUtils.parseMethod(endpoint);
-  const body = [];
-  const params = {};
-
-  return function(done) {
-    // Create request object
-    const req = testUtils.createRequest(adminUser, params, body, method);
-
-    // Create response object
-    const res = {};
-    testUtils.createResponse(res);
-
-    // Verifies the response data
-    res.send = function send(_data) {
-      // Expect an error message
-      _data.should.equal('Input cannot be an array');
-
-      // Expect the statusCode to be 400
-      res.statusCode.should.equal(400);
 
       done();
     };

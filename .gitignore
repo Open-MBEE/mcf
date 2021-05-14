@@ -17,4 +17,6 @@ package-lock.json
 build/
 data/
 storage/
-certs/
+.nyc_output/
+coverage/
+all_plugins/

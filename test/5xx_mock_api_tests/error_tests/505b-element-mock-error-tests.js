@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
@@ -81,46 +81,28 @@ describe(M.getModuleName(module.filename), () => {
   /* Execute tests */
   // ------------- No Requesting User -------------
   it('should reject a GET elements request with no requesting user', noReqUser('getElements'));
-  it('should reject a GET element request with no requesting user', noReqUser('getElement'));
   it('should reject a GET (Search) elements request with no requesting user', noReqUser('searchElements'));
   it('should reject a POST elements request with no requesting user', noReqUser('postElements'));
-  it('should reject a POST element request with no requesting user', noReqUser('postElement'));
   it('should reject a PATCH elements request with no requesting user', noReqUser('patchElements'));
-  it('should reject a PATCH element request with no requesting user', noReqUser('patchElement'));
   it('should reject a PUT elements request with no requesting user', noReqUser('putElements'));
-  it('should reject a PUT element request with no requesting user', noReqUser('putElement'));
   it('should reject a DELETE elements request with no requesting user', noReqUser('deleteElements'));
-  it('should reject a DELETE element request with no requesting user', noReqUser('deleteElement'));
   // ------------- Invalid options -------------
   it('should reject a GET elements request with invalid options', invalidOptions('getElements'));
-  it('should reject a GET element request with invalid options', invalidOptions('getElement'));
   it('should reject a GET (Search) elements request with invalid options', invalidOptions('searchElements'));
   it('should reject a POST elements request with invalid options', invalidOptions('postElements'));
-  it('should reject a POST element request with invalid options', invalidOptions('postElement'));
   it('should reject a PATCH elements request with invalid options', invalidOptions('patchElements'));
-  it('should reject a PATCH element request with invalid options', invalidOptions('patchElement'));
   it('should reject a PUT elements request with invalid options', invalidOptions('putElements'));
-  it('should reject a PUT element request with invalid options', invalidOptions('putElement'));
   it('should reject a DELETE elements request with invalid options', invalidOptions('deleteElements'));
-  it('should reject a DELETE element request with invalid options', invalidOptions('deleteElement'));
   // ------- Non matching ids in body vs url -------
-  it('should reject a POST element request with conflicting ids in the body and url', conflictingIDs('postElement'));
-  it('should reject a PATCH element request with conflicting ids in the body and url', conflictingIDs('patchElement'));
-  it('should reject a PUT element request with conflicting ids in the body and url', conflictingIDs('putElement'));
+  it('should reject a POST element request with conflicting ids in the body and url', conflictingIDs('postElements'));
+  it('should reject a PATCH element request with conflicting ids in the body and url', conflictingIDs('patchElements'));
+  it('should reject a PUT element request with conflicting ids in the body and url', conflictingIDs('putElements'));
   // ------------- 404 Not Found -------------
   it('should return 404 for a GET elements request that returned no results', notFound('getElements'));
-  it('should return 404 for a GET element request that returned no results', notFound('getElement'));
   it('should return 404 for a GET (Search) elements request for nonexistent branches', notFound('searchElements'));
   it('should return 404 for a PATCH elements request for nonexistent branches', notFound('patchElements'));
-  it('should return 404 for a PATCH element request for a nonexistent branch', notFound('patchElement'));
   it('should return 404 for a PUT elements request for nonexistent branches', notFound('putElements'));
-  it('should return 404 for a PUT element request for a nonexistent branch', notFound('putElement'));
   it('should return 404 for a DELETE elements request for nonexistent branches', notFound('deleteElements'));
-  it('should return 404 for a DELETE element request for a nonexistent branch', notFound('deleteElement'));
-  // ------------- No arrays in singular endpoints -------------
-  it('should reject a POST singular element request containing an array in the body', noArrays('postElement'));
-  it('should reject a PATCH singular element request containing an array in the body', noArrays('patchElement'));
-  it('should reject a PUT singular element request containing an array in the body', noArrays('putElement'));
 });
 
 /* --------------------( Tests )-------------------- */
@@ -315,43 +297,6 @@ function notFound(endpoint) {
     res.send = function send(_data) {
       // Expect the statusCode to be 404
       res.statusCode.should.equal(404);
-
-      done();
-    };
-
-    // Sends the mock request
-    APIController[endpoint](req, res, next(req, res));
-  };
-}
-
-/**
- * @description A test factory function that generates a mocha-compatible test function that can
- * test the response of singular api endpoints given an array in the body.
- *
- * @param {string} endpoint - The particular api endpoint to test.
- * @returns {Function} A function for mocha to use to test a specific api endpoint.
- */
-function noArrays(endpoint) {
-  // Parse the method
-  const method = testUtils.parseMethod(endpoint);
-  const body = [];
-  const params = {};
-
-  return function(done) {
-    // Create request object
-    const req = testUtils.createRequest(adminUser, params, body, method);
-
-    // Create response object
-    const res = {};
-    testUtils.createResponse(res);
-
-    // Verifies the response data
-    res.send = function send(_data) {
-      // Expect an error message
-      _data.should.equal('Input cannot be an array');
-
-      // Expect the statusCode to be 400
-      res.statusCode.should.equal(400);
 
       done();
     };

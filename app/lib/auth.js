@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
@@ -101,7 +101,7 @@ async function authenticate(req, res, next) {
         // Create the error
         error = new M.AuthorizationError('Username or password not provided.', 'warn');
         // return proper error for API route or redirect for UI
-        return (req.originalUrl.startsWith('/api'))
+        return (req.originalUrl.startsWith('/api') || req.originalUrl.startsWith('/plugins'))
           ? res.status(401).send(error.message)
           : res.redirect('/login');
       }
@@ -114,7 +114,7 @@ async function authenticate(req, res, next) {
       if (!username || !password || username === '' || password === '') {
         // return proper error for API route or redirect for UI
         error = new M.AuthorizationError('Username or password not provided.', 'warn');
-        return (req.originalUrl.startsWith('/api'))
+        return (req.originalUrl.startsWith('/api') || req.originalUrl.startsWith('/plugins'))
           ? res.status(401).send(error.message)
           : res.redirect('back');
       }
@@ -139,7 +139,7 @@ async function authenticate(req, res, next) {
         req.flash('loginError', error.message);
 
         // return proper error for API route or redirect for UI
-        return (req.originalUrl.startsWith('/api'))
+        return (req.originalUrl.startsWith('/api') || req.originalUrl.startsWith('/plugins'))
           ? res.status(401).send(error.message)
           : res.redirect(`/login?next=${req.originalUrl}`);
       }
@@ -179,7 +179,7 @@ async function authenticate(req, res, next) {
           req.flash('loginError', 'Internal Server Error');
         }
         // return proper error for API route or redirect for UI
-        return (req.originalUrl.startsWith('/api'))
+        return (req.originalUrl.startsWith('/api') || req.originalUrl.startsWith('/plugins'))
           ? res.status(401).send('Invalid username or password.')
           : res.redirect(`/login?next=${req.originalUrl}`);
       }
@@ -191,7 +191,7 @@ async function authenticate(req, res, next) {
     // Other authorization header
     else {
       // return proper error for API route or redirect for UI
-      return (req.originalUrl.startsWith('/api'))
+      return (req.originalUrl.startsWith('/api') || req.originalUrl.startsWith('/plugins'))
         ? res.status(401).send('Invalid authorization scheme.')
         : res.redirect(`/login?next=${req.originalUrl}`);
     }
@@ -223,7 +223,7 @@ async function authenticate(req, res, next) {
       req.flash('loginError', 'Session Expired');
 
       // return proper error for API route or redirect for UI
-      return (req.originalUrl.startsWith('/api'))
+      return (req.originalUrl.startsWith('/api') || req.originalUrl.startsWith('/plugins'))
         ? res.status(401).send('Session Expired')
         : res.redirect(`/login?next=${req.originalUrl}`);
     }
@@ -263,7 +263,7 @@ async function authenticate(req, res, next) {
 
       // return proper error for API route or redirect for UI
       // 'back' returns to the original login?next=originalUrl
-      return (req.originalUrl.startsWith('/api'))
+      return (req.originalUrl.startsWith('/api') || req.originalUrl.startsWith('/plugins'))
         ? res.status(401).send('Invalid username or password.')
         : res.redirect('back');
     }
@@ -278,7 +278,7 @@ async function authenticate(req, res, next) {
     error = new M.AuthorizationError('Username or password not provided.', 'warn');
 
     // return proper error for API route or redirect for UI
-    return (req.originalUrl.startsWith('/api'))
+    return (req.originalUrl.startsWith('/api') || req.originalUrl.startsWith('/plugins'))
       ? res.status(401).send(error.message)
       : res.redirect(`/login?next=${req.originalUrl}`);
   }

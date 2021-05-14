@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
@@ -120,7 +120,7 @@ function postElement(done) {
   // Verifies the response data
   res.send = function send(_data) {
     // Verify response body
-    const createdElement = JSON.parse(_data);
+    const createdElement = JSON.parse(_data)[0];
 
     // Verify element created properly
     chai.expect(createdElement.id).to.equal(elemData.id);
@@ -163,7 +163,7 @@ function postElement(done) {
   };
 
   // POST an element
-  APIController.postElement(req, res, next(req, res));
+  APIController.postElements(req, res, next(req, res));
 }
 
 /**
@@ -275,7 +275,7 @@ function putElement(done) {
   // Verifies the response data
   res.send = function send(_data) {
     // Verify response body
-    const replacedElem = JSON.parse(_data);
+    const replacedElem = JSON.parse(_data)[0];
 
     // Verify element created/replaced properly
     chai.expect(replacedElem.id).to.equal(elemData.id);
@@ -318,7 +318,7 @@ function putElement(done) {
   };
 
   // PUTs an element
-  APIController.putElement(req, res, next(req, res));
+  APIController.putElements(req, res, next(req, res));
 }
 
 /**
@@ -431,7 +431,7 @@ function getElement(done) {
   // Verifies the response data
   res.send = function send(_data) {
     // Verify response body
-    const foundElement = JSON.parse(_data);
+    const foundElement = JSON.parse(_data)[0];
 
     // Verify element created properly
     chai.expect(foundElement.id).to.equal(elemData.id);
@@ -474,7 +474,7 @@ function getElement(done) {
   };
 
   // GET an element
-  APIController.getElement(req, res, next(req, res));
+  APIController.getElements(req, res, next(req, res));
 }
 
 /**
@@ -756,7 +756,7 @@ function patchElement(done) {
   // Verifies the response data
   res.send = function send(_data) {
     // Verify response body
-    const updatedElement = JSON.parse(_data);
+    const updatedElement = JSON.parse(_data)[0];
 
     // Verify element updated properly
     chai.expect(updatedElement.id).to.equal(elemData.id);
@@ -799,7 +799,7 @@ function patchElement(done) {
   };
 
   // PATCH an element
-  APIController.patchElement(req, res, next(req, res));
+  APIController.patchElements(req, res, next(req, res));
 }
 
 /**
@@ -918,7 +918,7 @@ function deleteElement(done) {
 
   // Verifies the response data
   res.send = function send(_data) {
-    const elementid = JSON.parse(_data);
+    const elementid = JSON.parse(_data)[0];
     chai.expect(elementid).to.equal(testData.elements[0].id);
 
     // Expect the statusCode to be 200
@@ -928,7 +928,7 @@ function deleteElement(done) {
   };
 
   // DELETE an element
-  APIController.deleteElement(req, res, next(req, res));
+  APIController.deleteElements(req, res, next(req, res));
 }
 
 /**

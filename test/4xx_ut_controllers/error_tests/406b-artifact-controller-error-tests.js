@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2019, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Phillip Lee
  *

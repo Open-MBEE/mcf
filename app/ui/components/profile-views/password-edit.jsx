@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner James Eckstein
  *
@@ -16,9 +16,10 @@
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
+/* eslint-disable jsdoc/require-jsdoc */
 
 // React modules
-import React, { Component } from 'react';
+import React, { useState } from 'react';
 import {
   Form,
   FormGroup,
@@ -29,43 +30,33 @@ import {
   UncontrolledAlert
 } from 'reactstrap';
 
+// MBEE modules
+import { useApiClient } from '../context/ApiClientProvider.js';
 
 /* eslint-enable no-unused-vars */
 
 // Define component
-class PasswordEdit extends Component {
+function PasswordEdit(props) {
+  const { userService } = useApiClient();
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [newPasswordInvalid, setNewPasswordInvalid] = useState(false);
+  const [sessionUser] = useState(JSON.parse(window.sessionStorage.getItem('mbee-user')));
+  const [error, setError] = useState(null);
 
-  constructor(props) {
-    // Initialize parent props
-    super(props);
+  const handleChange = (e) => {
+    if (e.target.name === 'oldPassword') {
+      setOldPassword(e.target.value);
+    }
+    else if (e.target.name === 'confirmNewPassword') {
+      setConfirmNewPassword(e.target.value);
+    }
+    else if (e.target.name === 'newPassword') {
+      setNewPassword(e.target.value);
 
-    // Get the session user, used to see if an admin is changing another user's password
-    const sessionUser = JSON.parse(window.sessionStorage.getItem('mbee-user'));
-
-    // Initialize state props
-    this.state = {
-      oldPassword: '',
-      newPassword: '',
-      confirmNewPassword: '',
-      newPasswordInvalid: false,
-      noOldPassword: sessionUser.admin && sessionUser.username !== this.props.user.username,
-      error: null,
-      sessionUser: sessionUser
-    };
-
-    // Bind component functions
-    this.handleChange = this.handleChange.bind(this);
-    this.onSubmit = this.onSubmit.bind(this);
-  }
-
-  handleChange(event) {
-    // Change the state with new value
-    this.setState({ [event.target.name]: event.target.value });
-
-    // Verify if state is new password
-    if (event.target.name === 'newPassword') {
-      // Initialize variables
-      const password = event.target.value;
+      // Verify that new password is valid
+      const password = e.target.value;
 
       // Test the validation of password
       try {
@@ -79,152 +70,132 @@ class PasswordEdit extends Component {
         const uppercaseValidator = (password.match(/[A-Z]/g).length >= 1);
         // At least 1 special character
         const specialCharValidator = (password.match(/[-`~!@#$%^&*()_+={}[\]:;'",.<>?/|\\]/g).length >= 1);
-        // Set password is valid
-        this.setState({ newPasswordInvalid: false });
-        // Return validation
-        return (lengthValidator
+
+        // Set password status
+        setNewPasswordInvalid(!(lengthValidator
           && digitsValidator
           && lowercaseValidator
           && uppercaseValidator
-          && specialCharValidator);
+          && specialCharValidator));
       }
-      catch (error) {
-        // Set password is invalid
-        this.setState({ newPasswordInvalid: true });
+      catch (err) {
+        // Set password invalid
+        setNewPasswordInvalid(true);
       }
     }
-  }
+  };
 
-  onSubmit() {
+  const onSubmit = async () => {
     // Initialize variables
-    const url = `/api/users/${this.props.user.username}/password`;
     const data = {
-      oldPassword: this.state.oldPassword,
-      password: this.state.newPassword,
-      confirmPassword: this.state.confirmNewPassword
+      oldPassword: oldPassword,
+      password: newPassword,
+      confirmPassword: confirmNewPassword
     };
 
-    // Send a patch request to update user password
-    $.ajax({
-      method: 'PATCH',
-      url: `${url}?minified=true`,
-      contentType: 'application/json',
-      data: JSON.stringify(data),
-      statusCode: {
-        200: () => {
-          this.props.toggle();
+    // Send a request to update the password
+    const [err, result] = await userService.password(data, props.user.username);
 
-          // Destroy the session if user changed their own password
-          if (this.state.sessionUser.username === this.props.user.username) {
-            window.sessionStorage.removeItem('mbee-user');
-          }
-        },
-        400: (err) => {
-          this.setState({ error: err.responseText });
-        },
-        401: (err) => {
-          this.setState({ error: err.responseText });
+    // Set the state
+    if (err) {
+      setError(err);
+    }
+    else if (result && sessionUser.username !== props.user.username) {
+      props.toggle();
+    }
+  };
 
-          // Refresh when session expires
-          window.location.reload();
-        },
-        403: (err) => {
-          this.setState({ error: err.responseText });
-        }
-      }
-    });
+
+  // Get the session user, used to see if an admin is changing another user's password
+  const noOldPassword = sessionUser.admin && sessionUser.username !== props.user.username;
+
+  // Initialize variables
+  let disableSubmit;
+  let confirmPasswordInvalid;
+
+  // Verify if new passwords match
+  if (newPassword !== confirmNewPassword) {
+    // Set invalid fields
+    disableSubmit = true;
+    confirmPasswordInvalid = true;
   }
 
-  render() {
-    // Initialize variables
-    let disableSubmit;
-    let confirmPasswordInvalid;
+  // Verify if new password valid
+  if (newPasswordInvalid) {
+    // Disable submit button
+    disableSubmit = true;
+  }
 
-    // Verify if new passwords match
-    if (this.state.newPassword !== this.state.confirmNewPassword) {
-      // Set invalid fields
-      disableSubmit = true;
-      confirmPasswordInvalid = true;
-    }
-
-    // Verify if new password valid
-    if (this.state.newPasswordInvalid) {
-      // Disable submit button
-      disableSubmit = true;
-    }
-
-    // Render user password page
-    return (
-      <div id='workspace'>
-        <div className='workspace-header'>
-          <h2 className='workspace-title workspace-title-padding'>Change Password</h2>
-        </div>
-        <div id='workspace-body' className='extra-padding'>
-          <div className='main-workspace'>
-            {(!this.state.error)
+  // Render user password page
+  return (
+    <div id='workspace'>
+      <div className='workspace-header'>
+        <h2 className='workspace-title workspace-title-padding'>Change Password</h2>
+      </div>
+      <div id='workspace-body' className='extra-padding'>
+        <div className='main-workspace'>
+          {(!error)
+            ? ''
+            : (<UncontrolledAlert color="danger">
+              {error}
+            </UncontrolledAlert>)
+          }
+          {/* Create form to update user password */}
+          <Form>
+            {/* Input old password */}
+            {(noOldPassword)
               ? ''
-              : (<UncontrolledAlert color="danger">
-                {this.state.error}
-              </UncontrolledAlert>)
-            }
-            {/* Create form to update user password */}
-            <Form>
-              {/* Input old password */}
-              {(this.state.noOldPassword)
-                ? ''
-                : <FormGroup>
-                    <Label for="oldPassword">Old Password</Label>
-                    <Input type="password"
-                           name="oldPassword"
-                           id="oldPassword"
-                           placeholder="Old Password"
-                           value={this.state.oldPassword || ''}
-                           onChange={this.handleChange}/>
-                  </FormGroup>}
-              {/* Input new password */}
-              <FormGroup>
-                <Label for="newPassword">New Password</Label>
-                <Input type="password"
-                       name="newPassword"
-                       id="newPassword"
-                       placeholder="New Password"
-                       value={this.state.newPassword || ''}
-                       invalid={this.state.newPasswordInvalid}
-                       onChange={this.handleChange}/>
-                <FormFeedback>
-                  Invalid: Password must have at least 8 characters,
-                  a lowercase, uppercase, digit, and special character.
-                </FormFeedback>
-              </FormGroup>
-              {/* Input new password again */}
-              <FormGroup>
-                <Label for="confirmNewPassword">Confirm New Password</Label>
-                <Input type="password"
-                       name="confirmNewPassword"
-                       id="confirmNewPassword"
-                       placeholder="Confirm New Password"
-                       value={this.state.confirmNewPassword || ''}
-                       invalid={confirmPasswordInvalid}
-                       onChange={this.handleChange}/>
-                <FormFeedback>
-                  Invalid: Passwords are not the same.
-                </FormFeedback>
-              </FormGroup>
-              {/* Button to submit or cancel */}
-              <Button outline color='primary'
-                      disabled={disableSubmit}
-                      onClick={this.onSubmit}> Submit </Button>
-              {' '}
-              <Button outline
-                      disabled={this.props.passwordExpired}
-                      onClick={this.props.toggle}> Cancel </Button>
-            </Form>
-          </div>
+              : <FormGroup>
+                  <Label for="oldPassword">Old Password</Label>
+                  <Input type="password"
+                         name="oldPassword"
+                         id="oldPassword"
+                         placeholder="Old Password"
+                         value={oldPassword || ''}
+                         onChange={handleChange}/>
+                </FormGroup>}
+            {/* Input new password */}
+            <FormGroup>
+              <Label for="newPassword">New Password</Label>
+              <Input type="password"
+                     name="newPassword"
+                     id="newPassword"
+                     placeholder="New Password"
+                     value={newPassword || ''}
+                     invalid={newPasswordInvalid}
+                     onChange={handleChange}/>
+              <FormFeedback>
+                Invalid: Password must have at least 8 characters,
+                a lowercase, uppercase, digit, and special character.
+              </FormFeedback>
+            </FormGroup>
+            {/* Input new password again */}
+            <FormGroup>
+              <Label for="confirmNewPassword">Confirm New Password</Label>
+              <Input type="password"
+                     name="confirmNewPassword"
+                     id="confirmNewPassword"
+                     placeholder="Confirm New Password"
+                     value={confirmNewPassword || ''}
+                     invalid={confirmPasswordInvalid}
+                     onChange={handleChange}/>
+              <FormFeedback>
+                Invalid: Passwords are not the same.
+              </FormFeedback>
+            </FormGroup>
+            {/* Button to submit or cancel */}
+            <Button outline color='primary'
+                    disabled={disableSubmit}
+                    onClick={onSubmit}> Submit </Button>
+            {' '}
+            <Button outline
+                    disabled={props.passwordExpired}
+                    onClick={props.toggle}> Cancel </Button>
+          </Form>
         </div>
       </div>
-    );
-  }
-
+    </div>
+  );
 }
 
 // Export component

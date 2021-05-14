@@ -1,3 +1,4 @@
+/* eslint-disable no-case-declarations */
 /**
  * @classification UNCLASSIFIED
  *
@@ -5,7 +6,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Phillip Lee
  *
@@ -26,6 +27,8 @@ const session = require('express-session');
 const bodyParser = require('body-parser');
 const flash = require('express-flash');
 const compression = require('compression');
+const Redis = require('ioredis');
+const cors = require('cors');
 
 // MBEE modules
 const db = M.require('db');
@@ -40,6 +43,29 @@ const Project = M.require('models.project');
 const ServerData = M.require('models.server-data');
 const User = M.require('models.user');
 const Webhook = M.require('models.webhook');
+const UIController = M.require('controllers.ui-controller');
+const allowlist = M.config.server.corsAllowList;
+
+// Cors options
+const corsOptions = {
+  credentials: true, // This is important.
+  origin: (origin, callback) => {
+    if (!origin || allowlist.includes(origin)) {
+      return callback(null, true);
+    }
+    else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  }
+};
+
+// Publisher
+const publisher = require('./lib/pubsub/publisher');
+const subscriber = require('./lib/pubsub/subscriber');
+
+// Initialize Redis
+const redisClient = new Redis(M.config.auth.session.redis_port, M.config.auth.session.redis_host);
+const RedisStore = require('connect-redis')(session);
 
 // Initialize express app and export the object
 const app = express();
@@ -55,9 +81,26 @@ db.connect()
 .then(() => createDefaultOrganization())
 .then(() => createDefaultAdmin())
 .then(() => initApp())
+.then(() => initIntegratedServices())
 .catch(err => {
   M.log.critical(err.stack);
   process.exit(1);
+});
+
+redisClient.on('connect', () => {
+  M.log.info('Redis successfully connected');
+});
+
+redisClient.on('end', () => {
+  M.log.critical('Redis disconnected');
+});
+
+redisClient.on('error', (err) => {
+  M.log.critical('Redis error: ', err);
+});
+
+redisClient.on('reconnecting', () => {
+  M.log.info('Reconnecting Redis');
 });
 
 /**
@@ -78,6 +121,8 @@ function initApp() {
     // for parsing application/json
     app.use(bodyParser.json({ limit: M.config.server.requestSize || '50mb' }));
     app.use(bodyParser.text());
+    app.options('*', cors(corsOptions));
+    app.use(cors(corsOptions));
 
     // for parsing application/xwww-form-urlencoded
     app.use(bodyParser.urlencoded({ limit: M.config.server.requestSize || '50mb',
@@ -94,15 +139,25 @@ function initApp() {
     app.set('views', path.join(__dirname, 'views'));
     app.use(expressLayouts);
 
-    // Configure sessions
+    // Configure sessions. Uses Redis
     const units = utils.timeConversions[M.config.auth.session.units];
     app.use(session({
       name: 'SESSION_ID',
       secret: M.config.server.secret,
       resave: false,
       saveUninitialized: false,
-      cookie: { maxAge: M.config.auth.session.expires * units },
-      store: new db.Store()
+      cookie: {
+        maxAge: M.config.auth.session.expires * units,
+        secure: M.config.auth.session.cookie.secure,
+        httpOnly: M.config.auth.session.cookie.httpOnly,
+        sameSite: M.config.auth.session.cookie.sameSite
+      },
+      store: new RedisStore({
+        host: M.config.auth.session.redis_host,
+        port: M.config.auth.session.redis_port,
+        client: redisClient,
+        ttl: 86400
+      })
     }));
 
     // Enable flash messages
@@ -127,7 +182,15 @@ function initApp() {
 
     // Load the UI/other routes
     if (M.config.server.ui.enabled) {
-      app.use('/', M.require('routes'));
+      app.get('/doc/api',
+        middleware.logRoute,
+        UIController.swaggerDoc);
+      app.get('/doc/flight-manual',
+        middleware.logRoute,
+        UIController.flightManual);
+      app.use('/', middleware.logRoute, (req, res) => {
+        res.sendFile(path.join(M.root, 'build', 'public', 'index.html'));
+      });
     }
     return resolve();
   });
@@ -245,4 +308,45 @@ async function initModels() {
   await Promise.all([Artifact.init(), Branch.init(), Element.init(),
     Organization.init(), Project.init(), ServerData.init(), User.init(),
     Webhook.init()]);
+}
+
+/**
+ * @description Initializes all integrated services.
+ * @async
+ *
+ * @returns {Promise} Returns an empty promise upon completion.
+ */
+async function initIntegratedServices() {
+  // Get list of integration services
+  const allServices = await publisher.get('INTEGRATED_SERVICES');
+  M.config.integratedServices = JSON.parse(allServices);
+  M.log.info('Integrated services initialized.');
+
+  // Subscribe to Redis channels
+  const channels = ['NEW_AUTH_INTEGRATION_KEY'];
+  subscriber.subscribe(channels, (err, count) => {
+    M.log.info(`Subscribed to ${count} of Redis channels`);
+  });
+
+  // Listen to all messages from all channels
+  subscriber.on('message', async function(channel, message) {
+    const parsedMessage = JSON.parse(message);
+
+    switch (channel) {
+      case 'NEW_AUTH_INTEGRATION_KEY':
+        const user = await User.findOne({ _id: parsedMessage.user });
+
+        // integration key
+        const integrationKey = {
+          name: parsedMessage.name,
+          key: parsedMessage.key
+        };
+
+        // store user password as integration key
+        user.integration_keys.push(integrationKey);
+        await User.updateOne({ _id: parsedMessage.user }, { integration_keys: [integrationKey] });
+        break;
+      default:
+    }
+  });
 }

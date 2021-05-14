@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2019, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
@@ -87,11 +87,12 @@ function readUser(user) {}
  * @throws {PermissionError}
  */
 function updateUser(user, userToUpdate) {
-  try {
-    assert.ok(user.admin || user._id === userToUpdate._id, '');
-  }
-  catch (error) {
+  if (!user.admin && user._id !== userToUpdate._id) {
     throw new M.PermissionError('User does not have permission to update other users.', 'warn');
+  }
+
+  if (userToUpdate.provider === 'ldap') {
+    throw new M.PermissionError('LDAP user cannot be updated.', 'warn');
   }
 }
 
@@ -116,7 +117,7 @@ function deleteUser(user) {
  * @throws {PermissionError}
  */
 function createOrg(user) {
-  if (!user.admin) {
+  if (!user.admin || M.config.server.allowSandboxes === false) {
     throw new M.PermissionError('User does not have permission to create orgs.', 'warn');
   }
 }
@@ -239,7 +240,7 @@ function updateProject(user, org, project) {
         `User does not have permission to update projects in the org [${org._id}].`);
       assert.ok(project.permissions.hasOwnProperty(user._id), 'User does not '
         + `have permission to update the project [${utils.parseID(project._id).pop()}].`);
-      assert.ok(project.permissions[user._id].includes('admin'), 'User does not'
+      assert.ok(project.permissions[user._id].includes('admin'), 'User does not '
         + `have permission to update the project [${utils.parseID(project._id).pop()}].`);
     }
   }

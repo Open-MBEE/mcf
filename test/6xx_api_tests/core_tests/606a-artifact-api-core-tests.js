@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Phillip Lee
  *
@@ -17,7 +17,9 @@
 
 // NPM modules
 const chai = require('chai'); // Test framework
-const request = require('request');
+const axios = require('axios');
+const http = require('axios/lib/adapters/http');
+const FormData = require('form-data');
 
 // Node modules
 const fs = require('fs');     // Access the filesystem
@@ -108,26 +110,24 @@ describe(M.getModuleName(module.filename), () => {
  * @description Verifies POST request
  * /api/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts/:artifactid
  * to create an artifact.
- *
- * @param {Function} done - The mocha callback.
  */
-function postArtifact(done) {
-  const artData = testData.artifacts[0];
+async function postArtifact() {
+  try {
+    const artData = testData.artifacts[0];
+    const options = {
+      method: 'post',
+      url: `${test.url}/api/orgs/${orgID}/projects/${projID}/branches/${branchID}/artifacts/${artData.id}`,
+      headers: testUtils.getHeaders(),
+      data: artData
+    };
 
-  const options = {
-    method: 'POST',
-    url: `${test.url}/api/orgs/${orgID}/projects/${projID}/branches/${branchID}/artifacts/${artData.id}`,
-    headers: testUtils.getHeaders(),
-    body: JSON.stringify(artData)
-  };
+    // Make an API request
+    const res = await axios(options);
 
-  request(options, (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const createdArtifact = JSON.parse(body);
+    const createdArtifact = res.data[0];
 
     // Verify artifact created properly
     chai.expect(createdArtifact.id).to.equal(artData.id);
@@ -150,39 +150,41 @@ function postArtifact(done) {
     // Verify specific fields not returned
     chai.expect(createdArtifact).to.not.have.any.keys('archivedOn', 'archivedBy',
       '__v', '_id');
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies POST request
  * /api/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts
  * to create multiple artifacts.
- *
- * @param {Function} done - The mocha callback.
  */
-function postArtifacts(done) {
-  // Define artifact metadata
-  const artData = [
-    testData.artifacts[1],
-    testData.artifacts[2]
-  ];
+async function postArtifacts() {
+  try {
+    // Define artifact metadata
+    const artData = [
+      testData.artifacts[1],
+      testData.artifacts[2]
+    ];
+    const options = {
+      method: 'post',
+      url: `${test.url}/api/orgs/${orgID}/projects/${projID}/branches/${branchID}/artifacts`,
+      headers: testUtils.getHeaders(),
+      data: artData
+    };
 
-  const options = {
-    method: 'POST',
-    url: `${test.url}/api/orgs/${orgID}/projects/${projID}/branches/${branchID}/artifacts`,
-    headers: testUtils.getHeaders(),
-    body: JSON.stringify(artData)
-  };
+    // Make an API request
+    const res = await axios(options);
 
-  request(options, (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
 
     // Verify response body
-    const createdArtifacts = JSON.parse(body);
+    const createdArtifacts = res.data;
 
     // Expect createdArtifacts not to be empty
     chai.expect(createdArtifacts.length).to.equal(artData.length);
@@ -217,33 +219,35 @@ function postArtifacts(done) {
       chai.expect(createdArtifact).to.not.have.any.keys('archivedOn', 'archivedBy',
         '__v', '_id');
     });
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies GET request
  * /api/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts/:artifactid
  * to get an artifact.
- *
- * @param {Function} done - The mocha callback.
  */
-function getArtifact(done) {
-  const artData = testData.artifacts[0];
+async function getArtifact() {
+  try {
+    const artData = testData.artifacts[0];
+    const options = {
+      method: 'get',
+      url: `${test.url}/api/orgs/${orgID}/projects/${projID}/branches/${branchID}/artifacts/${artData.id}`,
+      headers: testUtils.getHeaders()
+    };
 
-  const options = {
-    method: 'GET',
-    url: `${test.url}/api/orgs/${orgID}/projects/${projID}/branches/${branchID}/artifacts/${artData.id}`,
-    headers: testUtils.getHeaders()
-  };
+    // Make an API request
+    const res = await axios(options);
 
-  request(options, (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const foundArtifact = JSON.parse(body);
+    const foundArtifact = res.data[0];
 
     // Verify artifact found
     chai.expect(foundArtifact.id).to.equal(artData.id);
@@ -267,43 +271,46 @@ function getArtifact(done) {
     // Verify specific fields not returned
     chai.expect(foundArtifact).to.not.have.any.keys('archivedOn', 'archivedBy',
       '__v', '_id');
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies GET request
  * /api/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts
  * to get multiple artifacts.
- *
- * @param {Function} done - The mocha callback.
  */
-function getArtifacts(done) {
-  // Define artifact metadata
-  const artData = [
-    testData.artifacts[1],
-    testData.artifacts[2]
-  ];
+async function getArtifacts() {
+  try {
+    // Define artifact metadata
+    const artData = [
+      testData.artifacts[1],
+      testData.artifacts[2]
+    ];
+    const artIDs = [
+      testData.artifacts[1].id,
+      testData.artifacts[2].id
+    ];
+    const options = {
+      method: 'get',
+      url: `${test.url}/api/orgs/${orgID}/projects/${projID}/branches/${branchID}/artifacts`,
+      headers: testUtils.getHeaders(),
+      params: {
+        ids: artIDs.toString()
+      }
+    };
 
-  const artIDs = [
-    testData.artifacts[1].id,
-    testData.artifacts[2].id
-  ];
+    // Make an API request
+    const res = await axios(options);
 
-  const options = {
-    method: 'GET',
-    url: `${test.url}/api/orgs/${orgID}/projects/${projID}/branches/${branchID}/artifacts`,
-    headers: testUtils.getHeaders(),
-    body: JSON.stringify(artIDs)
-  };
-
-  request(options, (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const foundArtifacts = JSON.parse(body);
+    const foundArtifacts = res.data;
 
     // Verify expected number of documents
 
@@ -340,229 +347,254 @@ function getArtifacts(done) {
       chai.expect(foundArtifact).to.not.have.any.keys('archivedOn', 'archivedBy',
         '__v', '_id');
     });
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies POST request
  * /api/orgs/:orgid/projects/:projectid/artifacts/blob
  * to post an artifact blob.
- *
- * @param {Function} done - The mocha callback.
  */
-function postBlob(done) {
-  const artData = testData.artifacts[0];
-  artData.project = projID;
+async function postBlob() {
+  try {
+    const artData = testData.artifacts[0];
+    artData.project = projID;
 
-  const artifactPath = path.join(
-    M.root, artData.location, artData.filename
-  );
+    const artifactPath = path.join(
+      M.root, artData.location, artData.filename
+    );
 
-  const options = {
-    method: 'POST',
-    url: `${test.url}/api/orgs/${orgID}/projects/${projID}/artifacts/blob`,
-    headers: testUtils.getHeaders('multipart/form-data'),
-    formData: {
-      location: artData.location,
-      filename: artData.filename,
-      file: {
-        value: fs.createReadStream(artifactPath),
-        options: {
-          filename: artifactPath
-        }
-      }
-    }
-  };
+    // Create form data
+    const formData = new FormData();
 
-  request(options, (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+    // Read the file from disc
+    formData.append('file', fs.createReadStream(artifactPath));
+    formData.append('location', artData.location);
+    formData.append('filename', artData.filename);
+
+    const header = Object.assign(formData.getHeaders(),
+      { authorization: testUtils.getHeaders().authorization });
+
+    const options = {
+      method: 'post',
+      url: `${test.url}/api/orgs/${orgID}/projects/${projID}/artifacts/blob`,
+      data: formData,
+      headers: header,
+      adapter: http
+    };
+
+    // Post Blob
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
+
     // Verify response body
-    const postedBlob = JSON.parse(body);
+    const postedBlob = res.data;
+
     // Verify artifact created properly
     chai.expect(postedBlob.project).to.equal(projID);
     chai.expect(postedBlob.location).to.equal(artData.location);
     chai.expect(postedBlob.filename).to.equal(artData.filename);
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies GET request
  * /api/orgs/:orgid/projects/:projectid/artifacts/blob
  * to get an artifact blob.
- *
- * @param {Function} done - The mocha callback.
  */
-function getBlob(done) {
-  const artData = testData.artifacts[0];
-  artData.project = projID;
-  artData.branch = branchID;
+async function getBlob() {
+  try {
+    const artData = testData.artifacts[0];
+    artData.project = projID;
+    artData.branch = branchID;
 
-  const queryParams = {
-    location: artData.location,
-    filename: artData.filename
-  };
-  const options = {
-    method: 'GET',
-    url: `${test.url}/api/orgs/${orgID}/projects/${projID}/artifacts/blob`,
-    qs: queryParams,
-    headers: testUtils.getHeaders(),
-    encoding: null
-  };
+    const queryParams = {
+      location: artData.location,
+      filename: artData.filename
+    };
+    const options = {
+      method: 'get',
+      url: `${test.url}/api/orgs/${orgID}/projects/${projID}/artifacts/blob`,
+      params: queryParams,
+      headers: testUtils.getHeaders(),
+      responseType: 'arraybuffer'
+    };
 
-  request(options, (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
-    // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    // Make an API request
+    const res = await axios(options);
+
+    // / Expect response status: 200 OK
+    chai.expect(res.status).to.equal(200);
+
+    // Convert data to buffer
+    const resFile = Buffer.from(res.data, 'binary');
 
     // Check return artifact is of buffer type
-    chai.expect(Buffer.isBuffer(body)).to.equal(true);
+    chai.expect(Buffer.isBuffer(resFile)).to.equal(true);
 
     // Get the file
     const artifactPath = path.join(M.root, artData.location, artData.filename);
     const fileData = fs.readFileSync(artifactPath);
 
     // Deep compare both binaries
-    chai.expect(body).to.deep.equal(fileData);
-    done();
-  });
+    chai.expect(resFile).to.deep.equal(fileData);
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies GET request
  * /api/orgs/:orgid/projects/:projectid/artifacts/list
  * to get a list of artifact blobs.
- *
- * @param {Function} done - The mocha callback.
  */
-function listBlobs(done) {
-  const options = {
-    method: 'GET',
-    url: `${test.url}/api/orgs/${orgID}/projects/${projID}/artifacts/list`,
-    headers: testUtils.getHeaders()
-  };
+async function listBlobs() {
+  try {
+    const options = {
+      method: 'get',
+      url: `${test.url}/api/orgs/${orgID}/projects/${projID}/artifacts/list`,
+      headers: testUtils.getHeaders()
+    };
 
-  request(options, (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
+    // Make an API request
+    const res = await axios(options);
+
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
 
     // Verify response body
-    const blobList = JSON.parse(body);
+    const blobList = res.data;
     chai.expect(blobList[0].location).to.equal(testData.artifacts[0].location);
     chai.expect(blobList[0].filename).to.equal(testData.artifacts[0].filename);
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies GET request to get an artifact blob by id.
- *
- * @param {Function} done - The mocha callback.
  */
-function getBlobById(done) {
-  const artData = testData.artifacts[0];
+async function getBlobById() {
+  try {
+    const artData = testData.artifacts[0];
+    const options = {
+      method: 'get',
+      url: `${test.url}/api/orgs/${orgID}/projects/${projID}/branches/${branchID}/artifacts/${artData.id}/blob`,
+      headers: testUtils.getHeaders(),
+      responseType: 'arraybuffer'
+    };
 
-  const options = {
-    method: 'GET',
-    url: `${test.url}/api/orgs/${orgID}/projects/${projID}/branches/${branchID}/artifacts/${artData.id}/blob`,
-    headers: testUtils.getHeaders(),
-    encoding: null
-  };
+    // Make an API request
+    const res = await axios(options);
 
-  request(options, (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
+
+    // Convert data to buffer
+    const resFile = Buffer.from(res.data, 'binary');
 
     // Check return artifact is of buffer type
-    chai.expect(Buffer.isBuffer(body)).to.equal(true);
+    chai.expect(Buffer.isBuffer(resFile)).to.equal(true);
 
     // Get the file
     const artifactPath = path.join(M.root, artData.location, artData.filename);
     const fileData = fs.readFileSync(artifactPath);
 
     // Deep compare both binaries
-    chai.expect(body).to.deep.equal(fileData);
-    done();
-  });
+    chai.expect(resFile).to.deep.equal(fileData);
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies DELETE request
  * /api/orgs/:orgid/projects/:projectid/artifacts/blob
  * to delete an artifact blob.
- *
- * @param {Function} done - The mocha callback.
  */
-function deleteBlob(done) {
-  const artData = testData.artifacts[0];
-  artData.project = projID;
+async function deleteBlob() {
+  try {
+    const artData = testData.artifacts[0];
+    artData.project = projID;
+    const query = {
+      location: artData.location,
+      filename: artData.filename
+    };
+    const options = {
+      method: 'delete',
+      url: `${test.url}/api/orgs/${orgID}/projects/${projID}/artifacts/blob`,
+      headers: testUtils.getHeaders(),
+      params: query
+    };
 
-  const query = {
-    location: artData.location,
-    filename: artData.filename
-  };
-  const options = {
-    method: 'DELETE',
-    url: `${test.url}/api/orgs/${orgID}/projects/${projID}/artifacts/blob`,
-    headers: testUtils.getHeaders(),
-    qs: query
-  };
+    // Make an API request
+    const res = await axios(options);
 
-  request(options, (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
 
-    const deletedBlob = JSON.parse(body);
+    const deletedBlob = res.data;
     // Verify artifact created properly
     chai.expect(deletedBlob.project).to.equal(projID);
     chai.expect(deletedBlob.location).to.equal(artData.location);
     chai.expect(deletedBlob.filename).to.equal(artData.filename);
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies PATCH request
  * /api/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts/:artifactid
  * to update an artifact.
- *
- * @param {Function} done - The mocha callback.
  */
-function patchArtifact(done) {
-  // Get update artifact data
-  const artData = testData.artifacts[0];
+async function patchArtifact() {
+  try {
+    // Get update artifact data
+    const artData = testData.artifacts[0];
+    const reqBody = {
+      id: artData.id,
+      description: 'edited_description'
+    };
+    const options = {
+      method: 'patch',
+      url: `${test.url}/api/orgs/${orgID}/projects/${projID}/branches/${branchID}/artifacts/${artData.id}`,
+      headers: testUtils.getHeaders(),
+      data: reqBody
+    };
 
-  const reqBody = {
-    id: artData.id,
-    description: 'edited_description'
-  };
+    // Make an API request
+    const res = await axios(options);
 
-  const options = {
-    method: 'PATCH',
-    url: `${test.url}/api/orgs/${orgID}/projects/${projID}/branches/${branchID}/artifacts/${artData.id}`,
-    headers: testUtils.getHeaders(),
-    body: JSON.stringify(reqBody)
-  };
-
-  request(options, (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const patchedArtifact = JSON.parse(body);
+    const patchedArtifact = res.data[0];
 
     // Verify artifact created properly
     chai.expect(patchedArtifact.id).to.equal(artData.id);
@@ -586,43 +618,44 @@ function patchArtifact(done) {
     // Verify specific fields not returned
     chai.expect(patchedArtifact).to.not.have.any.keys('archivedOn', 'archivedBy',
       '__v', '_id');
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies PATCH request
  * /api/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts
  * to update multiple artifacts.
- *
- * @param {Function} done - The mocha callback.
  */
-function patchArtifacts(done) {
-  // Define artifact metadata
-  const artData = [
-    testData.artifacts[1],
-    testData.artifacts[2]
-  ];
+async function patchArtifacts() {
+  try {
+    // Define artifact metadata
+    const artData = [
+      testData.artifacts[1],
+      testData.artifacts[2]
+    ];
+    const updateObj = artData.map(a => ({
+      id: a.id,
+      description: `${a.description}_edit`
+    }));
+    const options = {
+      method: 'patch',
+      url: `${test.url}/api/orgs/${orgID}/projects/${projID}/branches/${branchID}/artifacts`,
+      headers: testUtils.getHeaders(),
+      data: updateObj
+    };
 
-  const updateObj = artData.map(a => ({
-    id: a.id,
-    description: `${a.description}_edit`
-  }));
+    // Make an API request
+    const res = await axios(options);
 
-  const options = {
-    method: 'PATCH',
-    url: `${test.url}/api/orgs/${orgID}/projects/${projID}/branches/${branchID}/artifacts`,
-    headers: testUtils.getHeaders(),
-    body: JSON.stringify(updateObj)
-  };
-
-  request(options, (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const patchedArtifacts = JSON.parse(body);
+    const patchedArtifacts = res.data;
 
     // Verify expected number of documents
     chai.expect(patchedArtifacts.length).to.equal(artData.length);
@@ -658,73 +691,80 @@ function patchArtifacts(done) {
       chai.expect(patchedArtifact).to.not.have.any.keys('archivedOn', 'archivedBy',
         '__v', '_id');
     });
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies DELETE request
  * /api/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts/:artifactid
  * to delete an artifact.
- *
- * @param {Function} done - The mocha callback.
  */
-function deleteArtifact(done) {
-  const artData = testData.artifacts[0];
-  artData.project = projID;
-  artData.branch = branchID;
+async function deleteArtifact() {
+  try {
+    const artData = testData.artifacts[0];
+    artData.project = projID;
+    artData.branch = branchID;
+    const options = {
+      method: 'delete',
+      url: `${test.url}/api/orgs/${orgID}/projects/${projID}/branches/${branchID}/artifacts/${artData.id}`,
+      headers: testUtils.getHeaders()
+    };
 
-  const options = {
-    method: 'DELETE',
-    url: `${test.url}/api/orgs/${orgID}/projects/${projID}/branches/${branchID}/artifacts/${artData.id}`,
-    headers: testUtils.getHeaders()
-  };
+    // Make an API request
+    const res = await axios(options);
 
-  request(options, (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
     // Verify response body
-    const deletedArtifact = JSON.parse(body);
+    const deletedArtifact = res.data[0];
     // Verify artifact created properly
     chai.expect(deletedArtifact).to.equal(artData.id);
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }
 
 /**
  * @description Verifies DELETE request
  * /api/orgs/:orgid/projects/:projectid/branches/:branchid/artifacts
  * to delete multiple artifacts.
- *
- * @param {Function} done - The mocha callback.
  */
-function deleteArtifacts(done) {
-  // Define artifact metadata
-  const artIDs = [
-    testData.artifacts[1].id,
-    testData.artifacts[2].id
-  ];
+async function deleteArtifacts() {
+  try {
+    // Define artifact metadata
+    const artIDs = [
+      testData.artifacts[1].id,
+      testData.artifacts[2].id
+    ];
+    const ids = artIDs.join(',');
+    const options = {
+      method: 'delete',
+      url: `${test.url}/api/orgs/${orgID}/projects/${projID}/branches/${branchID}/artifacts?ids=${ids}`,
+      headers: testUtils.getHeaders()
+    };
 
-  const ids = artIDs.join(',');
+    // Make an API request
+    const res = await axios(options);
 
-  const options = {
-    method: 'DELETE',
-    url: `${test.url}/api/orgs/${orgID}/projects/${projID}/branches/${branchID}/artifacts?ids=${ids}`,
-    headers: testUtils.getHeaders()
-  };
-
-  request(options, (err, response, body) => {
-    // Expect no error
-    chai.expect(err).to.equal(null);
     // Expect response status: 200 OK
-    chai.expect(response.statusCode).to.equal(200);
+    chai.expect(res.status).to.equal(200);
 
     // Verify response body
-    const deletedArtifactIDs = JSON.parse(body);
+    const deletedArtifactIDs = res.data;
 
     chai.expect(deletedArtifactIDs).to.have.members(artIDs);
-    done();
-  });
+  }
+  catch (error) {
+    M.log.error(error);
+    // Expect no error
+    chai.expect(error).to.equal(null);
+  }
 }

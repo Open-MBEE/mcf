@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner Connor Doyle
  *
@@ -1216,7 +1216,7 @@ async function createOrReplace(requestingUser, organizationID, projectID,
     const searchQuery = { branch: utils.createID(orgID, projID, branID) };
 
     // Find elements in batches
-    for (let i = 0; i < arrIDs.length / 50000; i++) {
+        for (let i = 0; i < arrIDs.length / 50000; i++) {
       // Split arrIDs list into batches of 50000
       searchQuery._id = { $in: arrIDs.slice(i * 50000, i * 50000 + 50000) };
 

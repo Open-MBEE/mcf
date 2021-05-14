@@ -5,7 +5,7 @@
  *
  * @copyright Copyright (C) 2018, Lockheed Martin Corporation
  *
- * @license MIT
+ * @license Apache-2.0
  *
  * @owner James Eckstein
  *
@@ -16,9 +16,11 @@
 
 /* Modified ESLint rules for React. */
 /* eslint-disable no-unused-vars */
+/* eslint-disable jsdoc/require-jsdoc */
 
 // React modules
-import React, { Component } from 'react';
+import React, { useState } from 'react';
+import PropTypes from 'prop-types';
 import {
   Form,
   FormGroup,
@@ -31,287 +33,254 @@ import {
 
 // MBEE modules
 import validators from '../../../../build/json/validators.json';
+import { useApiClient } from '../context/ApiClientProvider.js';
 
 /* eslint-enable no-unused-vars */
 
 // Define component
-class ProfileEdit extends Component {
+function ProfileEdit(props) {
+  const { userService } = useApiClient();
+  const [state, setState] = useState({
+    username: props.user.username || '',
+    fname: props.user.fname || '',
+    lname: props.user.lname || '',
+    preferredName: props.user.preferredName || '',
+    email: props.user.email || '',
+    admin: props.user.admin,
+    archived: props.user.archived,
+    custom: JSON.stringify(props.user.custom || {}, null, 2)
+  });
+  const [error, setError] = useState(null);
 
-  constructor(props) {
-    // Initialize parent props
-    super(props);
-
-    // Initialize state props
-    this.state = {
-      fname: this.props.user.fname,
-      lname: this.props.user.lname,
-      preferred: this.props.user.preferredName,
-      email: this.props.user.email,
-      admin: this.props.user.admin,
-      archived: this.props.user.archived,
-      custom: JSON.stringify(this.props.user.custom || {}, null, 2),
-      error: null
-    };
-
-    // Bind component functions
-    this.handleChange = this.handleChange.bind(this);
-    this.onSubmit = this.onSubmit.bind(this);
-  }
-
-  // Define handle change function
-  handleChange(event) {
-    // Verify target being changed
-    if (event.target.name === 'admin') {
-      // Change the admin state to opposite value
-      this.setState(prevState => ({ admin: !prevState.admin }));
-    }
-    else if (event.target.name === 'archived') {
-      // Change the archived state to opposite value
-      this.setState(prevState => ({ archived: !prevState.archived }));
+  const handleChange = (e) => {
+    if (e.target.name === 'admin' || e.target.name === 'archived') {
+      setState((prevState) => ({
+        ...prevState,
+        [e.target.name]: !prevState[e.target.name]
+      }));
     }
     else {
-      // Change the state with new value
-      this.setState({ [event.target.name]: event.target.value });
+      setState((prevState) => ({
+        ...prevState,
+        [e.target.name]: e.target.value
+      }));
     }
-  }
+    // This is needed for successions of events within an input html element for some reason
+    e.persist();
+  };
 
-  // Define the submit function
-  onSubmit() {
-    const url = `/api/users/${this.props.user.username}`;
-    let reroute = '/profile';
-
+  const onSubmit = async () => {
     const data = {
-      fname: this.state.fname,
-      lname: this.state.lname,
-      preferredName: this.state.preferred,
-      admin: this.state.admin,
-      archived: this.state.archived,
-      custom: JSON.parse(this.state.custom)
+      ...state,
+      custom: JSON.parse(state.custom)
     };
 
-    if (this.state.email) {
-      data.email = this.state.email;
-    }
+    // Send request
+    const [err, result] = await userService.patch(data);
 
-    if (this.props.onAdminPage) {
-      reroute = '/admin';
+    // Set the state
+    if (err) {
+      setError(err);
     }
-    else if (this.props.viewingUser) {
-      reroute = `/profile/${this.props.user.username}`;
+    else if (result) {
+      props.refreshUsers();
+      // Toggle the modal
+      props.toggle(props.user);
     }
+  };
 
-    // Send a patch request to update user data
-    $.ajax({
-      method: 'PATCH',
-      url: `${url}?minified=true`,
-      contentType: 'application/json',
-      data: JSON.stringify(data),
-      statusCode: {
-        200: () => {
-          window.location.replace(reroute);
-        },
-        401: (err) => {
-          this.setState({ error: err.responseText });
 
-          // Refresh when session expires
-          window.location.reload();
-        },
-        403: (err) => {
-          this.setState({ error: err.responseText });
-        },
-        404: (err) => {
-          this.setState({ error: err.responseText });
-        }
-      }
-    });
+  // Initialize variables
+  const fnameInvalid = (!RegExp(validators.user.firstName).test(state.fname));
+  const lnameInvalid = (!RegExp(validators.user.lastName).test(state.lname));
+  const preferredInvalid = (!RegExp(validators.user.firstName).test(state.preferredname));
+  let emailInvalid = false;
+  let customInvalid = false;
+  let titleClass = 'workspace-title workspace-title-padding';
+  let localUser = false;
+  let adminUser = false;
+
+  // Ensure the characters have been entered first
+  if (state.email.length !== 0) {
+    emailInvalid = (!RegExp(validators.user.email).test(state.email));
   }
 
-  render() {
-    // Initialize variables
-    const fnameInvalid = (!RegExp(validators.user.firstName).test(this.state.fname));
-    const lnameInvalid = (!RegExp(validators.user.lastName).test(this.state.lname));
-    const preferredInvalid = (!RegExp(validators.user.firstName).test(this.state.preferredname));
-    let emailInvalid = false;
-    let customInvalid = false;
-    let titleClass = 'workspace-title workspace-title-padding';
-    let localUser = false;
-    let adminUser = false;
+  // Check admin/write permissions
+  if (props.user.provider === 'local') {
+    localUser = true;
+    titleClass = 'workspace-title';
+  }
 
-    // Ensure the characters have been entered first
-    if (this.state.email.length !== 0) {
-      emailInvalid = (!RegExp(validators.user.email).test(this.state.email));
-    }
+  if (props.user.admin) {
+    adminUser = true;
+  }
 
-    // Check admin/write permissions
-    if (this.props.user.provider === 'local') {
-      localUser = true;
-      titleClass = 'workspace-title';
-    }
+  if (props.viewingUser) {
+    adminUser = props.viewingUser.admin;
+  }
 
-    if (this.props.user.admin) {
-      adminUser = true;
-    }
+  // Verify if custom data is correct JSON format
+  try {
+    JSON.parse(state.custom);
+  }
+  catch (err) {
+    // Set invalid fields
+    customInvalid = true;
+  }
 
-    if (this.props.viewingUser) {
-      adminUser = this.props.viewingUser.admin;
-    }
+  // eslint-disable-next-line max-len
+  const disableSubmit = (fnameInvalid
+    || lnameInvalid
+    || preferredInvalid
+    || emailInvalid
+    || customInvalid);
 
-    // Verify if custom data is correct JSON format
-    try {
-      JSON.parse(this.state.custom);
-    }
-    catch (err) {
-      // Set invalid fields
-      customInvalid = true;
-    }
-
-    // eslint-disable-next-line max-len
-    const disableSubmit = (fnameInvalid
-      || lnameInvalid
-      || preferredInvalid
-      || emailInvalid
-      || customInvalid);
-
-    // Render user edit page
-    return (
-      <div id='workspace'>
-        <div className='workspace-header'>
-          <h2 className={titleClass}>User Edit</h2>
-          {(localUser)
-            ? (<div className='workspace-header-button'>
-              <Button className='bigger-width-btn'
-                      size='sm'
-                      outline color='primary'
-                      onClick={this.props.togglePasswordModal}>
-                Edit Password
-              </Button>
-            </div>)
+  // Render user edit page
+  return (
+    <div id='workspace'>
+      <div className='workspace-header'>
+        <h2 className={titleClass}>User Edit</h2>
+        {(localUser)
+          ? (<div className='workspace-header-button'>
+            <Button className='bigger-width-btn'
+                    size='sm'
+                    outline color='primary'
+                    onClick={props.togglePasswordModal}>
+              Edit Password
+            </Button>
+          </div>)
+          : ''
+        }
+      </div>
+      <div id='workspace-body' className='extra-padding'>
+        <div className='main-workspace'>
+          {(error)
+            ? (<UncontrolledAlert color="danger">
+              {error}
+            </UncontrolledAlert>)
             : ''
           }
-        </div>
-        <div id='workspace-body' className='extra-padding'>
-          <div className='main-workspace'>
-            {(this.state.error)
-              ? (<UncontrolledAlert color="danger">
-                {this.state.error}
-              </UncontrolledAlert>)
-              : ''
+          {/* Create form to update user data */}
+          <Form>
+            {/* Form section for user's first name */}
+            <FormGroup>
+              <Label for="fname">User's First Name</Label>
+              <Input type="fname"
+                     name="fname"
+                     id="fname"
+                     placeholder="User's first name"
+                     value={state.fname}
+                     invalid={fnameInvalid}
+                     onChange={handleChange}/>
+              {/* Verify fields are valid, or display feedback */}
+              <FormFeedback >
+                Invalid: First name can only be letters, dashes, and spaces.
+              </FormFeedback>
+            </FormGroup>
+            {/* Form section for user's preferred name */}
+            <FormGroup>
+              <Label for="preferredName">User's Preferred Name</Label>
+              <Input type="preferredName"
+                     name="preferredName"
+                     id="preferredName"
+                     placeholder="User's preferred name"
+                     value={state.preferredName}
+                     invalid={preferredInvalid}
+                     onChange={handleChange}/>
+              {/* Verify fields are valid, or display feedback */}
+              <FormFeedback >
+                Invalid: Preferred name can only be letters, dashes, and spaces.
+              </FormFeedback>
+            </FormGroup>
+            {/* Form section for user's last name */}
+            <FormGroup>
+              <Label for="lname">User's Last Name</Label>
+              <Input type="lname"
+                     name="lname"
+                     id="lname"
+                     placeholder="User's last name"
+                     value={state.lname}
+                     invalid={lnameInvalid}
+                     onChange={handleChange}/>
+              {/* Verify fields are valid, or display feedback */}
+              <FormFeedback >
+                Invalid: Last name can only be letters, dashes, and spaces.
+              </FormFeedback>
+            </FormGroup>
+            {/* Form section for the user's email */}
+            <FormGroup>
+              <Label for="email">Email</Label>
+              <Input type="email"
+                     name="email"
+                     id="email"
+                     placeholder="email@example.com"
+                     value={state.email}
+                     invalid={emailInvalid}
+                     onChange={handleChange}/>
+            </FormGroup>
+            {/* Form section for custom data */}
+            <FormGroup>
+              <Label for="custom">Custom Data</Label>
+              <Input type="custom"
+                     name="custom"
+                     id="custom"
+                     placeholder="Custom Data"
+                     value={state.custom}
+                     invalid={customInvalid}
+                     onChange={handleChange}/>
+              {/* Verify fields are valid, or display feedback */}
+              <FormFeedback>
+                Invalid: Custom data must be valid JSON
+              </FormFeedback>
+            </FormGroup>
+            {(!adminUser)
+              ? ''
+              : (<React.Fragment>
+                  <FormGroup check>
+                    <Label check>
+                      <Input type="checkbox"
+                             name="admin"
+                             id="admin"
+                             checked={state.admin}
+                             value={state.admin}
+                             onChange={handleChange} />
+                        Admin
+                    </Label>
+                  </FormGroup>
+                  <FormGroup check className='bottom-spacing'>
+                    <Label check>
+                      <Input type="checkbox"
+                             name="archived"
+                             id="archived"
+                             checked={state.archived}
+                             value={state.archived || false}
+                             onChange={handleChange} />
+                        Archived
+                    </Label>
+                  </FormGroup>
+                </React.Fragment>)
             }
-            {/* Create form to update user data */}
-            <Form>
-              {/* Form section for user's first name */}
-              <FormGroup>
-                <Label for="fname">User's First Name</Label>
-                <Input type="fname"
-                       name="fname"
-                       id="fname"
-                       placeholder="User's first name"
-                       value={this.state.fname || ''}
-                       invalid={fnameInvalid}
-                       onChange={this.handleChange}/>
-                {/* Verify fields are valid, or display feedback */}
-                <FormFeedback >
-                  Invalid: First name can only be letters, dashes, and spaces.
-                </FormFeedback>
-              </FormGroup>
-              {/* Form section for user's preferred name */}
-              <FormGroup>
-                <Label for="preferred">User's Preferred Name</Label>
-                <Input type="preferred"
-                       name="preferred"
-                       id="preferred"
-                       placeholder="User's preferred name"
-                       value={this.state.preferred || ''}
-                       invalid={preferredInvalid}
-                       onChange={this.handleChange}/>
-                {/* Verify fields are valid, or display feedback */}
-                <FormFeedback >
-                  Invalid: Preferred name can only be letters, dashes, and spaces.
-                </FormFeedback>
-              </FormGroup>
-              {/* Form section for user's last name */}
-              <FormGroup>
-                <Label for="lname">User's Last Name</Label>
-                <Input type="lname"
-                       name="lname"
-                       id="lname"
-                       placeholder="User's last name"
-                       value={this.state.lname || ''}
-                       invalid={lnameInvalid}
-                       onChange={this.handleChange}/>
-                {/* Verify fields are valid, or display feedback */}
-                <FormFeedback >
-                  Invalid: Last name can only be letters, dashes, and spaces.
-                </FormFeedback>
-              </FormGroup>
-              {/* Form section for the user's email */}
-              <FormGroup>
-                <Label for="email">Email</Label>
-                <Input type="email"
-                       name="email"
-                       id="email"
-                       placeholder="email@example.com"
-                       value={this.state.email || ''}
-                       invalid={emailInvalid}
-                       onChange={this.handleChange}/>
-              </FormGroup>
-              {/* Form section for custom data */}
-              <FormGroup>
-                <Label for="custom">Custom Data</Label>
-                <Input type="custom"
-                       name="custom"
-                       id="custom"
-                       placeholder="Custom Data"
-                       value={this.state.custom || ''}
-                       invalid={customInvalid}
-                       onChange={this.handleChange}/>
-                {/* Verify fields are valid, or display feedback */}
-                <FormFeedback>
-                  Invalid: Custom data must be valid JSON
-                </FormFeedback>
-              </FormGroup>
-              {(!adminUser)
-                ? ''
-                : (<React.Fragment>
-                    <FormGroup check>
-                      <Label check>
-                        <Input type="checkbox"
-                               name="admin"
-                               id="admin"
-                               checked={this.state.admin}
-                               value={this.state.admin}
-                               onChange={this.handleChange} />
-                          Admin
-                      </Label>
-                    </FormGroup>
-                    <FormGroup check className='bottom-spacing'>
-                      <Label check>
-                        <Input type="checkbox"
-                               name="archived"
-                               id="archived"
-                               checked={this.state.archived}
-                               value={this.state.archived || false}
-                               onChange={this.handleChange} />
-                          Archived
-                      </Label>
-                    </FormGroup>
-                  </React.Fragment>)
-              }
-              {/* Button to submit changes */}
-              <Button outline
-                      color='primary'
-                      disabled={disableSubmit}
-                      onClick={this.onSubmit}> Submit </Button>
-              {' '}
-              <Button outline onClick={this.props.toggle}> Cancel </Button>
-            </Form>
-          </div>
+            {/* Button to submit changes */}
+            <Button outline
+                    color='primary'
+                    disabled={disableSubmit}
+                    onClick={onSubmit}> Submit </Button>
+            {' '}
+            <Button outline onClick={props.toggle}> Cancel </Button>
+          </Form>
         </div>
       </div>
-    );
-  }
-
+    </div>
+  );
 }
+
+ProfileEdit.propTypes = {
+  user: PropTypes.oneOfType([PropTypes.object, PropTypes.string]),
+  viewingUser: PropTypes.object,
+  togglePasswordModal: PropTypes.func,
+  toggle: PropTypes.func,
+  refreshUsers: PropTypes.func
+};
 
 // Export component
 export default ProfileEdit;
