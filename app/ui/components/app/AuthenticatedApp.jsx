@@ -32,10 +32,19 @@ import AdminConsoleHome from '../admin-console-views/admin-console-home.jsx';
 import About from '../general/About.jsx';
 import NotFound from '../shared-views/NotFound.jsx';
 
+import uiConfig from '../../../../build/json/uiConfig.json';
+
 export default function AuthenticatedApp(props) {
+  const basePath = () => {
+    let path = '/'
+    if (typeof uiConfig.basePath !== 'undefined') {
+      path = uiConfig.basePath.replace(/\/$/, "");
+    }
+    return path;
+  };
   return (
     <Switch>
-      <Route path={'/login'} component={() => <Redirect to={'/'}/>}/>
+      <Route path={'/login'} component={() => <Redirect to={basePath()}/>}/>
       <Route path={'/orgs/:orgid/projects/:projectid'} component={ProjectHome} />
       <Route path={'/orgs/:orgid'} component={OrgHome} />
       <Route path={'/profile/:username'} component={ProfileHome}/>
