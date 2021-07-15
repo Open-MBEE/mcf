@@ -188,7 +188,7 @@ function initApp() {
       app.get('/doc/flight-manual',
         middleware.logRoute,
         UIController.flightManual);
-      app.use('/', middleware.logRoute, (req, res) => {
+      app.use(M.config.server.ui.basePath, middleware.logRoute, (req, res) => {
         res.sendFile(path.join(M.root, 'build', 'public', 'index.html'));
       });
     }
