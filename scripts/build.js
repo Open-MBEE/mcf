@@ -41,10 +41,19 @@ const markdown = require('gulp-markdown');
 const rename = require('gulp-rename');
 const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const HtmlReplaceWebpackPlugin = require('html-replace-webpack-plugin');
 
 // MBEE modules
 const validators = M.require('lib.validators');
 const utils = M.require('lib.utils');
+
+const basePath = () => {
+  let bpath = '';
+  if (typeof M.config.server.ui.basePath !== 'undefined') {
+    bpath = M.config.server.ui.basePath.replace(/\/$/, '');
+  }
+  return bpath;
+};
 
 /**
  * @description Builds the MBEE static assets by:
@@ -201,7 +210,7 @@ function build(_args) {
         output: {
           path: path.join(M.root, 'build', 'public', 'js'),
           filename: 'index_bundle.js',
-          publicPath: '/js/'
+          publicPath: `${basePath()}/js/`
         },
         devServer: {
           historyApiFallback: true
@@ -223,7 +232,14 @@ function build(_args) {
           new HtmlWebpackPlugin({
             template: path.join(M.root, 'app', 'ui', 'html', 'index_template.html'),
             filename: path.join(M.root, 'build', 'public', 'index.html')
-          })
+          }),
+          new HtmlReplaceWebpackPlugin([
+            {
+              pattern: '@@basePath',
+              replacement: `${basePath()}/`
+            }
+
+          ])
         ]
       }, (err, stats) => {
         if (err || stats.hasErrors()) {
@@ -241,8 +257,9 @@ function build(_args) {
   .then(() => {
     M.log.info('Build Complete.');
   })
-  .catch(() => {
+  .catch((e) => {
     M.log.warn('React build FAILED');
+    M.log.debug(e.stack);
     M.log.info('Build Complete.');
   });
 }
