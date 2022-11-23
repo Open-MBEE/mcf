@@ -32,6 +32,7 @@ import Banner from '../general/Banner.jsx';
 import { useAuth } from '../context/AuthProvider.js';
 import { useApiClient } from '../context/ApiClientProvider.js';
 
+import uiConfig from '../../../../build/json/uiConfig.json';
 
 export default function App(props) {
   const { auth, setAuth } = useAuth();
@@ -83,8 +84,16 @@ export default function App(props) {
     );
   }
 
+  const basePath = () => {
+    let path = '/'
+    if (typeof uiConfig.basePath !== 'undefined') {
+      path = uiConfig.basePath.replace(/\/$/, "");
+    }
+    return path;
+  };
+
   return (
-    <Router>
+    <Router basename={basePath()}>
       <Banner>
         { app }
       </Banner>
